@@ -73,11 +73,21 @@ export {
 export type { TexturePool, TexturePoolOptions } from "./media/texturePool.browser";
 // WebGpuImage is browser-only at runtime; type-only re-export lets
 // browser-targeted filter files (*.webgpu.ts) type-check under node tsc.
-export { SharpImage } from "./media/sharpImage.node";
+export {
+  SharpImage,
+  decodeBufferToRaw,
+  encodeRawPixels,
+  probeImageDimensions,
+} from "./media/sharpImage.server";
+export type {
+  DecodeBufferToRawOptions,
+  EncodeRawPixelsOptions,
+  RawPixelInput,
+} from "./media/sharpImage.server";
 export type { ApplyParams, WebGpuImage } from "./media/webGpuImage.browser";
 
 import { registerGpuImageFactory as _registerGpuImageFactory } from "./media/gpuImage";
 import type { ImageValue as _ImageValue } from "./media/imageValue";
-import { SharpImage as _SharpImage } from "./media/sharpImage.node";
+import { SharpImage as _SharpImage } from "./media/sharpImage.server";
 
 _registerGpuImageFactory("from", (value: _ImageValue) => _SharpImage.from(value));

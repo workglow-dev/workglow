@@ -122,22 +122,23 @@ export async function normalizeToImageValue(value: unknown): Promise<ImageValue 
   return undefined;
 }
 
-async function decodeDataUriToNodeImageValue(
-  dataUri: string,
-): Promise<NodeImageValue | undefined> {
+async function decodeDataUriToNodeImageValue(dataUri: string): Promise<NodeImageValue | undefined> {
   const match = /^data:([^;,]+);base64,(.+)$/.exec(dataUri);
   if (!match) return undefined;
   const mime = match[1] ?? "image/png";
   const base64 = match[2] ?? "";
   const buffer = Buffer.from(base64, "base64");
   const format: NodeImageFormat = /jpe?g/i.test(mime) ? "jpeg" : "png";
-  // Probe dimensions through the registered raster codec. Throws if no codec
-  // is registered (e.g. `@workglow/tasks` was not imported); surface that to
-  // the caller via undefined so the resolver's error message takes over.
+  // Probe dimensions through the registered raster codec. Rethrow any codec
+  // failure with the original error as `cause` so the underlying problem
+  // (no codec registered, malformed payload, etc.) isn't lost behind the
+  // resolver's generic "unsupported string" message.
   try {
     const decoded = await getImageRasterCodec().decodeDataUri(dataUri);
     return imageValueFromBuffer(buffer, format, decoded.width, decoded.height);
-  } catch {
-    return undefined;
+  } catch (err) {
+    throw new Error("normalizeToImageValue: failed to probe data URI dimensions", {
+      cause: err,
+    });
   }
 }

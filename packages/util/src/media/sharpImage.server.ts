@@ -35,13 +35,25 @@ type Sharp = {
 
 type SharpModule = (
   input?: Buffer | Uint8ClampedArray,
-  opts?: { raw?: { width: number; height: number; channels: 1 | 2 | 3 | 4 } },
+  opts?: {
+    raw?: { width: number; height: number; channels: 1 | 2 | 3 | 4 };
+    limitInputPixels?: number;
+    sequentialRead?: boolean;
+  },
 ) => Sharp;
 
 let cachedSharp: SharpModule | null = null;
 async function loadSharp(): Promise<SharpModule> {
   if (cachedSharp) return cachedSharp;
-  const mod = await import("sharp");
+  let mod: unknown;
+  try {
+    mod = await import("sharp");
+  } catch {
+    throw new Error(
+      "Server-side image processing requires the optional 'sharp' package. " +
+        "Install it with: npm install sharp  (or bun add sharp)"
+    );
+  }
   cachedSharp = ((mod as { default?: unknown }).default ?? mod) as SharpModule;
   return cachedSharp;
 }
@@ -133,6 +145,80 @@ export class SharpImage implements IGpuImage {
 
 function isObjectResult(r: unknown): r is { data: Buffer; info: { width: number; height: number; channels: number } } {
   return !!r && typeof r === "object" && "data" in r && "info" in r;
+}
+
+export interface DecodeBufferToRawOptions {
+  readonly limitInputPixels?: number;
+  readonly sequentialRead?: boolean;
+  readonly ensureAlpha?: boolean;
+}
+
+export interface RawPixelInput {
+  readonly data: Buffer | Uint8ClampedArray;
+  readonly width: number;
+  readonly height: number;
+  readonly channels: 1 | 2 | 3 | 4;
+}
+
+export type EncodeRawPixelsOptions =
+  | { readonly format: "png"; readonly compressionLevel?: number }
+  | { readonly format: "jpeg"; readonly quality?: number; readonly mozjpeg?: boolean }
+  | { readonly format: "webp"; readonly quality?: number };
+
+export async function probeImageDimensions(
+  buffer: Buffer
+): Promise<{ width: number; height: number; channels: number | undefined }> {
+  const sharp = await loadSharp();
+  const meta = await sharp(buffer).metadata();
+  if (typeof meta.width !== "number" || typeof meta.height !== "number") {
+    throw new Error("probeImageDimensions: sharp could not read image dimensions");
+  }
+  return { width: meta.width, height: meta.height, channels: meta.channels };
+}
+
+export async function decodeBufferToRaw(
+  buffer: Buffer,
+  options?: DecodeBufferToRawOptions
+): Promise<{ data: Buffer; width: number; height: number; channels: number }> {
+  const sharp = await loadSharp();
+  const sharpOpts: { limitInputPixels?: number; sequentialRead?: boolean } = {};
+  if (options?.limitInputPixels !== undefined) sharpOpts.limitInputPixels = options.limitInputPixels;
+  if (options?.sequentialRead !== undefined) sharpOpts.sequentialRead = options.sequentialRead;
+  let pipeline = sharp(buffer, sharpOpts);
+  if (options?.ensureAlpha) pipeline = pipeline.ensureAlpha();
+  const result = await pipeline.raw().toBuffer({ resolveWithObject: true });
+  if (!isObjectResult(result)) throw new Error("decodeBufferToRaw: expected resolveWithObject result");
+  return {
+    data: result.data,
+    width: result.info.width,
+    height: result.info.height,
+    channels: result.info.channels,
+  };
+}
+
+export async function encodeRawPixels(
+  raw: RawPixelInput,
+  options: EncodeRawPixelsOptions
+): Promise<Buffer> {
+  const sharp = await loadSharp();
+  const inputBuffer: Buffer =
+    raw.data instanceof Uint8ClampedArray
+      ? Buffer.from(raw.data.buffer, raw.data.byteOffset, raw.data.byteLength)
+      : raw.data;
+  const pipeline = sharp(inputBuffer, {
+    raw: { width: raw.width, height: raw.height, channels: raw.channels },
+  });
+  let encoded: unknown;
+  if (options.format === "png") {
+    encoded = await pipeline.png({ compressionLevel: options.compressionLevel }).toBuffer();
+  } else if (options.format === "jpeg") {
+    encoded = await pipeline
+      .jpeg({ quality: options.quality, mozjpeg: options.mozjpeg })
+      .toBuffer();
+  } else {
+    encoded = await pipeline.webp({ quality: options.quality }).toBuffer();
+  }
+  return encoded as Buffer;
 }
 
 registerGpuImageFactory("from", SharpImage.from.bind(SharpImage));

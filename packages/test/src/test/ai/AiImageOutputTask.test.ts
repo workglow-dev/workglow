@@ -10,20 +10,20 @@ import type { ModelConfig } from "@workglow/ai";
 import { AiImageOutputTask } from "@workglow/ai";
 
 // Test subclass: overrides the abstract bits with concrete schemas.
-class _TestImageTask extends AiImageOutputTask<{
+class TestImageTask extends AiImageOutputTask<{
   prompt: string;
   model: ModelConfig | string;
   seed?: number;
   aspectRatio?: string;
 }> {
-  public static override type = "_TestImageTask";
+  public static override type = "TestImageTask";
   public static override category = "Test";
   public static override inputSchema() {
     return {
       type: "object",
       properties: {
         prompt: { type: "string" },
-        model: { type: "string", format: "model:_TestImageTask" },
+        model: { type: "string", format: "model:TestImageTask" },
         seed: { type: "number" },
         aspectRatio: { type: "string" },
       },
@@ -43,13 +43,13 @@ function fakeImageValue(width = 8, height = 8, previewScale = 1): ImageValue {
 describe("AiImageOutputTask", () => {
   describe("seed-aware cacheable", () => {
     it("is not cacheable when seed is undefined", () => {
-      const task = new _TestImageTask({});
+      const task = new TestImageTask({});
       task.runInputData = { prompt: "x", model: "m" };
       expect(task.cacheable).toBe(false);
     });
 
     it("is cacheable when seed is set", () => {
-      const task = new _TestImageTask({});
+      const task = new TestImageTask({});
       task.runInputData = { prompt: "x", model: "m", seed: 42 };
       expect(task.cacheable).toBe(true);
     });
@@ -65,7 +65,7 @@ describe("AiImageOutputTask", () => {
     it("replaces the prior partial when a new one is ingested", () => {
       const a = fakeImageValue();
       const b = fakeImageValue();
-      const task = new _TestImageTask({});
+      const task = new TestImageTask({});
       (task as any).ingestPartial(a);
       expect((task as any)._latestPartial).toBe(a);
       (task as any).ingestPartial(b);
@@ -74,7 +74,7 @@ describe("AiImageOutputTask", () => {
 
     it("clears the buffer on takeFinalPartial without retaining", () => {
       const a = fakeImageValue();
-      const task = new _TestImageTask({});
+      const task = new TestImageTask({});
       (task as any).ingestPartial(a);
       const out = (task as any).takeFinalPartial();
       expect(out).toBe(a);
@@ -84,7 +84,7 @@ describe("AiImageOutputTask", () => {
 
   describe("placeholder preview", () => {
     it("returns a non-undefined ImageValue and never calls a provider", async () => {
-      const task = new _TestImageTask({});
+      const task = new TestImageTask({});
       task.runInputData = { prompt: "a sunset", model: "m" };
       const out = await task.executePreview(
         { prompt: "a sunset", model: "m" } as any,

@@ -101,7 +101,13 @@ export class AiImageOutputTask<
    *
    * Providers yield `{ type: "snapshot", data: { image: ImageValue } }` for each
    * partial (and the final). On `finish`, we clear `_latestPartial` — the final
-   * partial is owned by `runOutputData`.
+   * image is owned by `runOutputData`.
+   *
+   * Note: this relies on the runner's snapshot-mode accumulator falling back
+   * to `runOutputData` when `finish.data` is empty (see `TaskRunner` finish
+   * handling). Providers MUST yield the final image as a `snapshot` event
+   * before `finish`, and `finish.data` MUST stay empty — otherwise the
+   * runner would overwrite the accumulated snapshot with empty data.
    */
   override async *executeStream(
     input: Input,

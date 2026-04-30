@@ -71,6 +71,21 @@ export type { TexturePool, TexturePoolOptions } from "./media/texturePool.browse
 export { WebGpuImage } from "./media/webGpuImage.browser";
 export type { ApplyParams } from "./media/webGpuImage.browser";
 
+// Throwing stubs for server-only sharp helpers. These exist so cross-platform
+// consumers (e.g. `@workglow/ai-provider/common/imageOutputHelpers`) can
+// statically import the helpers without browser bundlers tripping on missing
+// exports. Runtime gates (`if (HAS_BUFFER)` etc.) ensure these are never
+// called on the browser path.
+export async function probeImageDimensions(): Promise<never> {
+  throw new Error("probeImageDimensions: not available in browser runtime");
+}
+export async function decodeBufferToRaw(): Promise<never> {
+  throw new Error("decodeBufferToRaw: not available in browser runtime");
+}
+export async function encodeRawPixels(): Promise<never> {
+  throw new Error("encodeRawPixels: not available in browser runtime");
+}
+
 import { CpuImage as _CpuImage } from "./media/cpuImage";
 import { getGpuDevice as _getGpuDevice } from "./media/gpuDevice.browser";
 import { registerGpuImageFactory as _registerGpuImageFactory } from "./media/gpuImage";

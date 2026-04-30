@@ -21,62 +21,21 @@
  * mime detection if added later.
  */
 
-import type {
-  BrowserImageValue,
-  ImageValue,
-  NodeImageFormat,
-  NodeImageValue,
+import type { ImageValue, NodeImageFormat } from "@workglow/util/media";
+import {
+  encodeRawPixels,
+  imageValueFromBitmap,
+  imageValueFromBuffer,
+  probeImageDimensions,
 } from "@workglow/util/media";
 
-// Inline POJO factories — duplicated from `@workglow/util/media/imageValue.ts`
-// so this module can be pulled into worker bundles without dragging in the
-// whole `@workglow/util/media` runtime (`WebGpuImage`, GPU device init, etc.).
-// Type-only imports above strip at compile time and don't trigger the
-// runtime side-effect imports in `media-browser.ts` / `media-node.ts`.
-function imageValueFromBitmap(
-  bitmap: ImageBitmap,
-  width: number,
-  height: number,
-  previewScale: number = 1.0,
-): BrowserImageValue {
-  return { bitmap, width, height, previewScale };
-}
-function imageValueFromBuffer(
-  buffer: Buffer,
-  format: NodeImageFormat,
-  width: number,
-  height: number,
-  previewScale: number = 1.0,
-): NodeImageValue {
-  return { buffer, format, width, height, previewScale };
-}
-
-/** Lazy sharp loader — node only, not pulled into the browser bundle. Typed
- *  as `unknown`-via-`SharpFn` so we don't take a compile-time dependency on
- *  the sharp module's TypeScript declarations (which `ai-provider` does not
- *  list as a peer). The runtime resolution is identical to other workspace
- *  consumers (e.g. `@workglow/util` `SharpImage`). */
-type SharpInstance = {
-  metadata(): Promise<{ width?: number; height?: number }>;
-  png(): { toBuffer(): Promise<Buffer> };
-};
-type SharpFn = (
-  input: Buffer,
-  opts?: { raw: { width: number; height: number; channels: 1 | 2 | 3 | 4 } },
-) => SharpInstance;
-
-let cachedSharp: SharpFn | null = null;
-
-async function loadSharp(): Promise<SharpFn> {
-  if (cachedSharp) return cachedSharp;
-  // Indirect through a string spec to keep the TS module resolver from
-  // demanding a `sharp` type declaration in the ai-provider tsconfig.
-  const spec = "sharp";
-  const mod = (await import(/* @vite-ignore */ spec)) as { default?: SharpFn } & SharpFn;
-  const fn = (mod.default ?? (mod as unknown as SharpFn));
-  cachedSharp = fn;
-  return fn;
-}
+// Prefer the browser path when `createImageBitmap` is available — handles
+// browser-like runtimes that polyfill `Buffer` (e.g. some test harnesses).
+// Node bundles tree-shake `createImageBitmap` to undefined.
+const HAS_BUFFER = typeof Buffer !== "undefined";
+const HAS_CREATE_IMAGE_BITMAP =
+  typeof createImageBitmap === "function" && typeof fetch === "function";
+const PREFER_BROWSER = HAS_CREATE_IMAGE_BITMAP;
 
 function detectFormatFromMime(mime: string): NodeImageFormat {
   if (/jpe?g/i.test(mime)) return "jpeg";
@@ -95,13 +54,7 @@ export async function pngBytesToImageValue(
   // into a fresh Buffer so we don't accidentally retain SharedArrayBuffer
   // memory or alias a pool slice.
   const buffer = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const sharp = await loadSharp();
-  const meta = await sharp(buffer).metadata();
-  const width = meta.width;
-  const height = meta.height;
-  if (typeof width !== "number" || typeof height !== "number") {
-    throw new Error("pngBytesToImageValue: sharp could not read image dimensions");
-  }
+  const { width, height } = await probeImageDimensions(buffer);
   return imageValueFromBuffer(buffer, format, width, height);
 }
 
@@ -119,19 +72,18 @@ export async function dataUriToImageValue(dataUri: string): Promise<ImageValue> 
   const mime = match[1];
   const base64 = match[2];
 
-  if (typeof Buffer !== "undefined") {
+  if (PREFER_BROWSER) {
+    const blob = await (await fetch(dataUri)).blob();
+    const bitmap = await createImageBitmap(blob);
+    return imageValueFromBitmap(bitmap, bitmap.width, bitmap.height);
+  }
+
+  if (HAS_BUFFER) {
     const buffer = Buffer.from(base64, "base64");
     return pngBytesToImageValue(
       new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength),
       detectFormatFromMime(mime),
     );
-  }
-
-  // Browser fallback: decode via createImageBitmap.
-  if (typeof createImageBitmap === "function" && typeof fetch === "function") {
-    const blob = await (await fetch(dataUri)).blob();
-    const bitmap = await createImageBitmap(blob);
-    return imageValueFromBitmap(bitmap, bitmap.width, bitmap.height);
   }
 
   throw new Error("dataUriToImageValue: no Buffer or createImageBitmap available in this runtime");
@@ -143,14 +95,14 @@ export async function dataUriToImageValue(dataUri: string): Promise<ImageValue> 
  * a browser uses `createImageBitmap` directly.
  */
 export async function blobToImageValue(blob: Blob): Promise<ImageValue> {
-  if (typeof Buffer !== "undefined") {
+  if (PREFER_BROWSER) {
+    const bitmap = await createImageBitmap(blob);
+    return imageValueFromBitmap(bitmap, bitmap.width, bitmap.height);
+  }
+  if (HAS_BUFFER) {
     const arrayBuffer = await blob.arrayBuffer();
     const bytes = new Uint8Array(arrayBuffer);
     return pngBytesToImageValue(bytes, detectFormatFromMime(blob.type || "image/png"));
-  }
-  if (typeof createImageBitmap === "function") {
-    const bitmap = await createImageBitmap(blob);
-    return imageValueFromBitmap(bitmap, bitmap.width, bitmap.height);
   }
   throw new Error("blobToImageValue: no Buffer or createImageBitmap available in this runtime");
 }
@@ -205,11 +157,10 @@ export async function imageValueToPngBytes(
         typeof node.width === "number" &&
         typeof node.height === "number"
       ) {
-        const sharp = await loadSharp();
-        const pipeline = sharp(node.buffer, {
-          raw: { width: node.width, height: node.height, channels: 4 },
-        });
-        const out = await pipeline.png().toBuffer();
+        const out = await encodeRawPixels(
+          { data: node.buffer, width: node.width, height: node.height, channels: 4 },
+          { format: "png" },
+        );
         return new Uint8Array(out.buffer, out.byteOffset, out.byteLength);
       }
     }

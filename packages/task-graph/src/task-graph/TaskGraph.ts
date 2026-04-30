@@ -239,7 +239,7 @@ export class TaskGraph implements ITaskGraph {
   public addTask(task: ITask<any, any, any>): unknown;
   public addTask(task: ITask<any, any, any> | PipeFunction<any, any>, config?: any): unknown {
     const t = ensureTask(task, config);
-    (t as any).parentGraph = this;
+    t.parentGraph = this;
     return this._dag.addNode(t);
   }
 
@@ -253,7 +253,7 @@ export class TaskGraph implements ITaskGraph {
   public addTasks(tasks: ITask<any, any, any>[] | PipeFunction<any, any>[]): unknown[] {
     const resolved = tasks.map(ensureTask);
     for (const t of resolved) {
-      (t as any).parentGraph = this;
+      t.parentGraph = this;
     }
     return this._dag.addNodes(resolved);
   }

@@ -44,8 +44,19 @@ export abstract class ImageFilterTask<
       const params = this.scalePreviewParams(this.opParams(input), previewScale);
       const out = applyFilter(gpu, this.filterName, params);
       gpu.dispose();
-      const value = await out.toImageValue(previewScale);
-      return { image: value } as Output;
+      try {
+        const value = await out.toImageValue(previewScale);
+        return { image: value } as Output;
+      } catch (err) {
+        // toImageValue self-disposes on its happy path; this catches a throw
+        // before that disposal runs (e.g. a sync precondition failure).
+        try {
+          out.dispose();
+        } catch {
+          // already disposed — fall through
+        }
+        throw err;
+      }
     } catch (err) {
       gpu.dispose();
       throw err;

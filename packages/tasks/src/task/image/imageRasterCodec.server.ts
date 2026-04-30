@@ -5,6 +5,7 @@
  */
 
 import type { RawPixelBuffer, ImageChannels } from "@workglow/util/media";
+import { decodeBufferToRaw, encodeRawPixels } from "@workglow/util/media";
 
 import {
   MAX_DECODED_PIXELS,
@@ -44,22 +45,6 @@ function expandGrayAlphaToRgba(src: Buffer, width: number, height: number): Uint
   return dst;
 }
 
-let _sharp: typeof import("sharp") | undefined;
-
-async function getSharp() {
-  if (!_sharp) {
-    try {
-      _sharp = (await import("sharp")).default;
-    } catch {
-      throw new Error(
-        "The Node/Bun image raster codec requires the optional 'sharp' package. " +
-          "Install it with: npm install sharp  (or bun add sharp)"
-      );
-    }
-  }
-  return _sharp;
-}
-
 async function decodeDataUri(dataUri: string): Promise<RawPixelBuffer> {
   // Defense in depth: the codec must not trust its caller. An accidental
   // `fetch`/`Buffer.from` path is not reachable here today, but refusing
@@ -75,7 +60,6 @@ async function decodeDataUri(dataUri: string): Promise<RawPixelBuffer> {
     );
   }
 
-  const sharp = await getSharp();
   const { base64 } = parseDataUri(dataUri);
 
   // Estimate decoded byte count from the base64 string length *before*
@@ -89,15 +73,10 @@ async function decodeDataUri(dataUri: string): Promise<RawPixelBuffer> {
 
   // `limitInputPixels` rejects header-declared pixel bombs before decompression.
   // `sequentialRead` lowers peak memory for large inputs.
-  const { data, info } = await sharp(buffer, {
+  const { data, width, height, channels: ch } = await decodeBufferToRaw(buffer, {
     limitInputPixels: MAX_DECODED_PIXELS,
     sequentialRead: true,
-  })
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-  const width = info.width;
-  const height = info.height;
-  const ch = info.channels;
+  });
 
   // Belt-and-suspenders: sharp should have rejected already, but assert on the
   // post-decode dimensions too so any future sharp option change cannot
@@ -130,17 +109,24 @@ async function decodeDataUri(dataUri: string): Promise<RawPixelBuffer> {
 }
 
 async function encodeDataUri(image: RawPixelBuffer, mimeType: string): Promise<string> {
-  const sharp = await getSharp();
   const { data, width, height, channels } = image;
   const fmt = normalizeOutputMimeType(mimeType);
-  const base = sharp(Buffer.from(data), { raw: { width, height, channels } });
 
   const out =
     fmt === "image/jpeg"
-      ? await base.jpeg({ quality: 92, mozjpeg: true }).toBuffer()
+      ? await encodeRawPixels(
+          { data, width, height, channels },
+          { format: "jpeg", quality: 92, mozjpeg: true }
+        )
       : fmt === "image/webp"
-        ? await base.webp({ quality: 92 }).toBuffer()
-        : await base.png({ compressionLevel: 6 }).toBuffer();
+        ? await encodeRawPixels(
+            { data, width, height, channels },
+            { format: "webp", quality: 92 }
+          )
+        : await encodeRawPixels(
+            { data, width, height, channels },
+            { format: "png", compressionLevel: 6 }
+          );
 
   return `data:${fmt};base64,${out.toString("base64")}`;
 }

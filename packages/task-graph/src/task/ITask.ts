@@ -209,6 +209,7 @@ export interface ITaskIO<Input extends TaskInput> {
 
 export interface ITaskInternalGraph {
   subGraph: TaskGraph;
+  parentGraph?: TaskGraph;
   hasChildren(): boolean;
   regenerateGraph(): void;
 }

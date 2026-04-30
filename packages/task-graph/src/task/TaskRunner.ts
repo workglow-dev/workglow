@@ -375,7 +375,12 @@ export class TaskRunner<
    */
   public async *runPreviewStream(overrides: Partial<Input> = {}): AsyncIterable<Output> {
     // 1. Identify direct upstream tasks and their connecting dataflows.
-    const graph = (this.task as any).parentGraph;
+    //    runPreviewStream calls task.runPreview() directly (not the graph
+    //    runner's runPreview), so it does not benefit from the graph-runner's
+    //    copyInputFromEdgesToNode pull. We propagate snapshot values into the
+    //    target task's runInputData ourselves, mirroring that pull but driven
+    //    by upstream stream events.
+    const graph = this.task.parentGraph;
     type DataflowInfo = { upstream: ITask; sourcePort: string; targetPort: string };
     const dataflowInfos: DataflowInfo[] = [];
     if (graph) {
@@ -419,19 +424,14 @@ export class TaskRunner<
     // 4. Subscribe to all upstream tasks that could stream.
     const cleanupFns: Array<() => void> = [];
     for (const upstream of pendingUpstreams) {
-      // Collect dataflows from this upstream to this task.
       const myDataflows = dataflowInfos.filter((d) => d.upstream === upstream);
 
       const onChunk = (event: StreamEvent) => {
         if (event.type !== "snapshot") return;
-        // Propagate snapshot values to this task's runInputData so runPreview
-        // sees the latest upstream values (mirrors what the graph runner does
-        // via copyInputFromEdgesToNode / addInputData).
-        const snapshotData = (event as any).data as Record<string, unknown> | undefined;
+        const snapshotData = (event as { data?: Record<string, unknown> }).data;
         if (snapshotData) {
           for (const { sourcePort, targetPort } of myDataflows) {
-            const value =
-              sourcePort === "*" ? snapshotData : snapshotData[sourcePort];
+            const value = sourcePort === "*" ? snapshotData : snapshotData[sourcePort];
             if (value !== undefined) {
               (this.task.runInputData as Record<string, unknown>)[targetPort] = value;
             }
@@ -463,6 +463,22 @@ export class TaskRunner<
         upstream.off("stream_end", onEnd);
         upstream.off("status", onStatus);
       });
+    }
+
+    // 4b. Re-check upstream status after subscribing. If any reached a terminal
+    //     state in the gap between step 2 (status read) and step 4 (listener
+    //     attach), prune them now — listeners attached in step 4 won't fire
+    //     retroactively for events that already happened. The first iteration
+    //     of the loop still yields a preview from whatever runInputData
+    //     currently holds.
+    for (const upstream of [...pendingUpstreams]) {
+      if (
+        upstream.status === TaskStatus.COMPLETED ||
+        upstream.status === TaskStatus.FAILED ||
+        upstream.status === TaskStatus.DISABLED
+      ) {
+        pendingUpstreams.delete(upstream);
+      }
     }
 
     // 5. Iterator loop.
