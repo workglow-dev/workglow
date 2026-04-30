@@ -1030,7 +1030,7 @@ export class TaskGraphRunner {
    * control events (finish, error, snapshot) are enqueued.
    *
    * Also taps snapshot events to write per-port data into each edge's
-   * latestSnapshot slot (refcount-managed via Dataflow._setLatestSnapshot).
+   * `latestSnapshot` slot for downstream peek-during-streaming.
    */
   private createStreamFromTaskEvents(
     task: ITask,
@@ -1049,7 +1049,7 @@ export class TaskGraphRunner {
               return;
             }
             // Tap: on snapshot events, write per-port data into each edge's
-            // latestSnapshot slot (refcount-managed via Dataflow._setLatestSnapshot).
+            // latestSnapshot slot.
             if (event.type === "snapshot") {
               const data = event.data as Record<string, unknown> | undefined;
               if (data) {
@@ -1058,7 +1058,7 @@ export class TaskGraphRunner {
                     edge.sourceTaskPortId === DATAFLOW_ALL_PORTS
                       ? data
                       : data[edge.sourceTaskPortId];
-                  edge._setLatestSnapshot(portValue);
+                  edge.latestSnapshot = portValue;
                 }
               }
             }

@@ -3,20 +3,14 @@
  * Copyright 2026 Steven Roussey
  * All Rights Reserved
  */
-import {
-  Task,
-  type IExecuteContext,
-  type IExecutePreviewContext,
-  type TaskConfig,
+import { Task } from "@workglow/task-graph";
+import type {
+  IExecuteContext,
+  IExecutePreviewContext,
+  TaskConfig,
 } from "@workglow/task-graph";
-import {
-  applyFilter,
-  CpuImage,
-  GpuImageFactory,
-  hasFilterOp,
-  type GpuImage,
-  type ImageValue,
-} from "@workglow/util/media";
+import { applyFilter, CpuImage, GpuImageFactory, hasFilterOp } from "@workglow/util/media";
+import type { GpuImage, ImageValue } from "@workglow/util/media";
 
 export interface ImageFilterInput { image: ImageValue; }
 export interface ImageFilterOutput { image: ImageValue; }

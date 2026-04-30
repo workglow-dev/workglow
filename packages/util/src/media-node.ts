@@ -9,12 +9,7 @@ import "./media/imageHydrationResolver";
 
 export * from "./media/color";
 export { CpuImage } from "./media/cpuImage";
-export {
-  encodeImageBinaryToPng,
-  imageBinaryToBase64Png,
-  imageBinaryToBlob,
-  imageBinaryToDataUri,
-} from "./media/encode";
+export { rawPixelBufferToBlob, rawPixelBufferToDataUri } from "./media/encode";
 export {
   _resetFilterRegistryForTests,
   applyFilter,
@@ -82,12 +77,7 @@ export { SharpImage } from "./media/sharpImage.node";
 export type { ApplyParams, WebGpuImage } from "./media/webGpuImage.browser";
 
 import { registerGpuImageFactory as _registerGpuImageFactory } from "./media/gpuImage";
-import "./media/imageCacheCodec";
-import "./media/imageHydrationResolver";
 import type { ImageValue as _ImageValue } from "./media/imageValue";
 import { SharpImage as _SharpImage } from "./media/sharpImage.node";
 
 _registerGpuImageFactory("from", (value: _ImageValue) => _SharpImage.from(value));
-
-// fromImageBitmap is intentionally not registered in node — ImageBitmap doesn't
-// exist there. The Proxy throws if a caller attempts it (the third test asserts this).

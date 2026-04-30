@@ -9,12 +9,7 @@ import "./media/imageHydrationResolver";
 
 export * from "./media/color";
 export { CpuImage } from "./media/cpuImage";
-export {
-  encodeImageBinaryToPng,
-  imageBinaryToBase64Png,
-  imageBinaryToBlob,
-  imageBinaryToDataUri,
-} from "./media/encode";
+export { rawPixelBufferToBlob, rawPixelBufferToDataUri } from "./media/encode";
 export {
   _resetFilterRegistryForTests,
   applyFilter,

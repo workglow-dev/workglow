@@ -74,13 +74,6 @@ export class Dataflow {
   public latestSnapshot: unknown = undefined;
 
   /**
-   * Encapsulated setter for `latestSnapshot`. Pass `undefined` to clear the slot.
-   */
-  public _setLatestSnapshot(next: unknown): void {
-    this.latestSnapshot = next;
-  }
-
-  /**
    * Returns the current effective value of this edge, regardless of
    * streaming state:
    *   1. `value` — set by setPortData / awaitStreamValue when stream finishes.
@@ -102,7 +95,7 @@ export class Dataflow {
    */
   public setStream(stream: ReadableStream<StreamEvent>): void {
     // New stream invalidates any prior peek.
-    this._setLatestSnapshot(undefined);
+    this.latestSnapshot = undefined;
     this.stream = stream;
   }
 
@@ -180,7 +173,7 @@ export class Dataflow {
   }
 
   public reset() {
-    this._setLatestSnapshot(undefined);
+    this.latestSnapshot = undefined;
     this.status = TaskStatus.PENDING;
     this.error = undefined;
     this.value = undefined;

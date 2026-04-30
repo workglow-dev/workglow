@@ -5,7 +5,7 @@
  */
 
 // Side-effect: registers the image raster codec so OpenAI b64_json responses
-// can be decoded to GpuImage instances.
+// can be decoded into ImageValue.
 import "@workglow/tasks";
 
 import { ImageEditTask, ImageGenerateTask } from "@workglow/ai";

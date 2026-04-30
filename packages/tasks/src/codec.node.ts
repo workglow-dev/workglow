@@ -48,8 +48,8 @@ import "./task/image/tint/tint.sharp";
 // Opt-in wiring: previewSource (in @workglow/util/media) is a no-op until
 // some consumer registers a resize callback. Registering it here, alongside
 // the filter-arm side-effects above, ensures that any context that loads
-// this codec entry gets preview-time downscale for WebGpuImage inputs that
-// exceed the budget. previewSource short-circuits non-webgpu inputs.
+// this codec entry gets preview-time downscale for ImageValue inputs that
+// exceed the budget.
 import {
   GpuImageFactory,
   applyFilter,

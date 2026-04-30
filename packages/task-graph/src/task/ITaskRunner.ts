@@ -40,6 +40,10 @@ export interface ITaskRunner<
    * once per upstream snapshot until all relevant upstream streams complete
    * (or the consumer breaks out of the loop).
    *
+   * Watches direct upstream tasks only. Indirect (grandparent) snapshots
+   * propagate through chained preview re-runs as upstream parents' values
+   * update.
+   *
    * Reuses runPreview() under the hood. Errors during a single iteration
    * are caught and skipped — the iterator never throws to the consumer
    * mid-loop.

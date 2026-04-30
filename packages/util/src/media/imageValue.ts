@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { getImageRasterCodec } from "./imageRasterCodecRegistry";
+
 export type NodeImageFormat = "png" | "jpeg" | "raw-rgba";
 
 export interface ImageValueBase {
@@ -75,7 +77,9 @@ export function isNodeImageValue(v: unknown): v is NodeImageValue {
  * Best-effort normalization at boundaries (input resolver, builder hook).
  * Accepts the wire forms an `ImageValue` port may receive:
  *   - an existing `ImageValue` (passthrough)
- *   - a `data:` URI (decoded via the image raster codec)
+ *   - a `data:` URI (browser: decoded via `createImageBitmap`; node: encoded
+ *     bytes wrapped in a `NodeImageValue`, with dimensions probed via the
+ *     registered raster codec)
  *   - a `Blob` (browser only)
  *   - an `ImageBitmap` (browser only)
  * Returns `undefined` for unrecognized shapes.
@@ -109,8 +113,31 @@ export async function normalizeToImageValue(value: unknown): Promise<ImageValue 
       const bitmap = await createImageBitmap(blob);
       return imageValueFromBitmap(bitmap, bitmap.width, bitmap.height);
     }
+    if (typeof Buffer !== "undefined") {
+      return decodeDataUriToNodeImageValue(value);
+    }
     return undefined;
   }
 
   return undefined;
+}
+
+async function decodeDataUriToNodeImageValue(
+  dataUri: string,
+): Promise<NodeImageValue | undefined> {
+  const match = /^data:([^;,]+);base64,(.+)$/.exec(dataUri);
+  if (!match) return undefined;
+  const mime = match[1] ?? "image/png";
+  const base64 = match[2] ?? "";
+  const buffer = Buffer.from(base64, "base64");
+  const format: NodeImageFormat = /jpe?g/i.test(mime) ? "jpeg" : "png";
+  // Probe dimensions through the registered raster codec. Throws if no codec
+  // is registered (e.g. `@workglow/tasks` was not imported); surface that to
+  // the caller via undefined so the resolver's error message takes over.
+  try {
+    const decoded = await getImageRasterCodec().decodeDataUri(dataUri);
+    return imageValueFromBuffer(buffer, format, decoded.width, decoded.height);
+  } catch {
+    return undefined;
+  }
 }
