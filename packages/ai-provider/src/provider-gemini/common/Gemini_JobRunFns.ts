@@ -13,6 +13,8 @@ export { sanitizeSchemaForGemini } from "./Gemini_Schema";
 
 import { Gemini_Chat, Gemini_Chat_Stream } from "./Gemini_Chat";
 import { Gemini_CountTokens, Gemini_CountTokens_Preview } from "./Gemini_CountTokens";
+import { Gemini_EditImage, Gemini_EditImage_Stream } from "./Gemini_EditImage";
+import { Gemini_GenerateImage, Gemini_GenerateImage_Stream } from "./Gemini_GenerateImage";
 import { Gemini_ModelInfo } from "./Gemini_ModelInfo";
 import {
   Gemini_StructuredGeneration,
@@ -35,6 +37,8 @@ export const GEMINI_TASKS: Record<string, AiProviderRunFn<any, any, GeminiModelC
   StructuredGenerationTask: Gemini_StructuredGeneration,
   ToolCallingTask: Gemini_ToolCalling,
   ModelSearchTask: Gemini_ModelSearch,
+  GenerateImageTask: Gemini_GenerateImage,
+  EditImageTask: Gemini_EditImage,
 };
 
 export const GEMINI_STREAM_TASKS: Record<
@@ -47,6 +51,8 @@ export const GEMINI_STREAM_TASKS: Record<
   TextSummaryTask: Gemini_TextSummary_Stream,
   StructuredGenerationTask: Gemini_StructuredGeneration_Stream,
   ToolCallingTask: Gemini_ToolCalling_Stream,
+  GenerateImageTask: Gemini_GenerateImage_Stream,
+  EditImageTask: Gemini_EditImage_Stream,
 };
 
 export const GEMINI_PREVIEW_TASKS: Record<

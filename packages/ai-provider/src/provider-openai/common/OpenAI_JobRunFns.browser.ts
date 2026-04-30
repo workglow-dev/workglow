@@ -21,6 +21,8 @@ import { OpenAI_TextGeneration, OpenAI_TextGeneration_Stream } from "./OpenAI_Te
 import { OpenAI_TextRewriter, OpenAI_TextRewriter_Stream } from "./OpenAI_TextRewriter";
 import { OpenAI_TextSummary, OpenAI_TextSummary_Stream } from "./OpenAI_TextSummary";
 import { OpenAI_ToolCalling, OpenAI_ToolCalling_Stream } from "./OpenAI_ToolCalling";
+import { OpenAI_GenerateImage, OpenAI_GenerateImage_Stream } from "./OpenAI_GenerateImage";
+import { OpenAI_EditImage, OpenAI_EditImage_Stream } from "./OpenAI_EditImage";
 
 export const OPENAI_TASKS: Record<string, AiProviderRunFn<any, any, OpenAiModelConfig>> = {
   TextGenerationTask: OpenAI_TextGeneration,
@@ -32,6 +34,8 @@ export const OPENAI_TASKS: Record<string, AiProviderRunFn<any, any, OpenAiModelC
   StructuredGenerationTask: OpenAI_StructuredGeneration,
   ToolCallingTask: OpenAI_ToolCalling,
   ModelSearchTask: OpenAI_ModelSearch,
+  GenerateImageTask: OpenAI_GenerateImage,
+  EditImageTask: OpenAI_EditImage,
 };
 
 export const OPENAI_STREAM_TASKS: Record<
@@ -43,6 +47,8 @@ export const OPENAI_STREAM_TASKS: Record<
   TextSummaryTask: OpenAI_TextSummary_Stream,
   StructuredGenerationTask: OpenAI_StructuredGeneration_Stream,
   ToolCallingTask: OpenAI_ToolCalling_Stream,
+  GenerateImageTask: OpenAI_GenerateImage_Stream,
+  EditImageTask: OpenAI_EditImage_Stream,
 };
 
 export const OPENAI_PREVIEW_TASKS: Record<
