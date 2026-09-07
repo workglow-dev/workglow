@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { estimateCost, getGlobalModelRepository } from "@workglow/ai";
+import { estimateCost, getAiProviderRegistry, getGlobalModelRepository } from "@workglow/ai";
 import { afterEach, describe, expect, it } from "vitest";
 import { clearModelPricingCache, lookupModelPricing } from "../ui/rows/lookupModelPricing";
 
@@ -16,14 +16,22 @@ const TIERED_MODEL_ID = "gemini-3.1-pro-preview";
 // An OpenRouter route whose id is exactly what OpenAI's table strips a prefix
 // from, which is what made the fall-through report a wrong number as a cost.
 const ROUTED_MODEL_ID = "openai/gpt-4o";
+const QUOTED_MODEL_ID = "anthropic/claude-sonnet-5";
 
 describe("lookupModelPricing", () => {
   // The model repository is a process-wide singleton, so a record added here
   // outlives the file unless it is removed again.
   afterEach(async () => {
     clearModelPricingCache();
+    getAiProviderRegistry().unregisterProvider("OPENROUTER");
     // `removeModel` throws when the id is absent, which most cases here are.
-    for (const id of [TEST_MODEL_ID, TABLE_MODEL_ID, TIERED_MODEL_ID, ROUTED_MODEL_ID]) {
+    for (const id of [
+      TEST_MODEL_ID,
+      TABLE_MODEL_ID,
+      TIERED_MODEL_ID,
+      ROUTED_MODEL_ID,
+      QUOTED_MODEL_ID,
+    ]) {
       await getGlobalModelRepository()
         .removeModel(id)
         .catch(() => {});
@@ -160,6 +168,49 @@ describe("lookupModelPricing", () => {
     // whose per-token rate the package's own comment says a caller cannot
     // reconstruct locally. A provider that declines is asserting "no card", not
     // referring the question on.
+    await getGlobalModelRepository().addModel({
+      model_id: ROUTED_MODEL_ID,
+      title: "gpt-4o via OpenRouter",
+      description: "routed",
+      provider: "OPENROUTER",
+      capabilities: ["text.generation"],
+      provider_config: { model_name: ROUTED_MODEL_ID },
+      metadata: {},
+    });
+
+    expect(await lookupModelPricing(ROUTED_MODEL_ID)).toBeUndefined();
+  });
+
+  it("returns a registered provider's own card for a record naming it", async () => {
+    // The other half of the rule: a provider that ANSWERS is answered from,
+    // rather than the id's shape. Exercises the registered path, which the
+    // unregistered case below reaches `undefined` through a different branch.
+    getAiProviderRegistry().registerProvider({
+      name: "OPENROUTER",
+      modelPricing: () => ({ currency: "USD", input: 2.5, output: 10 }),
+    } as never);
+    await getGlobalModelRepository().addModel({
+      model_id: QUOTED_MODEL_ID,
+      title: "quoted route",
+      description: "routed",
+      provider: "OPENROUTER",
+      capabilities: ["text.generation"],
+      provider_config: { model_name: QUOTED_MODEL_ID },
+      metadata: {},
+    });
+
+    expect(await lookupModelPricing(QUOTED_MODEL_ID)).toMatchObject({ input: 2.5, output: 10 });
+  });
+
+  it("does not fall through to a vendor table when a registered provider declines", async () => {
+    // The assertion the fix is actually about: `openai/gpt-4o` is exactly the
+    // shape OpenAI's table strips a prefix from, so before the fix a declining
+    // OpenRouter provider handed the question on and got OpenAI's list rates
+    // back — reported as a cost for a route billed by someone else.
+    getAiProviderRegistry().registerProvider({
+      name: "OPENROUTER",
+      modelPricing: () => undefined,
+    } as never);
     await getGlobalModelRepository().addModel({
       model_id: ROUTED_MODEL_ID,
       title: "gpt-4o via OpenRouter",
