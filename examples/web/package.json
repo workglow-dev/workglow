@@ -49,7 +49,7 @@
     "react": "catalog:",
     "react-dom": "^19.2.8",
     "react-icons": "^5.7.0",
-    "react-resizable-panels": "^4.12.3",
+    "react-resizable-panels": "^4.12.4",
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
