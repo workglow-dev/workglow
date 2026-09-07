@@ -10,11 +10,12 @@ import type {
   AiProviderRunFnRegistration,
   Capability,
   ModelConfig,
+  ModelPricing,
   ModelRecord,
   TextGenerationTaskInput,
   TextGenerationTaskOutput,
 } from "@workglow/ai";
-import { AiProvider } from "@workglow/ai";
+import { AiProvider, FREE_LOCAL_PRICING } from "@workglow/ai";
 import { LOCAL_MLX } from "./common/Mlx_Constants";
 
 /**
@@ -67,6 +68,16 @@ export class MlxProvider extends AiProvider {
    * the provider (and its models) out of any UI that offers a choice, rather
    * than surfacing an option whose every call throws.
    */
+  /**
+   * MLX runs on the user's own Apple silicon, so a run costs nothing. Said
+   * explicitly: an unanswered `modelPricing` reads as UNKNOWN rather than free,
+   * which is the same silence a metered provider with no rate card produces.
+   */
+  override modelPricing(model?: ModelConfig): ModelPricing | undefined {
+    if (model && model.provider !== this.name) return undefined;
+    return FREE_LOCAL_PRICING;
+  }
+
   override async isAvailable(): Promise<boolean> {
     return false;
   }

@@ -13,6 +13,9 @@ const TABLE_MODEL_ID = "claude-sonnet-5";
 // A Gemini Pro card carries the published over-200K rows, so this is the model
 // whose provider tiers can contradict a negotiated base rate.
 const TIERED_MODEL_ID = "gemini-3.1-pro-preview";
+// An OpenRouter route whose id is exactly what OpenAI's table strips a prefix
+// from, which is what made the fall-through report a wrong number as a cost.
+const ROUTED_MODEL_ID = "openai/gpt-4o";
 
 describe("lookupModelPricing", () => {
   // The model repository is a process-wide singleton, so a record added here
@@ -20,7 +23,7 @@ describe("lookupModelPricing", () => {
   afterEach(async () => {
     clearModelPricingCache();
     // `removeModel` throws when the id is absent, which most cases here are.
-    for (const id of [TEST_MODEL_ID, TABLE_MODEL_ID, TIERED_MODEL_ID]) {
+    for (const id of [TEST_MODEL_ID, TABLE_MODEL_ID, TIERED_MODEL_ID, ROUTED_MODEL_ID]) {
       await getGlobalModelRepository()
         .removeModel(id)
         .catch(() => {});
@@ -148,5 +151,25 @@ describe("lookupModelPricing", () => {
     expect(gpt?.currency).toBe("USD");
     expect(gpt?.input).toBe(5);
     expect(gpt?.output).toBe(30);
+  });
+
+  it("does not price an OpenRouter route from the direct vendor's card", async () => {
+    // The failure this closes: OpenRouter ids are exactly the shape the vendor
+    // tables strip a prefix from, so `openai/gpt-4o` resolved OpenAI's own list
+    // rates — for a route OpenRouter bills at whichever upstream it picked, and
+    // whose per-token rate the package's own comment says a caller cannot
+    // reconstruct locally. A provider that declines is asserting "no card", not
+    // referring the question on.
+    await getGlobalModelRepository().addModel({
+      model_id: ROUTED_MODEL_ID,
+      title: "gpt-4o via OpenRouter",
+      description: "routed",
+      provider: "OPENROUTER",
+      capabilities: ["text.generation"],
+      provider_config: { model_name: ROUTED_MODEL_ID },
+      metadata: {},
+    });
+
+    expect(await lookupModelPricing(ROUTED_MODEL_ID)).toBeUndefined();
   });
 });
