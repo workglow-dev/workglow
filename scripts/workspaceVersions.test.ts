@@ -3,58 +3,34 @@
  * Copyright 2026 Steven Roussey <sroussey@gmail.com>
  * SPDX-License-Identifier: Apache-2.0
  *
- * Two version invariants, one file, because they are the same question asked
- * about the two halves of the tree.
+ * **Every workspace moves together.** One version across the whole tree,
+ * matched by the workspace root and by the single tag the cut writes, so any
+ * two packages a consumer installs are the pair that were built and tested
+ * together. The release cut is `--all` for that reason, and this measures the
+ * result rather than trusting the flag: a hand-edited version, a half-applied
+ * bump, or a cut that quietly ran `--changed` all land here, named one by one.
  *
- * **Everything published moves together.** One version across every published
- * workspace, matched by the workspace root and by the single tag the cut
- * writes, so any two packages a consumer installs are the pair that were built
- * and tested together. The release cut is `--all` for that reason, and this
- * measures the result rather than trusting the flag: a hand-edited version, a
- * half-applied bump, or a cut that quietly ran `--changed` all land here.
+ * The four never-published workspaces — `@workglow/test`, `@workglow/aws`,
+ * `@workglow/cloudflare`, `@workglow/web` — are in the lockstep too, and this
+ * guard does not exempt them. Their version buys nothing on its own, but an
+ * exception costs more to remember than it saves, and it would leave
+ * `@workglow/test` disagreeing with the packages it tests about which release
+ * they belong to.
  *
- * **Four workspaces are never published** — `@workglow/test`, `@workglow/aws`,
- * `@workglow/cloudflare` and `@workglow/web` — and they sit outside that
- * lockstep entirely. Until 0.4.9 the cut versioned them anyway, since
- * `bunset --all` enumerates the root `workspaces` globs and read no `private`
- * flag, so all four rode from 0.3.x to 0.4.9: thirteen consecutive bumps, each
- * adding an empty section to a CHANGELOG for a release that never shipped.
- * `publish-workspaces.ts` skipped them the whole time, so no version of any of
- * them has ever been installable.
- *
- * The decision is to leave them unpublished and stop versioning them. Newer
- * bunset skips a private workspace by default, so nothing on the release
- * script says so — which is exactly why this guard exists: it pins the two
- * facts that silent default depends on.
- *
- * **Unpublished means `private: true`.** The repo's own publish predicate is
- * `publishConfig.access === "public"` (`findWorkspaces`, `scripts/lib/util.ts`), and
- * `examples/web` used to satisfy "never published" by that rule while carrying
- * no `private` flag — a package a `private`-keyed skip would walk straight
- * past. The two spellings have to agree or the skip covers three of four.
- *
- * **A frozen version stays frozen.** {@link FROZEN_VERSIONS} is the recorded
- * decision, not a measurement: a diff here means something versioned a package
- * nobody can install, which is the failure this guard exists to name. Publishing
- * one of them later is a deliberate edit — give it `publishConfig.access:
- * "public"`, drop `private`, and delete its entry here.
+ * **What they ARE held out of is publishing, and the two spellings of that
+ * have to agree.** `publish-workspaces.ts` keys on
+ * `publishConfig.access === "public"`; anything keyed on a package being
+ * unreleased reads `private: true`. `examples/web` satisfied the first while
+ * carrying no `private` flag, which is the shape that goes wrong quietly, so
+ * both directions are pinned here: an unpublished package must be private, and
+ * a private one must not be something the publish step would try to ship —
+ * `bun publish` refuses a private manifest.
  */
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ROOT } from "./lib/testDiscovery";
-
-/**
- * Versions the never-published workspaces are held at, keyed by workspace
- * directory. 0.4.9 is where the last `--all` cut left them.
- */
-const FROZEN_VERSIONS: Readonly<Record<string, string>> = {
-  "packages/test": "0.4.9",
-  "providers/aws": "0.4.9",
-  "providers/cloudflare": "0.4.9",
-  "examples/web": "0.4.9",
-};
 
 interface Manifest {
   readonly name?: string;
@@ -69,12 +45,6 @@ interface Workspace {
   readonly manifest: Manifest;
 }
 
-/**
- * Every workspace, expanded from the same root `workspaces` globs the release
- * script's package enumeration walks. Reading the array rather than restating
- * the three group names is the point: a fourth group added there is covered
- * here on the same commit.
- */
 function readRootManifest(): {
   readonly version?: string;
   readonly workspaces?: readonly string[];
@@ -85,6 +55,12 @@ function readRootManifest(): {
   };
 }
 
+/**
+ * Every workspace, expanded from the same root `workspaces` globs the release
+ * cut's package enumeration walks. Reading the array rather than restating the
+ * three group names is the point: a fourth group added there is covered here on
+ * the same commit.
+ */
 function readWorkspaces(): Workspace[] {
   const root = readRootManifest();
   const workspaces: Workspace[] = [];
@@ -116,39 +92,24 @@ const WORKSPACES = readWorkspaces();
 const ROOT_VERSION = readRootManifest().version;
 const isPublishable = (w: Workspace): boolean => w.manifest.publishConfig?.access === "public";
 
-describe("published workspaces", () => {
+describe("workspace versions", () => {
   // The root is the reference because the cut bumps it in the same step it
   // bumps the packages, and it is the one version a reader can check by eye.
-  it("all carry the workspace root's version", () => {
-    const adrift = WORKSPACES.filter(isPublishable)
-      .filter((w) => w.manifest.version !== ROOT_VERSION)
-      .map((w) => `${w.dir}@${w.manifest.version} (root is ${ROOT_VERSION})`);
+  it("are in lockstep with the workspace root", () => {
+    const adrift = WORKSPACES.filter((w) => w.manifest.version !== ROOT_VERSION).map(
+      (w) => `${w.dir}@${w.manifest.version} (root is ${ROOT_VERSION})`
+    );
     expect(adrift).toEqual([]);
   });
 });
 
-describe("never-published workspaces", () => {
-  it("are exactly the ones with a frozen version", () => {
-    const unpublished = WORKSPACES.filter((w) => !isPublishable(w)).map((w) => w.dir);
-    expect(unpublished).toEqual(Object.keys(FROZEN_VERSIONS).sort());
-  });
-
-  it("are marked private, so the release cut's skip reaches them", () => {
+describe("publishability", () => {
+  it("is spelled both ways on every unpublished workspace", () => {
     const notPrivate = WORKSPACES.filter((w) => !isPublishable(w) && w.manifest.private !== true);
     expect(notPrivate.map((w) => w.dir)).toEqual([]);
   });
 
-  it("hold the version they were frozen at", () => {
-    const actual = Object.fromEntries(
-      WORKSPACES.filter((w) => w.dir in FROZEN_VERSIONS).map((w) => [w.dir, w.manifest.version])
-    );
-    expect(actual).toEqual(FROZEN_VERSIONS);
-  });
-
-  // The inverse mistake: `private: true` on a package that IS published stops
-  // the release versioning it while `publish-workspaces.ts` still tries to ship
-  // it, and `bun publish` refuses a private manifest.
-  it("do not include anything the publish step ships", () => {
+  it("does not mark anything the publish step ships as private", () => {
     const privatePublishable = WORKSPACES.filter((w) => isPublishable(w) && w.manifest.private);
     expect(privatePublishable.map((w) => w.dir)).toEqual([]);
   });

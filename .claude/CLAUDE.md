@@ -101,49 +101,42 @@ Exceptions: `providers/*` ship `./ai` and `./ai-runtime` instead of browser/node
 `@workglow/util` has extra named exports — `/schema`, `/graph`, `/worker`, `/media`,
 `/compress`.
 
-### Releasing: one version for everything that ships
+### Releasing: one version across the tree
 
 `bun run bunset` cuts the release: it versions every workspace, writes each `CHANGELOG.md`,
 commits, tags, pushes and opens the GitHub release. `bun run publish-all` wraps it with the
 format/rebuild before and `publish-workspaces.ts` after.
 
-**Every published package carries the same version, always** — one number across the whole
-tree, matched by the workspace root and by the single `v0.5.0`-style tag the cut writes, so
-`@workglow/ai@0.5.0` and `@workglow/anthropic@0.5.0` are known to be the pair that were
-built and tested together. That lockstep is what `--all` buys, and it is why a package with
-nothing in the release window is versioned anyway and gets an empty changelog section: the
-empty section is what the invariant costs, not a defect in it.
+**Every workspace carries the same version, always** — every package, the workspace root,
+and the single `v0.5.0`-style tag the cut writes, so `@workglow/ai@0.5.0` and
+`@workglow/anthropic@0.5.0` are known to be the pair that were built and tested together.
+The four that are never published are in that lockstep too. Their number buys nothing on
+its own, but holding them back would leave `@workglow/test` disagreeing with the packages
+it tests about which release they belong to, and the exception costs more to remember than
+it saves. `scripts/workspaceVersions.test.ts` fails on any workspace adrift of the root.
 
-So do **not** move the cut to `--changed` or `--per-package-tags` to suppress them. Either
-leaves untouched packages behind on older numbers, `--per-package-tags` replaces the one
-shared tag with 40-odd `pkg@version` tags, and `--changed` also stops the root version
-tracking the release — bunset only updates the root when the scope is `all`. `.bunset.toml`
-says `scope = "all"` for the same reason: the flag on the script and the persistent default
-must not disagree about this. `scripts/workspaceVersions.test.ts` fails on any published
-package that drifts off the root's version.
+That lockstep is what `--all` buys, and it is why a package with nothing in the release
+window is versioned anyway and gets an empty changelog section: the empty section is what
+the invariant costs, not a defect in it. So do **not** move the cut to `--changed` or
+`--per-package-tags` to suppress them. Either leaves untouched packages behind on older
+numbers, `--per-package-tags` replaces the one shared tag with 40-odd `pkg@version` tags,
+and `--changed` also stops the root version tracking the release — bunset only updates the
+root when the scope is `all`. `.bunset.toml` says `scope = "all"` for the same reason: the
+flag on the script and the persistent default must not disagree about this.
 
-The four never-published workspaces are the one exception, and they are outside the set
-rather than a hole in it — nothing resolves them by version.
+**Four workspaces are never published** — `@workglow/test`, `@workglow/aws`,
+`@workglow/cloudflare` and `@workglow/web`. They are versioned like everything else; what
+they are held out of is publishing, and the two spellings of that have to agree. The
+publish step keys on `publishConfig.access === "public"`, and anything keyed on a package
+being unreleased reads `private: true`, so an unpublished package needs both `access:
+"none"` (or no `publishConfig`) and `private: true`. The same guard pins that, in both
+directions: a `private` package the publish step would try to ship fails it too, since
+`bun publish` refuses a private manifest.
 
-Two bunset behaviours decide what a cut is allowed to do:
-
-- **A private workspace is not versioned.** Four workspaces are deliberately unreleased —
-  `@workglow/test`, `@workglow/aws`, `@workglow/cloudflare`, `@workglow/web` — and `--all`
-  used to version them anyway, carrying all four to 0.4.9 over thirteen cuts nobody could
-  install. They are frozen there now. Skipping them is bunset's own default, so there is no
-  flag on the script to keep in sync; what the repo owes it is that **the two spellings of
-  "unpublished" agree.** The publish step keys on `publishConfig.access === "public"` and
-  the skip keys on `private: true`, so an unpublished package needs both `access: "none"`
-  (or no `publishConfig`) and `private: true`.
-  `scripts/workspaceVersions.test.ts` pins that, and pins the frozen versions.
-- **A breaking commit rules out `--patch`.** `feat!:`, `fix(scope)!:` or a
-  `BREAKING CHANGE:` footer anywhere in the window makes bunset name the offending commits
-  and exit without writing, so the cut has to be re-run `--minor` or `--major`. Passing
-  `--minor` with a breaking change only warns.
-
-The skip arrived after 1.0.15, the version `bun.lock` pins. An older bunset does not refuse
-the cut — nothing is passed to it that it could reject — it just versions the four again,
-and the guard test is what goes red afterwards. Update `bunset` before cutting.
+**A breaking commit rules out `--patch`.** `feat!:`, `fix(scope)!:` or a `BREAKING CHANGE:`
+footer anywhere in the window makes bunset name the offending commits and exit without
+writing, so the cut has to be re-run `--minor` or `--major`. Passing `--minor` with a
+breaking change only warns.
 
 ## Code style
 
