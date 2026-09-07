@@ -7,6 +7,8 @@
 import type { ModelPricing } from "@workglow/ai";
 import { resolveModelPricingFromTable } from "@workglow/ai";
 
+import { GEMINI_IMAGE_MODELS } from "./Gemini_EffortPolicy";
+
 /**
  * Public list pricing for Google Gemini models (USD per 1M tokens).
  *
@@ -118,11 +120,17 @@ export const GEMINI_PRICING: Record<string, ModelPricing> = {
 
 /**
  * Resolve list pricing for a Google Gemini model id.
+ *
+ * The table prices several image models outright and those still resolve; what
+ * the matcher stops is an image id the table does NOT name taking a text
+ * sibling's per-token card — `gemini-2.5-flash-image-preview` was resolving
+ * `gemini-2.5-flash`'s.
  */
 export function getGeminiModelPricing(modelId: string | undefined): ModelPricing | undefined {
-  return resolveModelPricingFromTable(GEMINI_PRICING, modelId, [
-    "google-gemini/",
-    "google/",
-    "models/",
-  ]);
+  return resolveModelPricingFromTable(
+    GEMINI_PRICING,
+    modelId,
+    ["google-gemini/", "google/", "models/"],
+    (id) => GEMINI_IMAGE_MODELS.some((pattern) => pattern.test(id))
+  );
 }
