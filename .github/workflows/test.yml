@@ -33,7 +33,7 @@ jobs:
           node-version: 24
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.0
+          bun-version: 1.4.2
       - run: bun i
       # Fails the PR if any package's type-instantiation count grows past its
       # committed budget (scripts/typecheck-budget.json). Re-baseline intentional
