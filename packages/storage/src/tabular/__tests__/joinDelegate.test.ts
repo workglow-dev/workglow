@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { AnyTabularStorage } from "@workglow/storage";
-import { resolveJoinDelegate } from "@workglow/storage";
 import { describe, expect, it } from "vitest";
+import type { AnyTabularStorage } from "../ITabularStorage";
+import { resolveJoinDelegate } from "../joinDelegate";
 
 /** A storage that nothing should look behind — a plain backend, or a scoping wrapper. */
 function terminal(label: string): AnyTabularStorage {
