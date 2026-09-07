@@ -1,48 +1,10 @@
 # Changelog
 
-## 0.4.9
-
-## 0.4.8
-
-## 0.4.7
-
 ## 0.4.6
 
 ### Chores
 
 - migrate from ESLint to oxlint; upgrade to TypeScript 7 (#884)
-
-## 0.4.5
-
-## 0.4.4
-
-## 0.4.3
-
-## 0.4.2
-
-## 0.4.1
-
-## 0.4.0
-
-## 0.3.49
-
-## 0.3.48
-
-## 0.3.47
-
-## 0.3.46
-
-## 0.3.45
-
-## 0.3.44
-
-## 0.3.43
-
-## 0.3.42
-
-## 0.3.41
-
-## 0.3.40
 
 ## 0.3.39
 
@@ -68,16 +30,6 @@
 - `@aws-sdk/client-sqs`: catalog:
 - `aws-sdk-client-mock`: catalog:
 
-## 0.3.38
-
-## 0.3.37
-
-## 0.3.36
-
-## 0.3.35
-
-## 0.3.34
-
 ## 0.3.33
 
 ### Chores
@@ -87,8 +39,6 @@
 ### Updated Dependencies
 
 - `@aws-sdk/client-sqs`: ^3.1101.0
-
-## 0.3.32
 
 ## 0.3.31
 
@@ -100,8 +50,6 @@
 
 - `@aws-sdk/client-sqs`: ^3.1100.0
 
-## 0.3.30
-
 ## 0.3.29
 
 ### Chores
@@ -111,8 +59,6 @@
 ### Updated Dependencies
 
 - `@aws-sdk/client-sqs`: ^3.1098.0
-
-## 0.3.28
 
 ## 0.3.27
 
@@ -133,8 +79,6 @@
 ### Updated Dependencies
 
 - `@aws-sdk/client-sqs`: ^3.1088.0
-
-## 0.3.25
 
 ## 0.3.24
 
@@ -166,8 +110,6 @@
 
 - `@aws-sdk/client-sqs`: ^3.1079.0
 
-## 0.3.21
-
 ## 0.3.20
 
 ### Chores
@@ -187,10 +129,6 @@
 ### Updated Dependencies
 
 - `@aws-sdk/client-sqs`: ^3.1074.0
-
-## 0.3.18
-
-## 0.3.17
 
 ## 0.3.16
 
@@ -226,8 +164,6 @@
 
 - `@aws-sdk/client-sqs`: ^3.1068.0
 
-## 0.3.13
-
 ## 0.3.12
 
 ### Chores
@@ -239,8 +175,6 @@
 ### Updated Dependencies
 
 - `@aws-sdk/client-sqs`: ^3.1063.0
-
-## 0.3.11
 
 ## 0.3.10
 
@@ -262,10 +196,6 @@
 
 - `@aws-sdk/client-sqs`: ^3.1055.0
 
-## 0.3.8
-
-## 0.3.7
-
 ## 0.3.6
 
 ### Chores
@@ -275,12 +205,6 @@
 ### Updated Dependencies
 
 - `@aws-sdk/client-sqs`: ^3.1053.0
-
-## 0.3.5
-
-## 0.3.4
-
-## 0.3.3
 
 ## 0.3.2
 
@@ -310,8 +234,6 @@
 ### Updated Dependencies
 
 - `@aws-sdk/client-sqs`: ^3.1052.0
-
-## 0.3.1
 
 ## 0.3.0
 

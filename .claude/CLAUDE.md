@@ -101,6 +101,31 @@ Exceptions: `providers/*` ship `./ai` and `./ai-runtime` instead of browser/node
 `@workglow/util` has extra named exports — `/schema`, `/graph`, `/worker`, `/media`,
 `/compress`.
 
+### Releasing, and the workspaces that never ship
+
+`bun run bunset` cuts the release: it versions every workspace, writes each `CHANGELOG.md`,
+commits, tags, pushes and opens the GitHub release. `bun run publish-all` wraps it with the
+format/rebuild before and `publish-workspaces.ts` after.
+
+Two flags there decide what a cut is allowed to do, and both fail the run rather than
+producing a misleading version:
+
+- **`--skip-private` keeps the never-published workspaces out of the cut.** Four workspaces
+  are deliberately unreleased — `@workglow/test`, `@workglow/aws`, `@workglow/cloudflare`,
+  `@workglow/web` — and `--all` used to version them anyway, carrying all four to 0.4.9
+  over thirteen cuts nobody could install. They are frozen there now.
+  **The two spellings of "unpublished" have to agree:** the publish step keys on
+  `publishConfig.access === "public"`, the skip keys on `private: true`, so an unpublished
+  package needs both `access: "none"` (or no `publishConfig`) and `private: true`.
+  `scripts/unpublishedVersions.test.ts` pins that, and pins the frozen versions.
+- **A breaking commit rules out `--patch`.** `feat!:`, `fix(scope)!:` or a
+  `BREAKING CHANGE:` footer anywhere in the window makes bunset name the offending commits
+  and exit without writing, so the cut has to be re-run `--minor` or `--major`. Passing
+  `--minor` with a breaking change only warns.
+
+`--skip-private` needs a bunset that carries it; the pinned 1.0.15 does not, and its
+argument parser is strict, so the cut exits on the unknown flag until `bunset` is updated.
+
 ## Code style
 
 ### TypeScript (from `.cursor/rules/`)
