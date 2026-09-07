@@ -107,24 +107,25 @@ Exceptions: `providers/*` ship `./ai` and `./ai-runtime` instead of browser/node
 commits, tags, pushes and opens the GitHub release. `bun run publish-all` wraps it with the
 format/rebuild before and `publish-workspaces.ts` after.
 
-Two flags there decide what a cut is allowed to do, and both fail the run rather than
-producing a misleading version:
+Two bunset behaviours decide what a cut is allowed to do:
 
-- **`--skip-private` keeps the never-published workspaces out of the cut.** Four workspaces
-  are deliberately unreleased — `@workglow/test`, `@workglow/aws`, `@workglow/cloudflare`,
-  `@workglow/web` — and `--all` used to version them anyway, carrying all four to 0.4.9
-  over thirteen cuts nobody could install. They are frozen there now.
-  **The two spellings of "unpublished" have to agree:** the publish step keys on
-  `publishConfig.access === "public"`, the skip keys on `private: true`, so an unpublished
-  package needs both `access: "none"` (or no `publishConfig`) and `private: true`.
+- **A private workspace is not versioned.** Four workspaces are deliberately unreleased —
+  `@workglow/test`, `@workglow/aws`, `@workglow/cloudflare`, `@workglow/web` — and `--all`
+  used to version them anyway, carrying all four to 0.4.9 over thirteen cuts nobody could
+  install. They are frozen there now. Skipping them is bunset's own default, so there is no
+  flag on the script to keep in sync; what the repo owes it is that **the two spellings of
+  "unpublished" agree.** The publish step keys on `publishConfig.access === "public"` and
+  the skip keys on `private: true`, so an unpublished package needs both `access: "none"`
+  (or no `publishConfig`) and `private: true`.
   `scripts/unpublishedVersions.test.ts` pins that, and pins the frozen versions.
 - **A breaking commit rules out `--patch`.** `feat!:`, `fix(scope)!:` or a
   `BREAKING CHANGE:` footer anywhere in the window makes bunset name the offending commits
   and exit without writing, so the cut has to be re-run `--minor` or `--major`. Passing
   `--minor` with a breaking change only warns.
 
-`--skip-private` needs a bunset that carries it; the pinned 1.0.15 does not, and its
-argument parser is strict, so the cut exits on the unknown flag until `bunset` is updated.
+The skip arrived after 1.0.15, the version `bun.lock` pins. An older bunset does not refuse
+the cut — nothing is passed to it that it could reject — it just versions the four again,
+and the guard test is what goes red afterwards. Update `bunset` before cutting.
 
 ## Code style
 

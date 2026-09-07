@@ -11,9 +11,10 @@
  * for a release that never shipped. `publish-workspaces.ts` skipped them the
  * whole time, so no version of any of them has ever been installable.
  *
- * The decision is to leave them unpublished and stop versioning them:
- * `--skip-private` on the release script is what does it. This guard is what
- * keeps that true, and it pins the two facts that flag depends on.
+ * The decision is to leave them unpublished and stop versioning them. Newer
+ * bunset skips a private workspace by default, so nothing on the release
+ * script says so — which is exactly why this guard exists: it pins the two
+ * facts that silent default depends on.
  *
  * **Unpublished means `private: true`.** The repo's own publish predicate is
  * `publishConfig.access === "public"` (`findWorkspaces`, `scripts/lib/util.ts`), and
@@ -101,7 +102,7 @@ describe("never-published workspaces", () => {
     expect(unpublished).toEqual(Object.keys(FROZEN_VERSIONS).sort());
   });
 
-  it("are marked private, so the release script's skip reaches them", () => {
+  it("are marked private, so the release cut's skip reaches them", () => {
     const notPrivate = WORKSPACES.filter((w) => !isPublishable(w) && w.manifest.private !== true);
     expect(notPrivate.map((w) => w.dir)).toEqual([]);
   });
