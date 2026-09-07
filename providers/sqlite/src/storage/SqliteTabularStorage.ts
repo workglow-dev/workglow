@@ -113,7 +113,7 @@ export class SqliteTabularStorage<
    * uses. A connection transaction holds the chain, not the mutex, so a read
    * taking only the mutex read uncommitted rows off the shared session.
    */
-  protected guardedRead<T>(fn: () => Promise<T>): Promise<T> {
+  protected override guardedRead<T>(fn: () => Promise<T>): Promise<T> {
     const handle = this.connectionHandle();
     if (handle !== null) {
       return runReadOnConnection(handle, this, () => this.mutex(fn));

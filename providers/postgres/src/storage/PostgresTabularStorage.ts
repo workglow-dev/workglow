@@ -933,7 +933,7 @@ export class PostgresTabularStorage<
    * its own client and sees only committed rows, which is also why this skips
    * the `assertNotForeignConnectionTx` guard `guardedWrite` needs.
    */
-  protected guardedRead<T>(fn: () => Promise<T>): Promise<T> {
+  protected override guardedRead<T>(fn: () => Promise<T>): Promise<T> {
     const handle = this.connectionHandle();
     if (handle !== null) {
       return runReadOnConnection(handle, this, () => this.mutex(fn));

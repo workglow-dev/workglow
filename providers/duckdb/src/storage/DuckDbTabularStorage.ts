@@ -200,7 +200,7 @@ export class DuckDbTabularStorage<
    * uses. A connection transaction holds the chain, not the mutex, so a read
    * taking only the mutex read uncommitted rows off the shared session.
    */
-  private guardedRead<T>(fn: () => Promise<T>): Promise<T> {
+  protected override guardedRead<T>(fn: () => Promise<T>): Promise<T> {
     return runReadOnConnection(this.connectionHandle(), this, () => this.mutex(fn));
   }
 

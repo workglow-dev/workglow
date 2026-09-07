@@ -218,6 +218,20 @@ export abstract class BaseSqlTabularStorage<
     }
   }
 
+  /**
+   * Read guard for statements this base class issues directly. A connection
+   * transaction takes the CONNECTION's chain slot and not the instance mutex,
+   * so a read holding only the mutex runs on the very session sitting inside
+   * an open `BEGIN` and returns rows a `ROLLBACK` then erases.
+   *
+   * The default is the bare mutex, which is correct for a backend with no
+   * shared connection to serialize against. The single-session backends
+   * override it to take the chain first, matching the order their writes use.
+   */
+  protected guardedRead<T>(fn: () => Promise<T>): Promise<T> {
+    return this.mutex(fn);
+  }
+
   protected constructPrimaryKeyColumns($delimiter: string = ""): string {
     let cached = this._pkColsCache.get($delimiter);
     if (cached === undefined) {
@@ -666,11 +680,16 @@ export abstract class BaseSqlTabularStorage<
    * otherwise falls back to the hash join.
    *
    * The plan is computed ONCE and the pushdown runs from it directly. Taking
-   * the mutex and then re-planning would let the hash-join fallback run while
+   * the lock and then re-planning would let the hash-join fallback run while
    * this instance's lock is held, and that fallback reaches the public
    * `query`/`getAll`, which take the same non-reentrant lock — a deadlock that
    * wedges the instance for every later call. So the only thing that may run
    * under the lock here is the pushdown, which touches the driver directly.
+   *
+   * The pushdown goes through {@link guardedRead}, not the bare mutex: it reads
+   * two tables off the shared session in one statement, so a concurrent
+   * connection transaction would otherwise show it uncommitted rows. The
+   * fallback needs no such guard — the reads it makes are already guarded.
    */
   override async join<R, T extends JoinType>(
     spec: JoinSpec<Entity, R, T>,
@@ -679,7 +698,7 @@ export abstract class BaseSqlTabularStorage<
     const target = resolveJoinDelegate(right) as ITabularStorage<any, any, R, any, any>;
     const plan = this.planSqlJoin(target);
     if (plan === null) return super.join(spec, target);
-    return this.mutex(() => this.runSqlJoin(spec, plan.right, plan.dialect));
+    return this.guardedRead(() => this.runSqlJoin(spec, plan.right, plan.dialect));
   }
 
   /**
