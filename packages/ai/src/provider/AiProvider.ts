@@ -174,8 +174,12 @@ export abstract class AiProvider<TModelConfig extends ModelConfig = ModelConfig>
   }
 
   /**
-   * Default rate card for `model` when not overridden in the model's own record.
-   * `undefined` means this provider publishes no list pricing for the model.
+   * Published list rate card for `model`.
+   *
+   * A card on the model's own record overrides this **field by field**, not
+   * wholesale: every rate the record leaves unset is taken from here. See
+   * `mergeModelPricing`. `undefined` means this provider publishes no list
+   * pricing for the model.
    */
   modelPricing(_model: ModelConfig): ModelPricing | undefined {
     return undefined;
