@@ -3,13 +3,24 @@
  * Copyright 2026 Steven Roussey <sroussey@gmail.com>
  * SPDX-License-Identifier: Apache-2.0
  *
- * Four workspaces are never published: `@workglow/test`, `@workglow/aws`,
- * `@workglow/cloudflare` and `@workglow/web`. Until 0.4.9 the release cut
- * versioned them anyway — `bunset --all` enumerates the root `workspaces`
- * globs and reads no `private` flag — so all four rode from 0.3.x to 0.4.9,
- * thirteen consecutive bumps, each one adding an empty section to a CHANGELOG
- * for a release that never shipped. `publish-workspaces.ts` skipped them the
- * whole time, so no version of any of them has ever been installable.
+ * Two version invariants, one file, because they are the same question asked
+ * about the two halves of the tree.
+ *
+ * **Everything published moves together.** One version across every published
+ * workspace, matched by the workspace root and by the single tag the cut
+ * writes, so any two packages a consumer installs are the pair that were built
+ * and tested together. The release cut is `--all` for that reason, and this
+ * measures the result rather than trusting the flag: a hand-edited version, a
+ * half-applied bump, or a cut that quietly ran `--changed` all land here.
+ *
+ * **Four workspaces are never published** — `@workglow/test`, `@workglow/aws`,
+ * `@workglow/cloudflare` and `@workglow/web` — and they sit outside that
+ * lockstep entirely. Until 0.4.9 the cut versioned them anyway, since
+ * `bunset --all` enumerates the root `workspaces` globs and read no `private`
+ * flag, so all four rode from 0.3.x to 0.4.9: thirteen consecutive bumps, each
+ * adding an empty section to a CHANGELOG for a release that never shipped.
+ * `publish-workspaces.ts` skipped them the whole time, so no version of any of
+ * them has ever been installable.
  *
  * The decision is to leave them unpublished and stop versioning them. Newer
  * bunset skips a private workspace by default, so nothing on the release
@@ -64,10 +75,18 @@ interface Workspace {
  * the three group names is the point: a fourth group added there is covered
  * here on the same commit.
  */
-function readWorkspaces(): Workspace[] {
-  const root = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as {
+function readRootManifest(): {
+  readonly version?: string;
+  readonly workspaces?: readonly string[];
+} {
+  return JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as {
+    version?: string;
     workspaces?: readonly string[];
   };
+}
+
+function readWorkspaces(): Workspace[] {
+  const root = readRootManifest();
   const workspaces: Workspace[] = [];
 
   for (const pattern of root.workspaces ?? []) {
@@ -94,7 +113,19 @@ function readWorkspaces(): Workspace[] {
 }
 
 const WORKSPACES = readWorkspaces();
+const ROOT_VERSION = readRootManifest().version;
 const isPublishable = (w: Workspace): boolean => w.manifest.publishConfig?.access === "public";
+
+describe("published workspaces", () => {
+  // The root is the reference because the cut bumps it in the same step it
+  // bumps the packages, and it is the one version a reader can check by eye.
+  it("all carry the workspace root's version", () => {
+    const adrift = WORKSPACES.filter(isPublishable)
+      .filter((w) => w.manifest.version !== ROOT_VERSION)
+      .map((w) => `${w.dir}@${w.manifest.version} (root is ${ROOT_VERSION})`);
+    expect(adrift).toEqual([]);
+  });
+});
 
 describe("never-published workspaces", () => {
   it("are exactly the ones with a frozen version", () => {

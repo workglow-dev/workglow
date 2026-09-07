@@ -1,2 +1,6 @@
-scope = "changed"
+# Every published package carries the same version, so the cut is always "all".
+# The release script passes --all too; these must not disagree, or a bare
+# `bunset` from the repo root versions only what changed and the tree drifts
+# apart.
+scope = "all"
 bump = "patch"
