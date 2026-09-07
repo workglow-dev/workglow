@@ -4,10 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { Usage } from "@workglow/task-graph";
 import { describe, expect, it } from "vitest";
+import { estimateCost } from "../../capability/CostEstimate";
+import { formatCost } from "../../capability/formatUsage";
 import type { ModelPricing } from "../ModelPricing";
 import {
   FREE_LOCAL_PRICING,
+  mergeModelPricing,
   ModelPricingSchema,
   resolveEffectiveRates,
   resolveModelPricingFromTable,
@@ -227,5 +231,147 @@ describe("resolveEffectiveRates", () => {
       cacheWrite: undefined,
       cacheStoragePerHour: undefined,
     });
+  });
+});
+
+describe("mergeModelPricing", () => {
+  // A stand-in for a provider's published card: every rate filled in, plus the
+  // long-context rows and a batch card, so a partial declaration has something
+  // of each kind to inherit.
+  const provider: ModelPricing = {
+    currency: "USD",
+    input: 3,
+    output: 15,
+    cached: 0.3,
+    cacheWrite: 3.75,
+    cacheStoragePerHour: 1,
+    batch: { input: 1.5, output: 7.5 },
+    usageTiers: [
+      { maxInputTokens: 200_000, pricing: { input: 3, output: 15 } },
+      { minInputTokens: 200_000, pricing: { input: 6, output: 22.5 } },
+    ],
+  };
+
+  it("fills every rate the declared card leaves unset", () => {
+    // The case that motivates the merge: someone enters one negotiated rate.
+    // The rest must stay priced instead of reading as unpriced counters.
+    const merged = mergeModelPricing({ currency: "USD", input: 1 }, provider);
+    expect(merged?.input).toBe(1);
+    expect(merged?.output).toBe(15);
+    expect(merged?.cached).toBe(0.3);
+    expect(merged?.cacheWrite).toBe(3.75);
+    expect(merged?.cacheStoragePerHour).toBe(1);
+  });
+
+  it("keeps a declared rate of zero rather than treating it as unset", () => {
+    // A free-tier or comped rate is a declaration, and `0` must not fall
+    // through to the provider's list rate the way `undefined` does.
+    expect(mergeModelPricing({ currency: "USD", input: 0 }, provider)?.input).toBe(0);
+  });
+
+  it("keeps a declared rate over an inherited tier that would re-price it", () => {
+    // The tier is a replacement card for prompts over 200K. Inherited whole it
+    // would put the provider's `input: 6` back on exactly the long prompts the
+    // negotiated rate was entered for, so the tier keeps only `output`.
+    const merged = mergeModelPricing({ currency: "USD", input: 1 }, provider);
+    const rates = resolveEffectiveRates(merged!, { inputTokens: 300_000 });
+    expect(rates.input).toBe(1);
+    expect(rates.output).toBe(22.5);
+  });
+
+  it("drops an inherited tier that restates nothing else", () => {
+    // Both of the provider's tiers name only `input` and `output`; declaring
+    // both leaves each tier empty, and an empty tier is not worth carrying.
+    const merged = mergeModelPricing({ currency: "USD", input: 1, output: 2 }, provider);
+    expect(merged?.usageTiers).toBeUndefined();
+    expect(resolveEffectiveRates(merged!, { inputTokens: 300_000 }).input).toBe(1);
+  });
+
+  it("uses the declarer's own tiers as given and inherits none", () => {
+    // Tiers someone supplied already say what each range costs; splicing the
+    // provider's rows in beside them would price ranges nobody declared.
+    const merged = mergeModelPricing(
+      {
+        currency: "USD",
+        input: 1,
+        usageTiers: [{ minInputTokens: 500_000, pricing: { input: 2 } }],
+      },
+      provider
+    );
+    expect(merged?.usageTiers).toEqual([{ minInputTokens: 500_000, pricing: { input: 2 } }]);
+    // 300K falls in the provider's over-200K row and in none of the declared
+    // ones, so it is priced at the declared base rate.
+    expect(resolveEffectiveRates(merged!, { inputTokens: 300_000 }).input).toBe(1);
+    expect(resolveEffectiveRates(merged!, { inputTokens: 600_000 }).input).toBe(2);
+  });
+
+  it("inherits timing tiers under the same rule", () => {
+    const offPeak: ModelPricing = {
+      currency: "USD",
+      input: 3,
+      output: 15,
+      timingTiers: [{ start: "00:00", end: "12:00", pricing: { input: 1.5, output: 7.5 } }],
+    };
+    const merged = mergeModelPricing({ currency: "USD", input: 1 }, offPeak);
+    const rates = resolveEffectiveRates(merged!, { at: new Date("2026-09-04T06:00:00Z") });
+    expect(rates.input).toBe(1);
+    expect(rates.output).toBe(7.5);
+  });
+
+  it("inherits nothing from a card in another currency", () => {
+    // Two currencies merged field by field would read as one card whose rates
+    // are silently in different units, which no downstream sum can detect.
+    const merged = mergeModelPricing({ currency: "EUR", input: 1 }, provider);
+    expect(merged).toEqual({ currency: "EUR", input: 1 });
+  });
+
+  it("still inherits when the same currency is spelled differently", () => {
+    expect(mergeModelPricing({ currency: "usd", input: 1 }, provider)?.output).toBe(15);
+  });
+
+  it("merges the batch card field by field too", () => {
+    const merged = mergeModelPricing({ currency: "USD", batch: { input: 0.5 } }, provider);
+    expect(merged?.batch).toEqual({ input: 0.5, output: 7.5 });
+  });
+
+  it("keeps the provider's batch card when the declared one says nothing", () => {
+    expect(mergeModelPricing({ currency: "USD", input: 1 }, provider)?.batch).toEqual({
+      input: 1.5,
+      output: 7.5,
+    });
+  });
+
+  it("returns the provider's card unchanged when nothing is declared", () => {
+    expect(mergeModelPricing(undefined, provider)).toBe(provider);
+  });
+
+  it("returns the declared card when the provider prices nothing", () => {
+    const declared: ModelPricing = { currency: "USD", input: 1 };
+    expect(mergeModelPricing(declared, undefined)).toBe(declared);
+  });
+
+  it("stays undefined when neither side prices the model, and reads as unpriced", () => {
+    // `undefined` must never collapse to a zero card: an unpriced model has to
+    // keep printing the partial marker rather than a confident free run.
+    expect(mergeModelPricing(undefined, undefined)).toBeUndefined();
+
+    const usage: Usage = {
+      input: 1_000,
+      output: 500,
+      cached: undefined,
+      cacheWrite: undefined,
+      reasoning: undefined,
+      total: undefined,
+      extra: undefined,
+    };
+    expect(estimateCost(usage, mergeModelPricing(undefined, undefined))).toBeUndefined();
+
+    // And a merged card that prices only part of what was spent still marks
+    // the figure partial with `~`.
+    const partial = mergeModelPricing({ currency: "USD", input: 1 }, undefined);
+    const estimate = estimateCost(usage, partial);
+    expect(estimate?.unpriced).toEqual(["output"]);
+    expect(formatCost(estimate)).toBe("~$0.0010");
+    expect(formatCost(undefined)).toBe("");
   });
 });

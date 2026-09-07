@@ -14,6 +14,10 @@ import type { DataPortSchemaObject } from "@workglow/util/worker";
  *
  * `cacheStoragePerHour` prices a provider-side cache billed by token-hours
  * (e.g. Gemini CachedContent) rather than by a one-off write.
+ *
+ * Every rate is optional and an unset one means "not declared here", never
+ * zero: it is what a merge fills in from a wider card, and what leaves a spent
+ * counter reported as unpriced when nothing declares it.
  */
 export interface ModelPricingBase {
   input?: number;
@@ -60,6 +64,15 @@ export interface ModelTimingTier {
   pricing: ModelPricingBase;
 }
 
+/**
+ * One model's rate card.
+ *
+ * A card stored on a model record is a **per-field** override of the provider's
+ * published card, not a replacement for it: {@link mergeModelPricing} fills
+ * every rate the record leaves unset from the provider's, so entering a single
+ * negotiated `input` rate does not leave `output` and the cache rates reading as
+ * unpriced. The two exceptions are stated with that function.
+ */
 export interface ModelPricing extends ModelPricingBase {
   currency: string;
   batch?: ModelPricingBase;
@@ -132,6 +145,111 @@ export function resolveModelPricingFromTable(
     best = key;
   }
   return best === undefined ? undefined : table[best];
+}
+
+/** The rates a base card, a `batch` card and a tier card all carry. */
+const RATE_FIELDS = ["input", "output", "cached", "cacheWrite", "cacheStoragePerHour"] as const;
+
+/** Currencies name the same unit however they are spelled or padded. */
+function isSameCurrency(a: string, b: string): boolean {
+  return a.trim().toUpperCase() === b.trim().toUpperCase();
+}
+
+/** Every rate `declared` states, with the rest taken from `inherited`. */
+function mergeRates(declared: ModelPricingBase, inherited: ModelPricingBase): ModelPricingBase {
+  return {
+    input: declared.input ?? inherited.input,
+    output: declared.output ?? inherited.output,
+    cached: declared.cached ?? inherited.cached,
+    cacheWrite: declared.cacheWrite ?? inherited.cacheWrite,
+    cacheStoragePerHour: declared.cacheStoragePerHour ?? inherited.cacheStoragePerHour,
+  };
+}
+
+function mergeOptionalRates(
+  declared: ModelPricingBase | undefined,
+  inherited: ModelPricingBase | undefined
+): ModelPricingBase | undefined {
+  if (!declared) return inherited;
+  if (!inherited) return declared;
+  return mergeRates(declared, inherited);
+}
+
+/**
+ * `tier` with every rate `declared` states removed, or `undefined` when that
+ * leaves nothing.
+ *
+ * A tier is a replacement card for a prompt range or a clock window, so an
+ * inherited tier restating a rate the declarer set would override it exactly
+ * where a long prompt or an off-peak hour selects the tier — silently undoing
+ * the declaration in the cases it was likely entered for.
+ */
+function tierRatesNotDeclared(
+  tier: ModelPricingBase,
+  declared: ModelPricingBase
+): ModelPricingBase | undefined {
+  const kept: ModelPricingBase = {
+    input: declared.input === undefined ? tier.input : undefined,
+    output: declared.output === undefined ? tier.output : undefined,
+    cached: declared.cached === undefined ? tier.cached : undefined,
+    cacheWrite: declared.cacheWrite === undefined ? tier.cacheWrite : undefined,
+    cacheStoragePerHour:
+      declared.cacheStoragePerHour === undefined ? tier.cacheStoragePerHour : undefined,
+  };
+  return RATE_FIELDS.some((field) => kept[field] !== undefined) ? kept : undefined;
+}
+
+/** Inherited tiers, stripped of what `declared` states and dropped when empty. */
+function inheritTiers<T extends { pricing: ModelPricingBase }>(
+  tiers: readonly T[] | undefined,
+  declared: ModelPricingBase
+): T[] | undefined {
+  if (!tiers) return undefined;
+  const kept: T[] = [];
+  for (const tier of tiers) {
+    const pricing = tierRatesNotDeclared(tier.pricing, declared);
+    if (pricing) kept.push({ ...tier, pricing });
+  }
+  return kept.length > 0 ? kept : undefined;
+}
+
+/**
+ * A model's effective rate card: the card someone declared for it, merged over
+ * the provider's published one field by field.
+ *
+ * Every rate `declared` omits is filled from `inherited` — including inside
+ * `batch` — so a single negotiated `input` rate does not turn the rest of the
+ * card into unpriced counters. Two rules keep the result from contradicting
+ * what was declared:
+ *
+ * - **A declared rate wins everywhere.** Inherited tiers drop any rate declared
+ *   at the base level, and a tier left with none is dropped whole; otherwise a
+ *   provider's over-200K row would re-price a long prompt at the list rate the
+ *   declaration replaced. Tiers the declarer supplied are used as given and
+ *   none are inherited — they already state what the ranges cost.
+ * - **Currencies are never mixed.** A declared card in another currency
+ *   inherits nothing, because merging the two would read as one card whose
+ *   rates are quietly in two units.
+ *
+ * Either side may be absent: with no declared card the provider's stands, with
+ * no provider card the declared one does, and with neither the result is
+ * `undefined` so a missing rate keeps reading as unpriced rather than free.
+ */
+export function mergeModelPricing(
+  declared: ModelPricing | undefined,
+  inherited: ModelPricing | undefined
+): ModelPricing | undefined {
+  if (!declared) return inherited;
+  if (!inherited) return declared;
+  if (!isSameCurrency(declared.currency, inherited.currency)) return declared;
+
+  return {
+    ...mergeRates(declared, inherited),
+    currency: declared.currency,
+    batch: mergeOptionalRates(declared.batch, inherited.batch),
+    usageTiers: declared.usageTiers ?? inheritTiers(inherited.usageTiers, declared),
+    timingTiers: declared.timingTiers ?? inheritTiers(inherited.timingTiers, declared),
+  };
 }
 
 const MINUTES_PER_HOUR = 60;
@@ -309,11 +427,12 @@ const CLOCK_TIME_PATTERN = "^([01][0-9]|2[0-3]):[0-5][0-9]$";
 /**
  * JSON schema for per-million-token model pricing rates.
  *
- * A model record carries a card only as a deliberate override — a negotiated
- * rate, or a model no provider table names. Absent is the ordinary case, and
- * the provider's own table answers instead: a rate correction there then
- * reaches every model already added, rather than being shadowed by whatever
- * the published rates were on the day the model was added.
+ * Every field is optional past the currency, because a card on a model record
+ * states only what someone declared — a negotiated `input` rate, or the whole
+ * card for a model no provider table names. Whatever it leaves out the
+ * provider's own table answers for ({@link mergeModelPricing}), so a rate
+ * correction there reaches every model already added instead of being shadowed
+ * by the published rates of the day it was added.
  */
 export const ModelPricingSchema = {
   type: "object",

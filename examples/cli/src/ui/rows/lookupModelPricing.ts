@@ -5,7 +5,12 @@
  */
 
 import type { ModelPricing, ModelRecord } from "@workglow/ai";
-import { FREE_LOCAL_PRICING, getAiProviderRegistry, getGlobalModelRepository } from "@workglow/ai";
+import {
+  FREE_LOCAL_PRICING,
+  getAiProviderRegistry,
+  getGlobalModelRepository,
+  mergeModelPricing,
+} from "@workglow/ai";
 import { getAnthropicModelPricing } from "@workglow/anthropic/ai";
 import { getDeepSeekModelPricing } from "@workglow/deepseek/ai";
 import { getGeminiModelPricing } from "@workglow/google-gemini/ai";
@@ -16,7 +21,7 @@ const cache = new Map<string, ModelPricing | undefined>();
 const inflight = new Map<string, Promise<ModelPricing | undefined>>();
 
 /**
- * Rate card for a model the repository does not price.
+ * Published rate card for a model id, under whatever the record declares.
  *
  * A record names its provider, so that provider answers for it. A bare id does
  * NOT get offered to every registered provider in turn: a local provider
@@ -44,7 +49,8 @@ function resolveFallbackPricing(modelId: string, record?: ModelRecord): ModelPri
 }
 
 /**
- * Resolve a model's declared rate card from the global repository.
+ * Resolve a model's effective rate card: the one its repository record declares,
+ * merged field by field over the provider's published card.
  *
  * Memoized per model id for the process lifetime — rate cards do not change
  * mid-run, and the CLI re-reads usage on every snapshot, so an uncached lookup
@@ -61,7 +67,7 @@ export async function lookupModelPricing(
     pending = getGlobalModelRepository()
       .findByName(modelId)
       .then((record) => {
-        const pricing = record?.pricing ?? resolveFallbackPricing(modelId, record);
+        const pricing = mergeModelPricing(record?.pricing, resolveFallbackPricing(modelId, record));
         cache.set(modelId, pricing);
         inflight.delete(modelId);
         return pricing;
