@@ -12,7 +12,7 @@
         "@types/bun": "^1.4.1",
         "@vitest/coverage-v8": "^5.0.0",
         "@vitest/ui": "5.0.0",
-        "bunset": "^1.0.15",
+        "bunset": "^1.1.0",
         "concurrently": "^10.0.5",
         "husky": "^9.1.7",
         "lint-staged": "^17.5.0",
@@ -1789,7 +1789,7 @@
 
     "bundle-name": ["bundle-name@4.1.0", "", { "dependencies": { "run-applescript": "^7.0.0" } }, "sha512-tjwM5exMg6BGRI+kNmTntNsvdZS1X8BFYS6tnJ2hdH0kVxM6/eVZ2xy+FqStSWvYmtfFMDLIxurorHwDKfDz5Q=="],
 
-    "bunset": ["bunset@1.0.15", "", { "bin": { "bunset": "src/index.ts" } }, "sha512-hqkm9dKdf1tauHBiStnrDXiMel2EaRnNi0pR3J1sMDo/CffNkpVhjgWRMqP3k0gbaM5WEl9ZboFihWY9/JI9Og=="],
+    "bunset": ["bunset@1.1.0", "", { "bin": { "bunset": "src/index.ts" } }, "sha512-0jfuO9zXdndX41KErPZRimqvouClvO7/feTLkjOR+whL/6nLwd+B352ZJsUOvLodFvyCi6F02YIEniqjAM9YAA=="],
 
     "bytes": ["bytes@3.1.2", "", {}, "sha512-/Nf7TyzTx6S3yRJObOAV7956r8cr2+Oj8AC5dt8wSP3BQAoeX58NoHyCU8P8zGkNXStjTSi6fzO6F0pBdcYbEg=="],
 
