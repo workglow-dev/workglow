@@ -42,6 +42,7 @@ import {
   runInTransactionOnConnection,
   runNativeConnectionTransaction,
   runOnConnection,
+  runReadOnConnection,
   runSingleSessionConnectionTransaction,
   safeEmit,
   setConnectionTxQuery,
@@ -922,6 +923,23 @@ export class PostgresTabularStorage<
     return this.mutex(fn);
   }
 
+  /**
+   * Chain first, then this instance's mutex — the order {@link guardedWrite}
+   * uses. A connection transaction holds the chain, not the mutex, so a read
+   * taking only the mutex read uncommitted rows off the shared session.
+   *
+   * A real `pg.Pool` has no shared handle and needs none: each read checks out
+   * its own client and sees only committed rows, which is also why this skips
+   * the `assertNotForeignConnectionTx` guard `guardedWrite` needs.
+   */
+  protected guardedRead<T>(fn: () => Promise<T>): Promise<T> {
+    const handle = this.connectionHandle();
+    if (handle !== null) {
+      return runReadOnConnection(handle, this, () => this.mutex(fn));
+    }
+    return this.mutex(fn);
+  }
+
   async runConnectionTransaction<T>(
     participants: readonly AnyTabularStorage[],
     fn: () => Promise<T>
@@ -1278,7 +1296,7 @@ export class PostgresTabularStorage<
    * @emits "get" event with the key when successful
    */
   async get(key: PrimaryKey): Promise<Entity | undefined> {
-    return this.mutex(() => this._getInternal(key));
+    return this.guardedRead(() => this._getInternal(key));
   }
 
   private async _getInternal(key: PrimaryKey): Promise<Entity | undefined> {
@@ -1335,12 +1353,12 @@ export class PostgresTabularStorage<
         : Math.max(1, Math.min(COMPOUND_IN_TUPLE_LIMIT, Math.floor(30000 / pkColCount)));
     let rows: Entity[];
     if (keys.length <= chunkSize) {
-      rows = await this.mutex(() => this._getBulkInternal(keys));
+      rows = await this.guardedRead(() => this._getBulkInternal(keys));
     } else {
       rows = [];
       for (let i = 0; i < keys.length; i += chunkSize) {
         const chunk = keys.slice(i, i + chunkSize);
-        const chunkRows = await this.mutex(() => this._getBulkInternal(chunk));
+        const chunkRows = await this.guardedRead(() => this._getBulkInternal(chunk));
         rows.push(...chunkRows);
       }
     }
@@ -1417,7 +1435,7 @@ export class PostgresTabularStorage<
    * @returns Promise resolving to an array of entries or undefined if not found
    */
   async getAll(options?: QueryOptions<Entity>): Promise<Entity[] | undefined> {
-    return this.mutex(() => this._getAllInternal(options));
+    return this.guardedRead(() => this._getAllInternal(options));
   }
 
   private async _getAllInternal(options?: QueryOptions<Entity>): Promise<Entity[] | undefined> {
@@ -1480,7 +1498,7 @@ export class PostgresTabularStorage<
    * @returns Promise resolving to the count of stored items
    */
   async size(): Promise<number> {
-    return this.mutex(() => this._sizeInternal());
+    return this.guardedRead(() => this._sizeInternal());
   }
 
   private async _sizeInternal(): Promise<number> {
@@ -1493,7 +1511,7 @@ export class PostgresTabularStorage<
    * Counts rows matching the specified search criteria.
    */
   override async count(criteria?: SearchCriteria<Entity>): Promise<number> {
-    return this.mutex(() => this._countInternal(criteria));
+    return this.guardedRead(() => this._countInternal(criteria));
   }
 
   private async _countInternal(criteria?: SearchCriteria<Entity>): Promise<number> {
@@ -1518,7 +1536,7 @@ export class PostgresTabularStorage<
    * @returns Array of entities or undefined if no records found
    */
   async getOffsetPage(offset: number, limit: number): Promise<Entity[] | undefined> {
-    return this.mutex(() => this._getOffsetPageInternal(offset, limit));
+    return this.guardedRead(() => this._getOffsetPageInternal(offset, limit));
   }
 
   private async _getOffsetPageInternal(
@@ -1585,7 +1603,7 @@ export class PostgresTabularStorage<
    * and run on the transaction-bound `db`.
    */
   override async getPage(request: PageRequest<Entity> = {}): Promise<Page<Entity>> {
-    return this.mutex(() => this._getPageInternal(request));
+    return this.guardedRead(() => this._getPageInternal(request));
   }
 
   private async _getPageInternal(request: PageRequest<Entity>): Promise<Page<Entity>> {
@@ -1596,7 +1614,7 @@ export class PostgresTabularStorage<
     criteria: SearchCriteria<Entity>,
     request: PageRequest<Entity> = {}
   ): Promise<Page<Entity>> {
-    return this.mutex(() => this._queryPageInternal(criteria, request));
+    return this.guardedRead(() => this._queryPageInternal(criteria, request));
   }
 
   private async _queryPageInternal(
@@ -1769,7 +1787,7 @@ export class PostgresTabularStorage<
     criteria: SearchCriteria<Entity>,
     options?: QueryOptions<Entity>
   ): Promise<Entity[] | undefined> {
-    return this.mutex(() => this._queryInternal(criteria, options));
+    return this.guardedRead(() => this._queryInternal(criteria, options));
   }
 
   private async _queryInternal(
@@ -1827,7 +1845,7 @@ export class PostgresTabularStorage<
     criteria: SearchCriteria<Entity>,
     options: CoveringIndexQueryOptions<Entity, K>
   ): Promise<Pick<Entity, K>[]> {
-    return this.mutex(() => this._queryIndexInternal(criteria, options));
+    return this.guardedRead(() => this._queryIndexInternal(criteria, options));
   }
 
   private async _queryIndexInternal<K extends keyof Entity & string>(
