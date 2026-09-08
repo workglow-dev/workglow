@@ -114,11 +114,22 @@ const KEY_SUFFIX_BOUNDARY = new Set(["-", "_", ":", "/", "@"]);
  * `vendorPrefixes` are stripped (lower-cased, longest first is the caller's
  * responsibility) before matching, so `anthropic/claude-sonnet-5` resolves the
  * same as the bare id.
+ *
+ * `notTokenBilled` is how a provider says an id is not billed per token at all.
+ * The substring walk cannot know that: a dash is a legal suffix boundary — it
+ * marks a dated or sized variant of the same model — so `grok-2-image-1212`
+ * matches `grok-2` and would resolve its per-1M-token card. For a model billed
+ * per image or per second of audio that is not an approximation, it is a
+ * fabricated unit, and `undefined` is the honest answer. It is consulted only
+ * after the exact lookups, so a table that deliberately prices an image model
+ * still wins. Providers should pass the SAME matcher their effort policy uses
+ * rather than a second copy of it.
  */
 export function resolveModelPricingFromTable(
   table: Readonly<Record<string, ModelPricing>>,
   modelId: string | undefined,
-  vendorPrefixes: readonly string[] = []
+  vendorPrefixes: readonly string[] = [],
+  notTokenBilled?: (modelId: string) => boolean
 ): ModelPricing | undefined {
   if (!modelId) return undefined;
   let id = modelId.trim().toLowerCase();
@@ -133,6 +144,12 @@ export function resolveModelPricingFromTable(
   // `Object.prototype.constructor` for a model literally named "constructor".
   if (Object.hasOwn(table, modelId)) return table[modelId];
   if (Object.hasOwn(table, id)) return table[id];
+
+  // After the exact lookups, before the substring walk. A table that names an
+  // id has deliberately priced it — Gemini prices several image models — and
+  // that is a stronger statement than any matcher. What the guard blocks is the
+  // walk BORROWING a sibling's card for an id the table never named.
+  if (notTokenBilled?.(modelId) === true) return undefined;
 
   let best: string | undefined;
   for (const key of Object.keys(table)) {

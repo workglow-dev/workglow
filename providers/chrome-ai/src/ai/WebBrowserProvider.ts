@@ -8,9 +8,11 @@ import type {
   AiProviderPreviewRunFn,
   AiProviderRunFnRegistration,
   Capability,
+  ModelConfig,
+  ModelPricing,
   ModelRecord,
 } from "@workglow/ai/worker";
-import { AiProvider } from "@workglow/ai/worker";
+import { AiProvider, FREE_LOCAL_PRICING } from "@workglow/ai/worker";
 import {
   CONSERVATIVE_PROBED_CAPABILITIES,
   inferWebBrowserCapabilities,
@@ -75,6 +77,17 @@ export class WebBrowserProvider extends AiProvider<WebBrowserModelConfig> {
 
   override inferCapabilities(model: ModelRecord): readonly Capability[] {
     return inferWebBrowserCapabilities(model, this.probedCaps);
+  }
+
+  /**
+   * Chrome's built-in models run on the user's own machine, so they cost
+   * nothing. Said explicitly: without an answer here the cost path reads a
+   * local model as UNKNOWN rather than free, which is the same silence a
+   * metered provider with no rate card produces.
+   */
+  override modelPricing(model?: ModelConfig): ModelPricing | undefined {
+    if (model && model.provider !== this.name) return undefined;
+    return FREE_LOCAL_PRICING;
   }
 
   protected override workerRunFnSpecs(): readonly { serves: readonly Capability[] }[] {

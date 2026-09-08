@@ -89,6 +89,40 @@ describe("resolveModelPricingFromTable", () => {
     expect(resolveModelPricingFromTable(table, "constructor")).toBeUndefined();
     expect(resolveModelPricingFromTable(table, "toString")).toBeUndefined();
   });
+
+  describe("notTokenBilled", () => {
+    // A dash is a legal suffix boundary — that is what resolves a dated variant
+    // to its family — so an id like `gpt-4o-image` reaches `gpt-4o`'s card. For
+    // a model billed per image that is a fabricated unit rather than an
+    // approximation, and a provider says so by passing its own matcher.
+    const isImage = (id: string): boolean => /(?:^|-)image(?:-|$)/i.test(id);
+
+    it("blocks the substring walk from borrowing a sibling's card", () => {
+      expect(resolveModelPricingFromTable(table, "gpt-4o-image")).toBe(table["gpt-4o"]);
+      expect(resolveModelPricingFromTable(table, "gpt-4o-image", [], isImage)).toBeUndefined();
+    });
+
+    it("does not override an id the table names outright", () => {
+      // Consulted AFTER the exact lookups: a table that prices an image model
+      // has declared a rate deliberately, which is a stronger statement than any
+      // matcher. Only the borrowing is blocked.
+      const withImage: Record<string, ModelPricing> = {
+        ...table,
+        "gpt-image-1": { currency: "USD", input: 5, output: 40 },
+      };
+      expect(resolveModelPricingFromTable(withImage, "gpt-image-1", [], isImage)).toBe(
+        withImage["gpt-image-1"]
+      );
+    });
+
+    it("leaves a text id alone, and is optional", () => {
+      expect(resolveModelPricingFromTable(table, "gpt-4o", [], isImage)).toBe(table["gpt-4o"]);
+      expect(resolveModelPricingFromTable(table, "gpt-4o-2024-08-06", [], isImage)).toBe(
+        table["gpt-4o"]
+      );
+      expect(resolveModelPricingFromTable(table, "gpt-4o", [], () => false)).toBe(table["gpt-4o"]);
+    });
+  });
 });
 
 describe("resolveEffectiveRates", () => {

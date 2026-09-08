@@ -93,3 +93,65 @@ describe("cloud model search results", () => {
     expect(getGeminiModelPricing("gemini-2.5-pro")).toBeDefined();
   });
 });
+
+/**
+ * Capabilities whose models are not billed per token.
+ *
+ * A card of per-1M-token rates on one of these is not an approximation, it is a
+ * fabricated unit: image generation bills per image. `undefined` is the correct
+ * answer for a model a token table cannot price — a sibling's card is not.
+ */
+const NOT_TOKEN_BILLED = new Set(["image.generation", "audio.speech", "audio.transcription"]);
+
+const PRICED_PROVIDERS = [
+  { name: "Anthropic", search: Anthropic_ModelSearch_Stream, resolve: getAnthropicModelPricing },
+  { name: "OpenAI", search: OpenAI_ModelSearch_Stream, resolve: getOpenAiModelPricing },
+  { name: "DeepSeek", search: DeepSeek_ModelSearch_Stream, resolve: getDeepSeekModelPricing },
+  { name: "xAI", search: Xai_ModelSearch_Stream, resolve: getXaiModelPricing },
+] as const;
+
+/**
+ * The honesty axis the pricing primitive shipped without.
+ *
+ * Refusal, cache checkpoints and effort each needed a conformance assertion and
+ * each got one only after a defect. This one is driven off the provider's own
+ * catalogue, so the fixture cannot drift from what the provider reports.
+ */
+describe("a rate card must match the model's billing unit", () => {
+  it.each(PRICED_PROVIDERS)(
+    "$name prices no model its own catalogue calls non-token-billed",
+    async ({ search, resolve }) => {
+      const results = await searchRecords(search);
+      const offenders = results
+        .filter((result) =>
+          ((result.record?.capabilities ?? []) as string[]).some((c) => NOT_TOKEN_BILLED.has(c))
+        )
+        .filter((result) => resolve(result.id) !== undefined)
+        .map((result) => `${result.id} (${(result.record.capabilities as string[]).join(", ")})`);
+      expect(offenders).toEqual([]);
+    }
+  );
+
+  it("is not vacuous: some catalogue really does report a non-token-billed model", async () => {
+    // Without this the loop above passes just as well over four catalogues that
+    // contain nothing it could ever flag.
+    const seen: string[] = [];
+    for (const { search } of PRICED_PROVIDERS) {
+      for (const result of await searchRecords(search)) {
+        const capabilities = (result.record?.capabilities ?? []) as string[];
+        if (capabilities.some((c) => NOT_TOKEN_BILLED.has(c))) seen.push(result.id);
+      }
+    }
+    expect(seen).toContain("grok-2-image-1212");
+  });
+
+  it("Gemini prices the image models it names and refuses the ones it does not", () => {
+    // Gemini's table carries explicit image entries, so the guard must not
+    // override them — only stop an unnamed image id taking a text sibling's card.
+    expect(getGeminiModelPricing("gemini-3-pro-image")).toBeDefined();
+    expect(getGeminiModelPricing("gemini-3.1-flash-image")).toBeDefined();
+    expect(getGeminiModelPricing("imagen-4.0-generate-001")).toBeDefined();
+    expect(getGeminiModelPricing("gemini-2.5-flash-image-preview")).toBeUndefined();
+    expect(getGeminiModelPricing("gemini-2.5-flash")).toBeDefined();
+  });
+});
