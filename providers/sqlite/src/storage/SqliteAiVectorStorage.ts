@@ -442,10 +442,10 @@ export class SqliteAiVectorStorage<
   }
 
   /**
-   * Internal `put` that the {@link SqliteTabularStorage.createTxView} proxy
-   * dispatches to when callers reach the vector storage through a `tx`
-   * handle. Skipping the public `put` is what keeps `tx.put(vector)` going
-   * through the vector-encoding INSERT instead of falling through to the
+   * Vector-encoding implementation behind {@link put}. Reached through the `tx`
+   * handle the same way as outside one — the proxy runs this class's public
+   * `put`, whose `this._putInternal` resolves to this override — so
+   * `tx.put(vector)` goes through the vector-encoding INSERT instead of the
    * parent's `_putInternal` (which binds vectors as JSON BLOBs that
    * `vector_full_scan` cannot decode).
    */
@@ -462,7 +462,8 @@ export class SqliteAiVectorStorage<
   }
 
   /**
-   * Internal `putBulk` that the proxy dispatches to from `tx.putBulk(...)`.
+   * Vector-encoding implementation behind {@link putBulk}, reached through the
+   * `tx` handle the same way as outside one.
    * When already inside an outer `withTransaction` BEGIN we cannot open a
    * second `db.transaction(...)` here — that would be a nested transaction
    * (the driver turns it into a SAVEPOINT, but we still want all

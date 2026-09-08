@@ -221,6 +221,62 @@ export function withConnectionTransactionBlock(opts: TabularStorageContractOpts)
     );
 
     itImpl(
+      "does not show uncommitted rows to a concurrent pushed-down join",
+      async () => {
+        // The single-statement join path used to take only the per-instance
+        // mutex, so once every other read moved onto the connection chain it
+        // was the one entry point left reading off the session inside the open
+        // BEGIN — and the worst one to leave there, since it reads two tables
+        // in a single statement.
+        //
+        // Both storages are enlisted, so the join is not handed to the hash
+        // fallback (which reads through the already-guarded `query`) and the
+        // pushdown is what actually runs.
+        await primary.put({ name: "join-iso", type: "j", option: "before", success: true });
+        await sibling.put({ name: "join-key", type: "j", option: "rhs", success: true });
+
+        let releaseBody: () => void = () => {};
+        const bodyCanFinish = new Promise<void>((resolve) => {
+          releaseBody = resolve;
+        });
+        let signalStarted: () => void = () => {};
+        const bodyStarted = new Promise<void>((resolve) => {
+          signalStarted = resolve;
+        });
+
+        let rollbackError: unknown;
+        const txPromise = withConnectionTransaction([primary, sibling], async () => {
+          await primary.put({ name: "join-iso", type: "j", option: "dirty", success: true });
+          signalStarted();
+          await bodyCanFinish;
+          throw new Error("forced rollback");
+        }).catch((err: unknown) => {
+          rollbackError = err;
+        });
+        await bodyStarted;
+
+        // Issued from the test's own task, so it is not an async descendant of
+        // the body — the caller the transaction is supposed to be invisible to.
+        const joinPromise = primary.join(
+          { type: "inner", on: [{ left: "type", right: "type" }] },
+          sibling
+        );
+        // Long enough that a join which is NOT held back has finished.
+        await new Promise((resolve) => setTimeout(resolve, 25));
+
+        releaseBody();
+        await txPromise;
+        expect((rollbackError as Error | undefined)?.message).toBe("forced rollback");
+
+        const rows = await joinPromise;
+        expect(rows).toHaveLength(1);
+        expect(rows[0]!.left).toMatchObject({ name: "join-iso", option: "before" });
+        expect(rows[0]!.right).toMatchObject({ name: "join-key", option: "rhs" });
+      },
+      opts.timeout
+    );
+
+    itImpl(
       "throws sibling-op for a storage that was not enlisted",
       async () => {
         let error: unknown;

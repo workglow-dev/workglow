@@ -307,7 +307,11 @@ describe("workspace source resolution", () => {
      */
     describe("dist target", () => {
       it("leaves a real bundle on its built file", async () => {
-        const bundle = { id: join(ROOT, "packages/ai/dist/node.js") };
+        // The fixture bundle, not the tree's: this arm is the one that READS
+        // the resolved file, so pointing it at `packages/ai/dist` asserts the
+        // checkout's mode rather than the function, and fails under
+        // `use-source` — the state the comment above calls the normal one.
+        const bundle = { id: join(stubDir, "bundle.js") };
         const { context } = recordingContext(bundle);
 
         expect(await resolveWorkspaceDistId(packages, context, "@workglow/ai", undefined, {})).toBe(

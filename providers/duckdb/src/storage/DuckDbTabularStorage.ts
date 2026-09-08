@@ -42,6 +42,7 @@ import {
   SqlTabularMigrationApplier,
   TYPED_ARRAY_CTORS,
 } from "@workglow/storage";
+import type { SqlJoinDialect } from "@workglow/storage";
 import { createServiceToken, uuid4 } from "@workglow/util";
 import type {
   DataPortSchemaObject,
@@ -181,16 +182,17 @@ export class DuckDbTabularStorage<
 
   /**
    * Runs a write through the cross-instance connection chain (when the
-   * handle is shared) and then this instance's own mutex. Calls arriving
-   * through the `tx` proxy go straight to the `_xInternal` methods and never
-   * re-enter here, so the transaction holder cannot deadlock against itself.
+   * handle is shared) and then this instance's own mutex. The `tx` proxy
+   * neutralizes this wrapper for the duration of the transaction, so a call
+   * arriving through it runs the same public method without re-taking a lock
+   * the transaction holder already owns.
    * The chain is consulted even while `inTransaction` is set: `runOnConnection`
    * inlines a genuine descendant of the open transaction body and queues an
    * unrelated concurrent call — skipping it would let a write deferred on the
    * instance mutex wake after COMMIT and reach the shared connection without a
    * chain slot, interleaving into a sibling instance's next transaction.
    */
-  private guardedWrite<T>(fn: () => Promise<T>): Promise<T> {
+  protected override guardedWrite<T>(fn: () => Promise<T>): Promise<T> {
     return runOnConnection(this.connectionHandle(), this, () => this.mutex(fn));
   }
 
@@ -199,7 +201,7 @@ export class DuckDbTabularStorage<
    * uses. A connection transaction holds the chain, not the mutex, so a read
    * taking only the mutex read uncommitted rows off the shared session.
    */
-  private guardedRead<T>(fn: () => Promise<T>): Promise<T> {
+  protected override guardedRead<T>(fn: () => Promise<T>): Promise<T> {
     return runReadOnConnection(this.connectionHandle(), this, () => this.mutex(fn));
   }
 
@@ -785,50 +787,11 @@ export class DuckDbTabularStorage<
     return result.aligned;
   }
 
-  /**
-   * Build a Proxy view of `this` for the `withTransaction` callback. The
-   * proxy:
-   *
-   *   - Routes any public method `foo` whose private sibling `_fooInternal`
-   *     exists to that sibling, so calls made *through* `tx` bypass the
-   *     mutex held by `withTransaction` and do not deadlock. The naming
-   *     convention is the only sync mechanism — adding a new public method
-   *     with a matching `_fooInternal` is enough; no map to keep in step.
-   *   - Reports `inTransaction === true`, which {@link _putBulkInternal}
-   *     keys off to skip its own BEGIN/COMMIT.
-   *   - Overrides {@link emitPut} so events emitted inside `fn` queue on a
-   *     per-transaction buffer instead of firing immediately, then get
-   *     flushed by `withTransaction` after `COMMIT` (or discarded on
-   *     `ROLLBACK`).
-   *   - Throws on nested `withTransaction` — DuckDB has no autonomous
-   *     `BEGIN`. Use SAVEPOINT-style refactoring for nested boundaries.
-   */
-  private createTxView(deferredPutEvents: Entity[]): this {
-    return new Proxy(this, {
-      get(t, prop, receiver) {
-        if (prop === "withTransaction") {
-          return () => {
-            throw new Error(
-              "DuckDbTabularStorage.withTransaction does not support nesting. " +
-                "Refactor to a single transaction."
-            );
-          };
-        }
-        if (prop === "inTransaction") return true;
-        if (prop === "emitPut") {
-          return (entity: Entity) => deferredPutEvents.push(entity);
-        }
-        if (typeof prop === "string") {
-          const internal = (t as unknown as Record<string, unknown>)[`_${prop}Internal`];
-          if (typeof internal === "function") {
-            return (...args: unknown[]) =>
-              (internal as (...a: unknown[]) => unknown).apply(receiver, args);
-          }
-        }
-        const value = Reflect.get(t, prop, receiver);
-        return typeof value === "function" ? value.bind(receiver) : value;
-      },
-    }) as this;
+  protected override nestedTransactionMessage(): string {
+    return (
+      "DuckDbTabularStorage.withTransaction does not support nesting. " +
+      "Refactor to a single transaction."
+    );
   }
 
   /**
@@ -836,9 +799,11 @@ export class DuckDbTabularStorage<
    *
    * Concurrent ops on the same storage instance from *outside* `fn` queue
    * on this storage's mutex until the transaction commits or rolls back.
-   * The `tx` handle passed to `fn` is a Proxy that routes back to internal
-   * (unlocked) implementations, so calls *through* `tx` inside `fn` do not
-   * deadlock.
+   * The `tx` handle passed to `fn` is the {@link BaseSqlTabularStorage.createTxView}
+   * Proxy: the same public methods with the mutex neutralized, so calls
+   * *through* `tx` inside `fn` keep every guard and do not deadlock. It also
+   * reports `inTransaction === true`, which {@link _putBulkInternal} keys off
+   * to skip its own BEGIN/COMMIT.
    *
    * `put` events emitted from inside `fn` are buffered and flushed to the
    * event emitter after `COMMIT`; if `fn` throws, the buffer is discarded
@@ -846,10 +811,7 @@ export class DuckDbTabularStorage<
    */
   override async withTransaction<T>(fn: (tx: this) => Promise<T>): Promise<T> {
     if (this.inTransaction) {
-      throw new Error(
-        "DuckDbTabularStorage.withTransaction does not support nesting. " +
-          "Refactor to a single transaction."
-      );
+      throw new Error(this.nestedTransactionMessage());
     }
     return runInTransactionOnConnection(this.connectionHandle(), this, () =>
       this.runTransactionBody(fn)
@@ -865,7 +827,7 @@ export class DuckDbTabularStorage<
       try {
         await db.exec("BEGIN");
         try {
-          result = await fn(this.createTxView(deferredPutEvents));
+          result = await fn(this.createTxView(deferredPutEvents, { inTransaction: true }));
           await db.exec("COMMIT");
         } catch (err) {
           try {
@@ -946,9 +908,6 @@ export class DuckDbTabularStorage<
   }
 
   private async _getBulkInternal(keys: readonly PrimaryKey[]): Promise<Entity[]> {
-    // Guarded here (not only in the public wrapper) because the tx proxy
-    // routes straight to this method — `IN ()` is a DuckDB parser error.
-    if (keys.length === 0) return [];
     const db = await this.getDb();
     const pkCols = this.primaryKeyColumns() as string[];
 
@@ -1184,7 +1143,7 @@ export class DuckDbTabularStorage<
     return this.guardedRead(() => this._getPageInternal(request));
   }
 
-  private async _getPageInternal(request: PageRequest<Entity> = {}): Promise<Page<Entity>> {
+  private async _getPageInternal(request: PageRequest<Entity>): Promise<Page<Entity>> {
     return this.runSqlPage(undefined, request, this.duckDbDialect());
   }
 
@@ -1201,6 +1160,14 @@ export class DuckDbTabularStorage<
   ): Promise<Page<Entity>> {
     this.validateQueryParams(criteria, undefined);
     return this.runSqlPage(criteria, request, this.duckDbDialect());
+  }
+
+  protected override sqlJoinDialect(): SqlJoinDialect {
+    return {
+      dialect: DuckDbDialect,
+      executeRaw: async (sql, params) =>
+        (await (await this.getDb()).query(sql, params)).rows as Record<string, unknown>[],
+    };
   }
 
   private duckDbDialect() {
@@ -1224,22 +1191,17 @@ export class DuckDbTabularStorage<
    * @param criteria - Object with column names as keys and values or SearchConditions
    */
   async deleteSearch(criteria: DeleteSearchCriteria<Entity>): Promise<void> {
-    // Ahead of the write lock: a refused delete has no business queueing
-    // behind other writers, and this is the same first line of
-    // `deleteSearch` every other backend opens with.
+    // Stated once, for both paths: the `tx` handle runs this method, not
+    // `_deleteSearchInternal`. Ahead of the write lock because a refused delete
+    // has no business queueing behind other writers. Unguarded,
+    // `deleteSearch({})` builds `DELETE FROM "t" WHERE ` (a syntax error) and
+    // criteria that are nothing but empty `not-in` lists build `WHERE 1 = 1`,
+    // emptying the table instead of raising StorageUnfilteredDeleteError.
     if (!this.shouldRunDeleteSearch(criteria)) return;
     return this.guardedWrite(() => this._deleteSearchInternal(criteria));
   }
 
   private async _deleteSearchInternal(criteria: DeleteSearchCriteria<Entity>): Promise<void> {
-    // Repeated rather than redundant: {@link createTxView}'s Proxy routes
-    // `tx.deleteSearch` straight here by the `_*Internal` naming convention, so
-    // a guard living only on the public method is skipped by every call made
-    // through a transaction handle. Unguarded, `tx.deleteSearch({})` builds
-    // `DELETE FROM "t" WHERE ` (a syntax error) and criteria that are nothing
-    // but empty `not-in` lists build `WHERE 1 = 1`, emptying the table instead
-    // of raising StorageUnfilteredDeleteError.
-    if (!this.shouldRunDeleteSearch(criteria)) return;
     const db = await this.getDb();
     const { whereClause, params } = this.buildDeleteSearchWhere(criteria);
     await db.query(`DELETE FROM "${this.table}" WHERE ${whereClause}`, params);
@@ -1260,6 +1222,11 @@ export class DuckDbTabularStorage<
     match: SearchCriteria<Entity>,
     patch: Partial<Entity>
   ): Promise<Entity | undefined> {
+    // Stated once, for both paths: the `tx` handle runs this method, not
+    // `_updateWhereInternal`. Unguarded, `updateWhere({ id: "a" }, { id: "b" })`
+    // rewrites the row's identity in place instead of raising
+    // StorageValidationError.
+    this.assertPatchKeepsPrimaryKey(patch);
     return this.guardedWrite(() => this._updateWhereInternal(match, patch));
   }
 
@@ -1267,9 +1234,6 @@ export class DuckDbTabularStorage<
     match: SearchCriteria<Entity>,
     patch: Partial<Entity>
   ): Promise<Entity | undefined> {
-    // Guarded here (not in the public wrapper) so calls routed through the
-    // tx proxy cannot bypass the primary-key immutability contract.
-    this.assertPatchKeepsPrimaryKey(patch);
     const patchKeys = Object.keys(patch) as Array<keyof Entity>;
     if (patchKeys.length === 0) return undefined;
 
