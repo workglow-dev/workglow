@@ -384,7 +384,7 @@
     },
     "packages/web-search": {
       "name": "@workglow/web-search",
-      "version": "0.3.48",
+      "version": "0.4.9",
       "devDependencies": {
         "@workglow/job-queue": "workspace:*",
         "@workglow/task-graph": "workspace:*",
@@ -453,6 +453,9 @@
         "@workglow/util": "workspace:*",
         "@workglow/web-search": "workspace:*",
       },
+      "optionalPeers": [
+        "@workglow/web-search",
+      ],
     },
     "providers/aws": {
       "name": "@workglow/aws",
@@ -612,6 +615,9 @@
         "@workglow/util": "workspace:*",
         "@workglow/web-search": "workspace:*",
       },
+      "optionalPeers": [
+        "@workglow/web-search",
+      ],
     },
     "providers/huggingface-inference": {
       "name": "@workglow/huggingface-inference",
@@ -750,6 +756,9 @@
         "@workglow/util": "workspace:*",
         "@workglow/web-search": "workspace:*",
       },
+      "optionalPeers": [
+        "@workglow/web-search",
+      ],
     },
     "providers/openrouter": {
       "name": "@workglow/openrouter",
@@ -773,6 +782,9 @@
         "@workglow/util": "workspace:*",
         "@workglow/web-search": "workspace:*",
       },
+      "optionalPeers": [
+        "@workglow/web-search",
+      ],
     },
     "providers/playwright": {
       "name": "@workglow/playwright",
