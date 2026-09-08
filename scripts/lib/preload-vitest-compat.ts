@@ -10,10 +10,10 @@
  *
  * `bun test` resolves `import { vi } from "vitest"` to its own shim rather than
  * to the real package. That shim covers mocks, spies and fake timers, but not
- * `setSystemTime`, the global/env stubbing pair, or the async timer variants —
- * a test using any of those throws `vi.X is not a function` under Bun while
- * passing under Vitest. The shim exposes one shared `vi` object, so a preload
- * can install the missing members once for every test file.
+ * `setSystemTime`, the global/env stubbing pair, the async timer variants or
+ * `waitFor` — a test using any of those throws `vi.X is not a function` under
+ * Bun while passing under Vitest. The shim exposes one shared `vi` object, so a
+ * preload can install the missing members once for every test file.
  *
  * Only referenced from `bunfig.toml`'s `[test].preload`; Vitest keeps its real
  * implementations. Each addition is guarded so a future Bun release that ships
@@ -137,6 +137,72 @@ define("runOnlyPendingTimersAsync", async (): Promise<typeof vi> => {
   await drainPendingWork();
   return vi;
 });
+
+// ── Polling ───────────────────────────────────────────────────────────────────
+/**
+ * The real timer, captured here because a preload runs before any test can
+ * replace it: the retry loop below has to keep running even while the clock the
+ * callback is waiting on is frozen.
+ */
+const realSetTimeout = globalThis.setTimeout;
+
+interface WaitForOptions {
+  readonly timeout?: number | undefined;
+  readonly interval?: number | undefined;
+}
+
+/** Vitest's own defaults for both spellings of the argument. */
+function waitForSettings(options: number | WaitForOptions | undefined): {
+  readonly timeout: number;
+  readonly interval: number;
+} {
+  if (typeof options === "number") return { timeout: options, interval: 50 };
+  return { timeout: options?.timeout ?? 1000, interval: options?.interval ?? 50 };
+}
+
+/**
+ * One pause between retries.
+ *
+ * Under fake timers the callback is usually waiting on the very clock the test
+ * froze, so sleeping would poll a clock that never moves: Vitest advances it
+ * between retries and so does this. Fake timers are detected by the global Bun
+ * swapped out from under us, which is why the real one is captured above.
+ */
+async function waitForTick(interval: number): Promise<void> {
+  if (globalThis.setTimeout !== realSetTimeout) {
+    advanceTimersByTime(interval);
+    await drainPendingWork();
+    return;
+  }
+  await new Promise<void>((resolve) => {
+    realSetTimeout(resolve, interval);
+  });
+}
+
+/**
+ * Retry `callback` until it stops throwing, then return its value.
+ *
+ * `Date.now()` is the deadline on both paths deliberately: Bun's fake timers
+ * advance it by exactly what {@link waitForTick} advances the clock, so the
+ * same arithmetic bounds the loop whether the clock is real or faked.
+ */
+define(
+  "waitFor",
+  async <T>(callback: () => T | Promise<T>, options?: number | WaitForOptions): Promise<T> => {
+    const { timeout, interval } = waitForSettings(options);
+    const deadline = Date.now() + timeout;
+    let lastError: unknown;
+    for (;;) {
+      try {
+        return await callback();
+      } catch (error) {
+        lastError = error;
+      }
+      if (Date.now() >= deadline) throw lastError;
+      await waitForTick(interval);
+    }
+  }
+);
 
 // ── Type-level helpers ────────────────────────────────────────────────────────
 // `vi.mocked` and `vi.hoisted` are identity functions at runtime in Vitest too.
