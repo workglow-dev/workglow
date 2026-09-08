@@ -36,8 +36,8 @@ const humanInputTaskConfigSchema = {
       type: "string",
       title: "Kind",
       description:
-        "Interaction kind: notify (one-way), display (show content), elicit (request input)",
-      enum: ["notify", "display", "elicit"],
+        "Interaction kind: notify (one-way), display (show content), elicit (request input), confirm (approve an action)",
+      enum: ["notify", "display", "elicit", "confirm"],
       default: "elicit",
     },
     contentSchema: {
@@ -144,6 +144,7 @@ export type HumanInputTaskOutput = {
  * - "notify": Send a notification (fire-and-forget, task completes immediately)
  * - "display": Present content to the human (charts, data, markdown)
  * - "elicit": Request structured input via a form (MCP elicitation model)
+ * - "confirm": Ask a human to approve or refuse one described action
  *
  * The contentSchema describes WHAT to render. The kind determines HOW.
  * For "elicit", the output includes the human's submitted data.
@@ -224,7 +225,9 @@ export class HumanInputTask extends Task<
       message,
       contentSchema: this.config.contentSchema ?? emptySchema,
       contentData: input.contentData,
-      expectsResponse: kind === "elicit",
+      // A confirm expects an answer for the same reason an elicit does; it is
+      // single-turn because a decision has no follow-up round to negotiate.
+      expectsResponse: kind === "elicit" || kind === "confirm",
       mode: kind === "elicit" ? mode : "single",
       metadata: input.context
         ? { ...this.config.metadata, ...input.context }

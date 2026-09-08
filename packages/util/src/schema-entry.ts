@@ -9,6 +9,7 @@
 export * from "./json-schema/DataPortSchema";
 export * from "./json-schema/FromSchema";
 export * from "./json-schema/JsonSchema";
+export * from "./json-schema/ModelAuthoredSchema";
 export * from "./json-schema/SchemaUtils";
 export * from "./json-schema/SchemaValidation";
 export * from "./json-schema/PartialJsonStream";

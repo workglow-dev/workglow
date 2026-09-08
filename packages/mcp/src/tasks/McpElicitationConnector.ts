@@ -124,6 +124,14 @@ export class McpElicitationConnector implements IHumanConnector {
       case "elicit":
         return this.handleElicit(request, signal);
 
+      // MCP has no approval primitive, and elicitation is the closest honest
+      // mapping: it is the one round-trip that asks a person to decide and
+      // carries accept/decline back. The schema describes the action rather
+      // than fields to fill in, which a client renders as a form — coarser
+      // than a native approval, but never silently auto-approved.
+      case "confirm":
+        return this.handleElicit(request, signal);
+
       default:
         return this.handleElicit(request, signal);
     }
