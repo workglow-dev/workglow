@@ -29,7 +29,7 @@
  * `use-dist` afterwards.
  */
 
-import { closeSync, existsSync, openSync, readdirSync, readFileSync, readSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 // `vitest/config` re-exports vite's own `Plugin`. Imported from there because
 // `vite` is not a direct dependency of this workspace and does not resolve from
@@ -37,7 +37,7 @@ import { join } from "node:path";
 import type { Plugin } from "vitest/config";
 // Extensions required on both: this module is in `vitest.config.ts`'s graph,
 // which Vite's native config loader resolves without extension inference.
-import { SOURCE_STUB_SENTINEL } from "./sourceStubs.ts";
+import { isSourceStubSync } from "./sourceStubs.ts";
 import { listDirs, PACKAGE_GROUPS, ROOT } from "./testDiscovery.ts";
 
 /** Source extensions a dist entry can have come from, in resolution order. */
@@ -198,35 +198,20 @@ export function distToSource(id: string): string | undefined {
   return undefined;
 }
 
-/** Bytes worth reading to find the sentinel: `use-source` writes it first. */
-const STUB_PROBE_BYTES = 512;
-
 /** Verdict per file, so one entry is probed once however often it resolves. */
 const stubProbeCache = new Map<string, boolean>();
 
 /**
  * Whether a built entry is a `use-source` stub rather than a real bundle.
  *
- * Reads only the first bytes rather than the file: a real entry here is a
- * multi-megabyte bundle, and the sentinel `use-source` writes is on line one.
- * An entry that cannot be read answers `false` — the import itself fails a
- * moment later with a better message than this one could give.
+ * The probe itself is {@link isSourceStubSync}, shared with the stub writer so
+ * the two cannot drift on what a stub looks like; this only memoises it, since
+ * one entry is resolved many times over a run.
  */
 export function isSourceStubFile(file: string): boolean {
   const cached = stubProbeCache.get(file);
   if (cached !== undefined) return cached;
-  let verdict = false;
-  let handle: number | undefined;
-  try {
-    handle = openSync(file, "r");
-    const buffer = Buffer.alloc(STUB_PROBE_BYTES);
-    const read = readSync(handle, buffer, 0, STUB_PROBE_BYTES, 0);
-    verdict = buffer.subarray(0, read).toString("utf8").includes(SOURCE_STUB_SENTINEL);
-  } catch {
-    verdict = false;
-  } finally {
-    if (handle !== undefined) closeSync(handle);
-  }
+  const verdict = isSourceStubSync(file);
   stubProbeCache.set(file, verdict);
   return verdict;
 }
@@ -237,11 +222,17 @@ export function isSourceStubFile(file: string): boolean {
  *
  * Matching is on the package BOUNDARY, not on string prefix: `@workglow/util`
  * owns `@workglow/util/schema` but not a hypothetical `@workglow/utilities`.
+ *
+ * Relative and absolute specifiers are answered before the scan. They can never
+ * name a package and they are the bulk of what a run resolves, so paying a
+ * linear walk of every workspace for each one taxes the whole graph for an
+ * answer known from the first character.
  */
 export function ownerOf(
   packages: readonly WorkspacePackage[],
   source: string
 ): WorkspacePackage | undefined {
+  if (source.startsWith(".") || source.startsWith("/")) return undefined;
   return packages.find((pkg) => source === pkg.name || source.startsWith(`${pkg.name}/`));
 }
 
@@ -301,18 +292,32 @@ export interface UnresolvedWorkspaceContext {
  * function of its inputs.
  */
 export function unresolvedWorkspaceMessage(context: UnresolvedWorkspaceContext): string {
-  const { source, owner, importer, importerPackage, importerDeclaresDependency } = context;
+  const {
+    source,
+    owner,
+    importer,
+    importerPackage,
+    importerDeclaresDependency,
+    distHasBuiltEntries,
+  } = context;
   const from = importer === undefined ? "" : ` (imported from ${importer})`;
 
+  // A package never lists itself, so a self-reference (`@workglow/util`
+  // imported from inside packages/util, which node's own self-reference rule
+  // resolves through the package's `exports`) reads as an undeclared dependency
+  // and would be answered with "add @workglow/util to @workglow/util". Its real
+  // cause is always the subpath or the build, which the branches below name.
+  const selfReference = importerPackage !== undefined && importerPackage.name === owner.name;
+
   let remedy: string;
-  if (importerDeclaresDependency === false && importerPackage !== undefined) {
+  if (importerDeclaresDependency === false && importerPackage !== undefined && !selfReference) {
     remedy =
       `${importerPackage.name} does not list ${owner.name} in any of its dependency blocks. ` +
       `bunfig sets linker = "isolated", so a workspace package resolves only what it ` +
       `declares: nothing is linked into ${importerPackage.dir}/node_modules for this ` +
       `specifier no matter what ${owner.name} has built. Add ${owner.name} to ` +
       `${importerPackage.name}'s package.json and re-run \`bun i\`.`;
-  } else if (context.distHasBuiltEntries) {
+  } else if (distHasBuiltEntries) {
     remedy =
       `${owner.dir}/dist carries built entries but none for this specifier — either the ` +
       `subpath is missing from ${owner.name}'s "exports", or it was added without ` +

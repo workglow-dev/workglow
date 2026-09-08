@@ -111,7 +111,7 @@ function buildBunTestArgs(files: string[]): string[] {
 }
 
 /**
- * Whether this run should collect coverage.
+ * Whether the caller asked for coverage at all, before the target is consulted.
  *
  * Opt-in by name rather than "any CI run". Coverage is a whole-suite
  * measurement: the split jobs on a pull request each see one slice, so a
@@ -122,14 +122,24 @@ function buildBunTestArgs(files: string[]): string[] {
  *
  * `0` and `false` are honored so a workflow can set the variable once and turn
  * it off per job without deleting it.
+ */
+function coverageAskedFor(env: Record<string, string | undefined>): boolean {
+  const raw = env.WORKGLOW_COVERAGE?.trim() ?? "";
+  return raw !== "" && raw !== "0" && raw !== "false";
+}
+
+/**
+ * Whether this run should collect coverage — see {@link coverageAskedFor} for
+ * why it is opt-in by name.
  *
  * A `dist`-targeted run measures the bundles, not the sources the coverage
  * denominator names, so every source file would be reported at 0%. Refuse there
- * rather than emit a report that says nothing.
+ * rather than emit a report that says nothing — and say so, since the caller
+ * asked for coverage by name and a silent drop leaves them reading an empty
+ * `coverage/` for the reason.
  */
 function coverageRequested(env: Record<string, string | undefined>): boolean {
-  const raw = env.WORKGLOW_COVERAGE?.trim() ?? "";
-  if (raw === "" || raw === "0" || raw === "false") return false;
+  if (!coverageAskedFor(env)) return false;
   return resolveTestTarget(env.WORKGLOW_TEST_TARGET) !== "dist";
 }
 
@@ -146,6 +156,12 @@ function buildVitestArgs(files: string[]): string[] {
   }
   if (coverageRequested(process.env)) {
     args.push("--coverage");
+  } else if (coverageAskedFor(process.env)) {
+    console.error(
+      'WORKGLOW_COVERAGE is set but WORKGLOW_TEST_TARGET="dist": coverage measures the ' +
+        "sources, which a dist run never loads, so every file would report 0%. Running " +
+        "without --coverage."
+    );
   }
   args.push(...relFiles);
   return args;

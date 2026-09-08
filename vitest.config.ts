@@ -34,6 +34,35 @@ export function typecheckFromArgv(argv: readonly string[]): {
 const typecheckCli = typecheckFromArgv(process.argv);
 
 /**
+ * The coverage `include`/`exclude` globs below are REPO-ROOT-RELATIVE, and the
+ * v8 provider matches them against `relative(coverageRoot, file)` — which is
+ * the root of the project being reported on. A `--project` run swaps in that
+ * project's own root (`packages/ai`), every pattern then matches nothing, and
+ * the report comes back a clean `0/0` instead of an error: exactly the silent
+ * "measured nothing" this whole setup exists to remove.
+ *
+ * Refuse the combination rather than emit that report. `--coverage` alone (what
+ * `scripts/test.ts` passes) and `--project` alone (what each package's own
+ * `test` script passes) both stay legal.
+ */
+export function coverageProjectConflict(argv: readonly string[]): string | undefined {
+  const off = (flag: string): boolean =>
+    argv.includes(`--${flag}=false`) || argv.includes(`--${flag}.enabled=false`);
+  const has = (flag: string): boolean =>
+    argv.some((arg) => arg === `--${flag}` || arg.startsWith(`--${flag}=`));
+  if (!has("coverage") || off("coverage") || !has("project")) return undefined;
+  return (
+    "Coverage and --project cannot be combined: the coverage include/exclude globs in " +
+    "vitest.config.ts are repo-root-relative, and a --project run reports against that " +
+    "project's own root, where they match nothing and the report reads 0/0. Run coverage " +
+    "over the whole tree (`WORKGLOW_COVERAGE=1 bun scripts/test.ts vitest unit`) instead."
+  );
+}
+
+const coverageConflict = coverageProjectConflict(process.argv);
+if (coverageConflict !== undefined) throw new Error(coverageConflict);
+
+/**
  * Tier gate for callers that do NOT pre-select files — `turbo run test` and a
  * bare `vitest run --project <name>`. Those would otherwise mean "every tier",
  * including the integration suites that want databases and live API keys, which
@@ -173,6 +202,11 @@ export default defineConfig({
     coverage: {
       provider: "v8", // or 'istanbul'
       reporter: ["text", "json", "json-summary", "html"],
+      // Vitest writes no report at all when a test fails, so without this the
+      // nightly job's `if: always()` summary and upload steps have nothing to
+      // read on exactly the runs someone wants to look at — and they report
+      // "no coverage report was produced" rather than the measurement.
+      reportOnFailure: true,
       // The denominator is every package's own `src`, stated explicitly rather
       // than left to vitest's default of "files loaded during the run" — that
       // default omits the modules no test imports at all, which are exactly the

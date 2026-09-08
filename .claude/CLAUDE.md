@@ -363,8 +363,10 @@ running.
 (`scripts/lib/workspaceSource.ts`), so a cross-package suite covers `packages/ai/src/**`
 and not `packages/ai/dist/node.js`. Resolution still goes through `exports`, so `dist`
 still has to exist: build, or `use-source`, first. Only the nightly workflow collects
-coverage (`WORKGLOW_COVERAGE=1`, whole suite in one job); `WORKGLOW_TEST_TARGET=dist` turns
-the rewrite off to exercise the bundles instead.
+coverage (`WORKGLOW_COVERAGE=1`, unit + integration in one job, minus the sections that
+download models or call live APIs); `WORKGLOW_TEST_TARGET=dist` turns the rewrite off to
+exercise the bundles instead, and refuses coverage there. The include/exclude globs are
+repo-root-relative, so coverage and `--project` cannot be combined.
 
 ## Developing without building
 

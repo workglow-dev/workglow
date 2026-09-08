@@ -57,6 +57,23 @@ describe("workspace source resolution", () => {
     vi.resetModules();
   });
 
+  /**
+   * The groups walked here are a hand-written list, and the root manifest's
+   * `workspaces` globs are the actual definition. A group added to one and not
+   * the other is silent: its packages keep resolving through `exports` to
+   * `dist`, and the only symptom is that their coverage reads as untested —
+   * the artifact this module exists to remove.
+   */
+  it("walks every workspace group the root manifest declares", () => {
+    const manifest = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as {
+      workspaces: string[];
+    };
+    const declared = new Set(
+      manifest.workspaces.map((pattern) => pattern.replace(/^\.\//, "").replace(/\/\*$/, ""))
+    );
+    expect([...declared].sort()).toEqual([...PACKAGE_GROUPS].sort());
+  });
+
   it("finds every workspace package", () => {
     const names = packages.map((p) => p.name);
     expect(names).toContain("@workglow/ai");
@@ -132,6 +149,26 @@ describe("workspace source resolution", () => {
       const matched = globSync(coverageIncludeGlobs(), { cwd: ROOT });
       expect(matched.length).toBeGreaterThan(500);
       expect(matched).toContain(join("packages", "util", "src", "limits.ts"));
+    });
+
+    it("refuses a --project run that would report against the wrong root", async () => {
+      // The globs are repo-root-relative; `--project` reports against that
+      // project's own root, where they match nothing and the run comes back a
+      // clean 0/0 rather than an error.
+      const mod = (await import("../vitest.config.ts")) as {
+        coverageProjectConflict: (argv: readonly string[]) => string | undefined;
+      };
+      expect(mod.coverageProjectConflict(["vitest", "run", "--coverage"])).toBeUndefined();
+      expect(mod.coverageProjectConflict(["vitest", "run", "--project", "ai"])).toBeUndefined();
+      expect(
+        mod.coverageProjectConflict(["vitest", "run", "--coverage=false", "--project", "ai"])
+      ).toBeUndefined();
+      expect(
+        mod.coverageProjectConflict(["vitest", "run", "--coverage", "--project", "ai"])
+      ).toContain("repo-root-relative");
+      expect(
+        mod.coverageProjectConflict(["vitest", "run", "--coverage", "--project=ai"])
+      ).toContain("repo-root-relative");
     });
 
     it("keeps packages that publish nothing out, and every other package in", async () => {
@@ -328,12 +365,23 @@ describe("workspace source resolution", () => {
     };
   }
 
+  /**
+   * One evaluation per target, not per test. The config walks the whole tree
+   * (test discovery) and reads every workspace manifest at module scope, and
+   * the tests below ask for only two distinct targets between them — so an
+   * un-memoised loader pays that walk five times for two answers.
+   */
+  const configByTarget = new Map<string, ConfiguredRoot>();
+
   async function loadConfig(target: string): Promise<ConfiguredRoot> {
+    const cached = configByTarget.get(target);
+    if (cached !== undefined) return cached;
     vi.stubEnv("WORKGLOW_TEST_TARGET", target);
     // The config reads the variable at module scope, so a cached evaluation
     // would answer for whichever target ran first.
     vi.resetModules();
     const mod = (await import("../vitest.config.ts")) as { default: ConfiguredRoot };
+    configByTarget.set(target, mod.default);
     return mod.default;
   }
 
@@ -411,6 +459,14 @@ describe("workspace source resolution", () => {
       expect(ownerOf(packages, "@workglow/utilities")).toBeUndefined();
       expect(ownerOf(packages, "vitest")).toBeUndefined();
     });
+
+    it("answers a relative or absolute specifier without scanning", () => {
+      // These are the bulk of what a run resolves and none can name a package,
+      // so they must not pay a walk of every workspace.
+      expect(ownerOf(packages, "./Misc.ts")).toBeUndefined();
+      expect(ownerOf(packages, "../schema/SchemaUtils.ts")).toBeUndefined();
+      expect(ownerOf(packages, join(ROOT, "packages/ai/src/node.ts"))).toBeUndefined();
+    });
   });
 
   function fakePackage(name: string, dir: string, deps: string[] = []): WorkspacePackage {
@@ -468,6 +524,22 @@ describe("workspace source resolution", () => {
         unresolvedWorkspaceMessage(diagnosticContext({ distHasBuiltEntries: false }))
       ).toContain("has never been built");
       expect(unresolvedWorkspaceMessage(diagnosticContext())).toContain("carries built entries");
+    });
+
+    it("does not tell a package to depend on itself", () => {
+      // Node's self-reference rule lets `packages/util` import `@workglow/util`,
+      // and no package lists itself — so the undeclared-dependency branch would
+      // answer a failed self-import with "add @workglow/util to @workglow/util".
+      const message = unresolvedWorkspaceMessage(
+        diagnosticContext({
+          source: "@workglow/ai/not-exported",
+          importer: "/repo/packages/ai/src/x.ts",
+          importerPackage: fakePackage("@workglow/ai", "/repo/packages/ai"),
+          importerDeclaresDependency: false,
+        })
+      );
+      expect(message).not.toContain("does not list");
+      expect(message).toContain("carries built entries");
     });
 
     it("does not read an importer outside any workspace as an undeclared dependency", () => {
