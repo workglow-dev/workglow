@@ -294,6 +294,21 @@ terminal runs. Three load-bearing properties:
   `timeline`, `markdown`, `empty` and `error`; a status widget contributes meters **or** text
   lines, since most of what an operator checks has no denominator to draw a bar against.
 
+`workglow mcp serve` is the second server the CLI hosts: the registered tasks offered to
+MCP clients as tools, one per task type, named as `task list` names it and carrying the
+task's own input schema. It **requires a bearer token by default** — generated per process
+and printed with a ready-made client config, pinnable through `WORKGLOW_MCP_TOKEN` or
+`--token` for a config that must survive a restart, and droppable only by saying `--no-auth`
+out loud. Loopback by default for the same reason the console is.
+
+**The parts of it worth sharing are not here.** `@workglow/mcp/server` holds them, because
+builder and embarc want the same server without the CLI around it: `createTaskMcpServer`
+(the tool surface, over any transport), `startMcpHttpServer` (`node:http`),
+`McpSessionRouter` (the Streamable HTTP session map, for a host that already has a web
+framework) and `authorizeBearer`. It is built on the SDK's low-level `Server` rather than
+`McpServer` because tasks describe themselves in JSON Schema and `registerTool` takes only
+Zod — going through it would mean converting a schema to Zod and back to publish it.
+
 **A downstream CLI reuses this, it does not copy it.** `runWorkglowCli()`
 (`src/bootstrap.ts`, exported from `lib.ts`) is the entire body of the `workglow` binary
 behind `registerTasks` / `registerCommands` hooks — `workglow.ts` is just a call to it, and

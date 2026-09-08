@@ -1,0 +1,136 @@
+/**
+ * @license
+ * Copyright 2026 Steven Roussey <sroussey@gmail.com>
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { Server } from "@modelcontextprotocol/sdk/server";
+import type { CallToolResult, ListToolsResult } from "@modelcontextprotocol/sdk/types";
+import {
+  CallToolRequestSchema,
+  ErrorCode,
+  ListToolsRequestSchema,
+  McpError,
+} from "@modelcontextprotocol/sdk/types";
+import type { IRunConfig, ITask, TaskInput } from "@workglow/task-graph";
+import type { TaskToolSelection } from "./taskTools";
+import {
+  buildTaskToolIndex,
+  listTaskTools,
+  toolResultForError,
+  toolResultForOutput,
+} from "./taskTools";
+
+export interface TaskMcpServerOptions extends TaskToolSelection {
+  /** Server name reported to clients. Name it after the host, not this package. */
+  readonly name: string;
+  readonly version: string;
+  readonly instructions?: string;
+  /**
+   * Run options every tool call inherits — a runner id, a cache override.
+   * `signal` is supplied per call from the client's cancellation and cannot be
+   * overridden here.
+   */
+  readonly runConfig?: Omit<Partial<IRunConfig>, "signal">;
+}
+
+/**
+ * A task's progress, forwarded to a client that asked to watch it.
+ *
+ * MCP requires the progress value to increase on every notification, so an
+ * update that does not move forward is dropped rather than reshaped: a task
+ * reporting indeterminate progress (`undefined`) has measured nothing, and
+ * inventing a number for it would put a moving bar in front of a client with
+ * no measurement behind it.
+ */
+function forwardProgress(
+  task: ITask,
+  progressToken: string | number,
+  send: (params: {
+    progressToken: string | number;
+    progress: number;
+    total?: number;
+    message?: string;
+  }) => Promise<void>
+): () => void {
+  let last = Number.NEGATIVE_INFINITY;
+  return task.subscribe("progress", (progress, message) => {
+    if (typeof progress !== "number" || !(progress > last)) return;
+    last = progress;
+    void send({
+      progressToken,
+      progress,
+      total: 100,
+      ...(message ? { message } : {}),
+    }).catch(() => {
+      // The client went away mid-run. The run itself is unaffected, and its
+      // result still has somewhere to go if the request stream reopens.
+    });
+  });
+}
+
+/**
+ * An MCP server offering registered Workglow tasks as tools.
+ *
+ * Transport-agnostic on purpose: this is the half every host shares, and what
+ * differs between the CLI, a Hono API and a desktop shell is only how bytes
+ * reach it. Pair it with {@link McpSessionRouter} for HTTP, or connect it to a
+ * stdio transport directly.
+ *
+ * Built on the low-level `Server` rather than `McpServer` because tasks
+ * describe themselves in JSON Schema and `registerTool` accepts only Zod —
+ * going through `McpServer` would mean converting a schema to Zod and back to
+ * publish it, which is a lossy round trip and a dependency, to arrive at the
+ * schema the task already had.
+ */
+export function createTaskMcpServer(options: TaskMcpServerOptions): Server {
+  const server = new Server(
+    { name: options.name, version: options.version },
+    {
+      capabilities: { tools: {} },
+      ...(options.instructions ? { instructions: options.instructions } : {}),
+    }
+  );
+
+  server.setRequestHandler(ListToolsRequestSchema, (): ListToolsResult => {
+    // Read the registry per request rather than at construction: a host that
+    // registers tasks lazily (a provider loaded on first use) would otherwise
+    // serve the list from whenever this server happened to be built.
+    return { tools: listTaskTools(options) };
+  });
+
+  server.setRequestHandler(
+    CallToolRequestSchema,
+    async (request, extra): Promise<CallToolResult> => {
+      const ctor = buildTaskToolIndex(options).get(request.params.name);
+      // An unknown tool never reached one, so it is a protocol error rather than
+      // a tool result — a caller that mistyped a name needs to hear it as one.
+      if (!ctor) {
+        throw new McpError(ErrorCode.InvalidParams, `unknown tool "${request.params.name}"`);
+      }
+
+      const task = new ctor({}) as ITask;
+      const progressToken = extra._meta?.progressToken;
+      const stopProgress =
+        progressToken === undefined
+          ? undefined
+          : forwardProgress(task, progressToken, (params) =>
+              extra.sendNotification({ method: "notifications/progress", params })
+            );
+
+      try {
+        const output = await task.run((request.params.arguments ?? {}) as Partial<TaskInput>, {
+          ...options.runConfig,
+          signal: extra.signal,
+        });
+        return toolResultForOutput(output);
+      } catch (error) {
+        return toolResultForError(error);
+      } finally {
+        stopProgress?.();
+      }
+    }
+  );
+
+  return server;
+}

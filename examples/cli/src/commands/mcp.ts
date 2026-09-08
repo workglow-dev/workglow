@@ -15,13 +15,16 @@ import { createMcpStorage, McpServerRecordSchema } from "../storage";
 import type { SearchSelectItem } from "../ui/render";
 import { renderSearchSelect, renderSelectPrompt } from "../ui/render";
 import { formatError, formatTable } from "../util";
+import { registerMcpServeCommand } from "./mcpServe";
 
 interface McpSearchSelectItem extends SearchSelectItem {
   readonly result: McpSearchResultItem;
 }
 
 export function registerMcpCommand(program: Command): void {
-  const mcp = program.command("mcp").description("Manage MCP servers");
+  const mcp = program
+    .command("mcp")
+    .description("Manage MCP servers, and serve this CLI's tasks to MCP clients");
 
   mcp
     .command("list")
@@ -335,4 +338,6 @@ export function registerMcpCommand(program: Command): void {
       await storage.put(input as Record<string, unknown>);
       console.log(`MCP server "${input.name}" added.`);
     });
+
+  registerMcpServeCommand(mcp);
 }
