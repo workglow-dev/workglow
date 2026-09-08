@@ -874,11 +874,17 @@ export class TaskRunner<
       await this.handleErrorPreview();
     } finally {
       ctx.dispose();
-      // Deliberate: runPreview always yields whatever preview output the task
-      // holds, including after the catch ran.
-      // oxlint-disable-next-line no-unsafe-finally
-      return this.task.runOutputData as Output;
     }
+    // Deliberate: runPreview yields whatever preview output the task holds,
+    // including after the catch ran — a task's own preview failing is
+    // best-effort, and the editor keeps showing the last good output.
+    //
+    // Outside the `finally`, though. Returning from inside one discards any
+    // pending completion, which here meant a rejection from
+    // `handleErrorPreview()` was swallowed and the caller was told the preview
+    // succeeded. Failing to clean up after a failed preview is a different
+    // event from the preview failing, and only the first should surface.
+    return this.task.runOutputData as Output;
   }
 
   /**
