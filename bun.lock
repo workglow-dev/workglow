@@ -382,6 +382,22 @@
         "sharp": "0.35.4",
       },
     },
+    "packages/web-search": {
+      "name": "@workglow/web-search",
+      "version": "0.4.9",
+      "devDependencies": {
+        "@workglow/job-queue": "workspace:*",
+        "@workglow/task-graph": "workspace:*",
+        "@workglow/tasks": "workspace:*",
+        "@workglow/util": "workspace:*",
+      },
+      "peerDependencies": {
+        "@workglow/job-queue": "workspace:*",
+        "@workglow/task-graph": "workspace:*",
+        "@workglow/tasks": "workspace:*",
+        "@workglow/util": "workspace:*",
+      },
+    },
     "packages/workglow": {
       "name": "workglow",
       "version": "0.4.9",
@@ -427,6 +443,7 @@
         "@workglow/storage": "workspace:*",
         "@workglow/task-graph": "workspace:*",
         "@workglow/util": "workspace:*",
+        "@workglow/web-search": "workspace:*",
       },
       "peerDependencies": {
         "@workglow/ai": "workspace:*",
@@ -434,7 +451,11 @@
         "@workglow/storage": "workspace:*",
         "@workglow/task-graph": "workspace:*",
         "@workglow/util": "workspace:*",
+        "@workglow/web-search": "workspace:*",
       },
+      "optionalPeers": [
+        "@workglow/web-search",
+      ],
     },
     "providers/aws": {
       "name": "@workglow/aws",
@@ -584,6 +605,7 @@
         "@workglow/storage": "workspace:*",
         "@workglow/task-graph": "workspace:*",
         "@workglow/util": "workspace:*",
+        "@workglow/web-search": "workspace:*",
       },
       "peerDependencies": {
         "@workglow/ai": "workspace:*",
@@ -591,7 +613,11 @@
         "@workglow/storage": "workspace:*",
         "@workglow/task-graph": "workspace:*",
         "@workglow/util": "workspace:*",
+        "@workglow/web-search": "workspace:*",
       },
+      "optionalPeers": [
+        "@workglow/web-search",
+      ],
     },
     "providers/huggingface-inference": {
       "name": "@workglow/huggingface-inference",
@@ -720,6 +746,7 @@
         "@workglow/storage": "workspace:*",
         "@workglow/task-graph": "workspace:*",
         "@workglow/util": "workspace:*",
+        "@workglow/web-search": "workspace:*",
       },
       "peerDependencies": {
         "@workglow/ai": "workspace:*",
@@ -727,7 +754,11 @@
         "@workglow/storage": "workspace:*",
         "@workglow/task-graph": "workspace:*",
         "@workglow/util": "workspace:*",
+        "@workglow/web-search": "workspace:*",
       },
+      "optionalPeers": [
+        "@workglow/web-search",
+      ],
     },
     "providers/openrouter": {
       "name": "@workglow/openrouter",
@@ -741,6 +772,7 @@
         "@workglow/storage": "workspace:*",
         "@workglow/task-graph": "workspace:*",
         "@workglow/util": "workspace:*",
+        "@workglow/web-search": "workspace:*",
       },
       "peerDependencies": {
         "@workglow/ai": "workspace:*",
@@ -748,7 +780,11 @@
         "@workglow/storage": "workspace:*",
         "@workglow/task-graph": "workspace:*",
         "@workglow/util": "workspace:*",
+        "@workglow/web-search": "workspace:*",
       },
+      "optionalPeers": [
+        "@workglow/web-search",
+      ],
     },
     "providers/playwright": {
       "name": "@workglow/playwright",
@@ -1693,6 +1729,8 @@
     "@workglow/util": ["@workglow/util@workspace:packages/util"],
 
     "@workglow/web": ["@workglow/web@workspace:examples/web"],
+
+    "@workglow/web-search": ["@workglow/web-search@workspace:packages/web-search"],
 
     "@workglow/xai": ["@workglow/xai@workspace:providers/xai"],
 
