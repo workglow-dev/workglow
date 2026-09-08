@@ -9,6 +9,7 @@ import { Task, TaskConfigurationError } from "@workglow/task-graph";
 import { FetchUrlTask, fetchUrlEntitlementsFor } from "@workglow/tasks";
 import type { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { unhonorableOptions } from "./capabilityCheck";
+import { unusableDomainEntries } from "./domainInput";
 import type {
   IWebSearchProvider,
   SearchResult,
@@ -171,6 +172,34 @@ function credentialKeyFor(provider: string, input: WebSearchTaskInput): string |
   );
 }
 
+/**
+ * Refuses a domain entry that names no domain, rather than letting it be
+ * dropped on the way to the provider.
+ *
+ * Dropping is the failure this package refuses everywhere else: a `site:`
+ * translation emits no clause for an empty list and {@link WebSearchTask}
+ * clears the list afterwards, so one bad entry in a single-entry list removes
+ * the restriction from both paths and the search runs unfiltered — succeeding,
+ * reporting the provider that ran, and saying nothing about the filter it
+ * discarded. That is the same trade the date filter refuses: a bound reported
+ * as honored on a search that ignored it is worse than a refused request.
+ *
+ * The likely cause is a list pasted into one entry, so the message says so —
+ * an error a caller cannot act on is only a louder silence.
+ */
+function assertUsableDomains(port: string, domains: readonly string[] | undefined): void {
+  const unusable = unusableDomainEntries(domains);
+  if (unusable.length === 0) {
+    return;
+  }
+  throw new TaskConfigurationError(
+    `WebSearchTask: ${port} ${unusable.map((d) => JSON.stringify(d)).join(", ")} ` +
+      `${unusable.length === 1 ? "names no domain" : "name no domain"} — an entry must be a ` +
+      "host, optionally with a path prefix, and cannot be empty or contain whitespace, " +
+      "parentheses or quotes. Pass one domain per array entry."
+  );
+}
+
 export class WebSearchTask extends Task<WebSearchTaskInput, WebSearchTaskOutput> {
   static override readonly type = "WebSearchTask";
   static override readonly category = "Web";
@@ -232,6 +261,12 @@ export class WebSearchTask extends Task<WebSearchTaskInput, WebSearchTaskOutput>
     input: WebSearchTaskInput,
     context: IExecuteContext
   ): Promise<WebSearchTaskOutput> {
+    // Before routing, and for every provider rather than only the ones that
+    // translate to `site:`, so the same entry cannot be refused on one route and
+    // forwarded to a vendor API on another.
+    assertUsableDomains("includeDomains", input.includeDomains);
+    assertUsableDomains("excludeDomains", input.excludeDomains);
+
     // No credential on the base request: which provider serves it is not settled
     // until routing has run, and a key attached before then is a key attached to
     // whichever vendor routing happens to pick.

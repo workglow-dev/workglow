@@ -239,6 +239,19 @@ Brave's `freshness` and Gemini's `timeRangeFilter` take a closed interval, so a 
 range is filled at the open end. Dropping it reports a bound as honored on a search that ran
 unfiltered, which is worse than refusing the request.
 
+A domain entry naming no domain is refused for the same reason, and for **every** provider
+rather than only the ones translating to `site:`. An entry cannot be empty or carry
+whitespace, parentheses or quotes — a host cannot contain them, so such a value is not a
+malformed domain but a value the caller did not mean (most often a list pasted into one
+entry), and there is no portable `site:` quoting to rescue it with anyway. Dropping it
+silently is the same trade the date rule refuses, one step worse: the `site:` translation
+emits no clause for an empty list and the task clears the list afterwards, so one bad entry
+in a single-entry list removes the restriction from both paths and the search runs across the
+whole web, succeeds, and reports nothing. Validating for every provider is what keeps the
+same entry from being refused on one route and forwarded verbatim to a vendor API on another.
+`queryOperators` keeps filtering as a backstop, so no future call site can splice a value
+that restructures a query.
+
 `provider` is a required input with no default, mirroring `response_type` on `FetchUrlTask` —
 which provider serves a request decides its cost, rate limit and quality. `"auto"` opts into
 capability routing; the provider that ran is always reported on the `provider` output port. A

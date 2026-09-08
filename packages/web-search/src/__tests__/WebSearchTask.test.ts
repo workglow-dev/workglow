@@ -303,4 +303,92 @@ describe("WebSearchTask", () => {
     expect(out.results).toEqual([]);
     expect(out.count).toBe(0);
   });
+
+  describe("domain entries that name no domain", () => {
+    // The whole point of refusing: dropped, a single-entry list leaves no
+    // restriction on either path and the search runs unfiltered while reporting
+    // success. Each case asserts the run REJECTS rather than that some
+    // downstream value came out empty.
+    it("refuses a value that would restructure the query", async () => {
+      WebSearchProviderRegistry.register(fake("brave", { domainFilter: "query-operator" }));
+      await expect(
+        new WebSearchTask().run({
+          query: "cats",
+          provider: "brave",
+          includeDomains: ["evil.com) OR (site:x.com"],
+        })
+      ).rejects.toThrow(/includeDomains .*names no domain/);
+    });
+
+    it("refuses an entry holding a list rather than a domain", async () => {
+      WebSearchProviderRegistry.register(fake("brave", { domainFilter: "query-operator" }));
+      await expect(
+        new WebSearchTask().run({
+          query: "cats",
+          provider: "brave",
+          includeDomains: ["arxiv.org, nature.com"],
+        })
+      ).rejects.toThrow(/Pass one domain per array entry/);
+    });
+
+    it("refuses an entry that normalizes to nothing", async () => {
+      WebSearchProviderRegistry.register(fake("brave", { domainFilter: "query-operator" }));
+      await expect(
+        new WebSearchTask().run({ query: "cats", provider: "brave", includeDomains: ["  "] })
+      ).rejects.toThrow(/names no domain/);
+    });
+
+    it("refuses on excludeDomains too, naming that port", async () => {
+      WebSearchProviderRegistry.register(fake("brave", { domainFilter: "query-operator" }));
+      await expect(
+        new WebSearchTask().run({
+          query: "cats",
+          provider: "brave",
+          excludeDomains: ["evil.com -site:arxiv.org"],
+        })
+      ).rejects.toThrow(/excludeDomains/);
+    });
+
+    // The inconsistency this validation closes: a native-filter provider
+    // forwards the list verbatim to its vendor API, so validating only on the
+    // `site:` path left the same entry refused on one route and sent on another.
+    it("refuses for a native-filter provider, not only a query-operator one", async () => {
+      const seen: WebSearchRequest[] = [];
+      WebSearchProviderRegistry.register(
+        fake("tavily", { domainFilter: "native" }, (r) => seen.push(r))
+      );
+      await expect(
+        new WebSearchTask().run({
+          query: "cats",
+          provider: "tavily",
+          includeDomains: ["evil.com) OR (site:x.com"],
+        })
+      ).rejects.toThrow(/names no domain/);
+      expect(seen).toEqual([]);
+    });
+
+    it("names every offending entry, in the caller's own spelling", async () => {
+      WebSearchProviderRegistry.register(fake("brave", { domainFilter: "query-operator" }));
+      await expect(
+        new WebSearchTask().run({
+          query: "cats",
+          provider: "brave",
+          includeDomains: ["arxiv.org", "a b.com", "c(d).com"],
+        })
+      ).rejects.toThrow(/"a b\.com", "c\(d\)\.com"/);
+    });
+
+    it("still accepts a domain whose raw form carries trimmable whitespace", async () => {
+      const seen: WebSearchRequest[] = [];
+      WebSearchProviderRegistry.register(
+        fake("brave", { domainFilter: "query-operator" }, (r) => seen.push(r))
+      );
+      await new WebSearchTask().run({
+        query: "cats",
+        provider: "brave",
+        includeDomains: [" https://www.arxiv.org/ "],
+      });
+      expect(seen[0]?.query).toBe("cats site:arxiv.org");
+    });
+  });
 });
