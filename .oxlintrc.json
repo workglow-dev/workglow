@@ -104,7 +104,15 @@
     // with nothing to notice.
     // ---------------------------------------------------------------------
     "typescript/no-base-to-string": "off", // budgeted
-    "typescript/unbound-method": "off", // budgeted
+    // 62 findings, none of them a defect: 31 are `expect(spy.method)` style
+    // assertions that never call the method, 9 read an optional member out so
+    // they can `.call(receiver)` it after a typeof probe, 10 are `own`/`disown`
+    // which TaskRunner's constructor rebinds, 7 save a prototype method to
+    // restore after a test monkey-patches it, and 5 are statics that touch no
+    // `this`. Enabling it would buy 62 disable comments on correct code, so it
+    // stays off rather than carrying a budget that is never going to reach
+    // zero.
+    "typescript/unbound-method": "off",
     "typescript/no-floating-promises": "error",
     "typescript/restrict-template-expressions": "error",
     "typescript/no-redundant-type-constituents": "error",

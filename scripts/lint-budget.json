@@ -1,6 +1,5 @@
 {
   "rules": {
-    "typescript/no-base-to-string": 79,
-    "typescript/unbound-method": 62
+    "typescript/no-base-to-string": 79
   }
 }
