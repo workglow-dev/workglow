@@ -71,6 +71,20 @@ export class ScopedVectorStorage<
       topK: overfetchLimit,
     } as any);
 
-    return this.filterAndStrip(results, options?.topK, overfetchLimit);
+    const scoped = this.filterAndStrip(results, options?.topK, overfetchLimit);
+
+    // On this wrapper's own emitter, and with the rows the caller is handed —
+    // as every inherited event here already does. The inner store's event fires
+    // with the overfetched, unfiltered, unstripped set, so a listener that took
+    // it would see another knowledge base's rows and a count nobody received.
+    // The emitter is typed to the tabular event names; this is the one the
+    // vector interface adds.
+    (
+      this.events as unknown as {
+        emit: (name: string, query: TypedArray, results: unknown[]) => void;
+      }
+    ).emit("similaritySearch", query, scoped);
+
+    return scoped;
   }
 }
