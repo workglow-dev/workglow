@@ -108,7 +108,7 @@
     "typescript/no-floating-promises": "off", // budgeted
     "typescript/restrict-template-expressions": "off", // budgeted
     "typescript/no-redundant-type-constituents": "off", // budgeted
-    "typescript/await-thenable": "off", // budgeted
+    "typescript/await-thenable": "error",
     "typescript/require-array-sort-compare": "off", // budgeted
     "typescript/no-useless-default-assignment": "off", // budgeted
     "typescript/no-misused-spread": "off", // budgeted

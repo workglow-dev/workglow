@@ -518,12 +518,14 @@ export class JobQueueClient<Input, Output> {
   public async abortJobRun(jobRunId: string): Promise<void> {
     if (!jobRunId) throw new JobNotFoundError("Cannot abort job run with undefined jobRunId");
     const jobs = await this.getJobsByRunId(jobRunId);
+    // Filtered before the map rather than returning `undefined` from inside
+    // it: the aggregator then receives promises and only promises, which is
+    // what it is for, and "which jobs are abortable" is stated once instead of
+    // being implied by the shape of the array.
     await Promise.allSettled(
-      jobs.map((job) => {
-        if (job.status === JobStatus.PROCESSING || job.status === JobStatus.PENDING) {
-          return this.abort(job.id);
-        }
-      })
+      jobs
+        .filter((job) => job.status === JobStatus.PROCESSING || job.status === JobStatus.PENDING)
+        .map((job) => this.abort(job.id))
     );
   }
 

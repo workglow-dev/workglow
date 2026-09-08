@@ -5,7 +5,6 @@
     "typescript/restrict-template-expressions": 56,
     "typescript/no-floating-promises": 56,
     "typescript/no-redundant-type-constituents": 35,
-    "typescript/await-thenable": 9,
     "typescript/require-array-sort-compare": 7,
     "typescript/no-useless-default-assignment": 4,
     "typescript/no-misused-spread": 3

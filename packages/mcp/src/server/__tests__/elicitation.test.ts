@@ -55,7 +55,10 @@ class AskTask extends Task<Record<string, never>, { answer: string; action: stri
       context.signal
     );
     return {
-      answer: String(response.content?.name ?? ""),
+      // Narrowed rather than coerced: `content` is an open record, so
+      // `String(...)` on it would turn a client that answered with the wrong
+      // shape into the string "[object Object]" and assert against that.
+      answer: typeof response.content?.name === "string" ? response.content.name : "",
       action: response.action,
     };
   }

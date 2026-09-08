@@ -111,7 +111,7 @@ describe("DuckDbTabularStorage", () => {
   const contractDbs = new Map<object, Awaited<ReturnType<typeof DuckDb.open>>>();
   // Backstop only: a `beforeEach` that throws never reaches an `afterEach`.
   afterAll(async () => {
-    for (const db of contractDbs.values()) await db.close();
+    for (const db of contractDbs.values()) db.close();
     contractDbs.clear();
   });
 
@@ -241,7 +241,7 @@ describe("DuckDbTabularStorage", () => {
       const db = contractDbs.get(storage);
       if (db === undefined) return;
       contractDbs.delete(storage);
-      await db.close();
+      db.close();
     },
     createSiblingStorage: async (primary) => {
       const handle = (
