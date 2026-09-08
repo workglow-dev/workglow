@@ -1,7 +1,7 @@
 {
   "name": "@workglow/task-graph",
   "type": "module",
-  "version": "0.4.6",
+  "version": "0.4.9",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -57,8 +57,7 @@
   "peerDependencies": {
     "@workglow/job-queue": "workspace:*",
     "@workglow/storage": "workspace:*",
-    "@workglow/util": "workspace:*",
-    "vitest": "catalog:"
+    "@workglow/util": "workspace:*"
   },
   "peerDependenciesMeta": {
     "@workglow/job-queue": {
@@ -69,9 +68,6 @@
     },
     "@workglow/util": {
       "optional": false
-    },
-    "vitest": {
-      "optional": true
     }
   },
   "devDependencies": {

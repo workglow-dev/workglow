@@ -1,7 +1,7 @@
 {
   "name": "@workglow/tasks",
   "type": "module",
-  "version": "0.4.6",
+  "version": "0.4.9",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -55,7 +55,7 @@
   },
   "dependencies": {
     "ipaddr.js": "^2.5.0",
-    "undici": "^8.10.1"
+    "undici": "^8.10.2"
   },
   "peerDependencies": {
     "@workglow/task-graph": "workspace:*",

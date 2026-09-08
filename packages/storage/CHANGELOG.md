@@ -1,5 +1,52 @@
 # @workglow/storage
 
+## 0.4.9
+
+### Features
+
+#### storage
+
+- add the not-in search operator
+
+### Bug Fixes
+
+#### storage
+
+- scope connection-transaction put deferral to its own transaction
+- an undefined criterion matches nothing, on every backend
+- restore the deleteSearch guard on the transaction path
+- align `in` with SQL on nulls, refuse a table-wide deleteSearch
+
+### Tests
+
+#### storage
+
+- cover criteriaMatchNoRow directly
+- pin the undefined-criterion semantics, and `!=` between two values
+- move the criterion matcher tests into the tabular package
+
+## 0.4.8
+
+## 0.4.7
+
+### Bug Fixes
+
+#### storage
+
+- keep connection-transaction put deferral off the ALS store
+- queue concurrent transactions whose participants differ
+- queue unrelated concurrent callers on the connection mutex
+
+### Documentation
+
+#### storage
+
+- correct the re-entry precedent cited by put deferral
+
+### Chores
+
+- migrate from Prettier to oxfmt for code formatting
+
 ## 0.4.6
 
 ### Features

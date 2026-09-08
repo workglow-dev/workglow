@@ -6,38 +6,6 @@
 
 - migrate from ESLint to oxlint; upgrade to TypeScript 7 (#884)
 
-## 0.4.5
-
-## 0.4.4
-
-## 0.4.3
-
-## 0.4.2
-
-## 0.4.1
-
-## 0.4.0
-
-## 0.3.49
-
-## 0.3.48
-
-## 0.3.47
-
-## 0.3.46
-
-## 0.3.45
-
-## 0.3.44
-
-## 0.3.43
-
-## 0.3.42
-
-## 0.3.41
-
-## 0.3.40
-
 ## 0.3.39
 
 ### Bug Fixes
@@ -61,23 +29,11 @@
 
 - `@cloudflare/workers-types`: catalog:
 
-## 0.3.38
-
-## 0.3.37
-
-## 0.3.36
-
-## 0.3.35
-
-## 0.3.34
-
 ## 0.3.33
 
 ### Updated Dependencies
 
 - `@cloudflare/workers-types`: ^5.20260801.1
-
-## 0.3.32
 
 ## 0.3.31
 
@@ -89,8 +45,6 @@
 
 - `@cloudflare/workers-types`: ^5.20260731.1
 
-## 0.3.30
-
 ## 0.3.29
 
 ### Chores
@@ -100,8 +54,6 @@
 ### Updated Dependencies
 
 - `@cloudflare/workers-types`: ^5.20260730.1
-
-## 0.3.28
 
 ## 0.3.27
 
@@ -125,15 +77,11 @@
 
 - `@cloudflare/workers-types`: ^5.20260715.1
 
-## 0.3.25
-
 ## 0.3.24
 
 ### Features
 
 - add updateWhere method for atomic conditional updates across all storage backends (#616)
-
-## 0.3.23
 
 ## 0.3.22
 
@@ -145,8 +93,6 @@
 
 - `@cloudflare/workers-types`: ^4.20260702.1
 
-## 0.3.21
-
 ## 0.3.20
 
 ### Chores
@@ -156,10 +102,6 @@
 ### Updated Dependencies
 
 - `@cloudflare/workers-types`: ^4.20260624.1
-
-## 0.3.19
-
-## 0.3.18
 
 ## 0.3.17
 
@@ -197,8 +139,6 @@
 
 - `@cloudflare/workers-types`: ^4.20260612.1
 
-## 0.3.13
-
 ## 0.3.12
 
 ### Chores
@@ -210,8 +150,6 @@
 ### Updated Dependencies
 
 - `@cloudflare/workers-types`: ^4.20260605.1
-
-## 0.3.11
 
 ## 0.3.10
 
@@ -233,10 +171,6 @@
 
 - `@cloudflare/workers-types`: ^4.20260528.1
 
-## 0.3.8
-
-## 0.3.7
-
 ## 0.3.6
 
 ### Chores
@@ -256,10 +190,6 @@
 ### Updated Dependencies
 
 - `@cloudflare/workers-types`: ^4.20260522.1
-
-## 0.3.4
-
-## 0.3.3
 
 ## 0.3.2
 
@@ -290,8 +220,6 @@
 ### Updated Dependencies
 
 - `@cloudflare/workers-types`: ^4.20260521.1
-
-## 0.3.1
 
 ## 0.3.0
 

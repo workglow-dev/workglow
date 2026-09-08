@@ -22,7 +22,7 @@ interface GeminiModelEntry {
 }
 
 export const GEMINI_FALLBACK_MODELS: readonly GeminiModelEntry[] = [
-  { label: "gemini-3.5-flash", value: "gemini-3.5-flash" },
+  { label: "gemini-3.8-flash", value: "gemini-3.8-flash" },
   { label: "gemini-3.1-pro-preview", value: "gemini-3.1-pro-preview" },
   { label: "gemini-3.1-flash-lite", value: "gemini-3.1-flash-lite" },
   // Embedding models

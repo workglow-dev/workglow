@@ -1,5 +1,17 @@
 # @workglow/web
 
+## 0.4.9
+
+### Chores
+
+- update dependencies
+
+### Updated Dependencies
+
+- `@codemirror/state`: 6.7.4
+- `@codemirror/view`: 6.43.11
+- `@types/react-dom`: ^19.2.7
+
 ## 0.4.6
 
 ### Chores
@@ -10,8 +22,6 @@
 ### Updated Dependencies
 
 - `@xyflow/react`: =12.11.6
-
-## 0.4.5
 
 ## 0.4.4
 
@@ -39,8 +49,6 @@
 
 - `@xyflow/react`: =12.11.3
 
-## 0.4.2
-
 ## 0.4.1
 
 ### Chores
@@ -50,10 +58,6 @@
 ### Updated Dependencies
 
 - `@types/react-dom`: ^19.2.5
-
-## 0.4.0
-
-## 0.3.49
 
 ## 0.3.48
 
@@ -72,16 +76,6 @@
 
 - `@codemirror/view`: 6.43.9
 - `react-resizable-panels`: ^4.12.3
-
-## 0.3.46
-
-## 0.3.45
-
-## 0.3.44
-
-## 0.3.43
-
-## 0.3.42
 
 ## 0.3.41
 
@@ -139,8 +133,6 @@
 - `@types/react`: catalog:
 - `vite`: ^8.2.1
 
-## 0.3.38
-
 ## 0.3.37
 
 ### Bug Fixes
@@ -150,16 +142,6 @@
 #### web
 
 - release a disowned subtask's listeners in TaskNode
-
-## 0.3.36
-
-## 0.3.35
-
-## 0.3.34
-
-## 0.3.33
-
-## 0.3.32
 
 ## 0.3.31
 
@@ -193,8 +175,6 @@
 
 - `@vitejs/plugin-react`: ^6.0.4
 
-## 0.3.28
-
 ## 0.3.27
 
 ### Chores
@@ -218,8 +198,6 @@
 ### Updated Dependencies
 
 - `react-resizable-panels`: ^4.12.2
-
-## 0.3.25
 
 ## 0.3.24
 
@@ -263,8 +241,6 @@
 - `tailwindcss`: ^4.3.2
 - `vite`: ^8.1.3
 
-## 0.3.21
-
 ## 0.3.20
 
 ### Chores
@@ -275,10 +251,6 @@
 
 - `@vitejs/plugin-react`: ^6.0.3
 - `vite`: ^8.1.0
-
-## 0.3.19
-
-## 0.3.18
 
 ## 0.3.17
 
@@ -335,8 +307,6 @@
 
 - `@types/react`: ^19.2.17
 
-## 0.3.11
-
 ## 0.3.10
 
 ### Chores
@@ -351,12 +321,6 @@
 - `@types/react`: ^19.2.16
 - `vite`: ^8.0.16
 
-## 0.3.9
-
-## 0.3.8
-
-## 0.3.7
-
 ## 0.3.6
 
 ### Chores
@@ -366,12 +330,6 @@
 ### Updated Dependencies
 
 - `react-resizable-panels`: ^4.11.2
-
-## 0.3.5
-
-## 0.3.4
-
-## 0.3.3
 
 ## 0.3.2
 
@@ -384,8 +342,6 @@
 - `@uiw/codemirror-theme-vscode`: ^4.25.10
 - `@uiw/react-codemirror`: ^4.25.10
 - `vite`: ^8.0.14
-
-## 0.3.1
 
 ## 0.3.0
 
@@ -475,8 +431,6 @@
 - `@tailwindcss/vite`: ^4.3.0
 - `tailwindcss`: ^4.3.0
 
-## 0.2.33
-
 ## 0.2.32
 
 ### Refactors
@@ -498,12 +452,6 @@
 - `react-dom`: ^19.2.6
 - `vite`: ^8.0.11
 
-## 0.2.31
-
-## 0.2.30
-
-## 0.2.29
-
 ## 0.2.28
 
 ### Bug Fixes
@@ -520,10 +468,6 @@
 
 - move provider from @workglow/ai-provider to @workglow/huggingface-transformers
 
-## 0.2.27
-
-## 0.2.26
-
 ## 0.2.25
 
 ### Chores
@@ -533,12 +477,6 @@
 ### Updated Dependencies
 
 - `react-resizable-panels`: ^4.11.0
-
-## 0.2.24
-
-## 0.2.23
-
-## 0.2.22
 
 ## 0.2.21
 
@@ -555,14 +493,6 @@
 #### ai
 
 - image generation pipeline with ImageValue boundary
-
-## 0.2.20
-
-## 0.2.19
-
-## 0.2.18
-
-## 0.2.17
 
 ## 0.2.16
 
@@ -589,10 +519,6 @@
 - `tailwindcss`: ^4.2.4
 - `vite`: ^8.0.10
 
-## 0.2.14
-
-## 0.2.13
-
 ## 0.2.12
 
 ### Chores
@@ -605,16 +531,6 @@
 - `tailwindcss`: ^4.2.3
 - `vite`: ^8.0.9
 
-## 0.2.11
-
-## 0.2.10
-
-## 0.2.9
-
-## 0.2.8
-
-## 0.2.7
-
 ## 0.2.6
 
 ### Chores
@@ -624,14 +540,6 @@
 ### Updated Dependencies
 
 - `react-resizable-panels`: ^4.10.0
-
-## 0.2.5
-
-## 0.2.4
-
-## 0.2.3
-
-## 0.2.2
 
 ## 0.2.1
 
@@ -793,8 +701,6 @@
 
 - `vite`: ^8.0.2
 
-## 0.0.124
-
 ## 0.0.123
 
 ### Refactors
@@ -836,8 +742,6 @@
 
 - `vite`: ^8.0.1
 
-## 0.0.120
-
 ## 0.0.119
 
 ### Features
@@ -859,15 +763,11 @@
 
 - add chrome web browser provider (#303)
 
-## 0.0.117
-
 ## 0.0.116
 
 ### Bug Fixes
 
 - update ONNX model ID and dtype across multiple files
-
-## 0.0.115
 
 ## 0.0.114
 
@@ -877,14 +777,6 @@
 - `@uiw/react-codemirror`: ^4.25.7
 - `react-icons`: ^5.6.0
 - `postcss`: 8.5.8
-
-## 0.0.113
-
-## 0.0.108
-
-## 0.0.107
-
-## 0.0.106
 
 ## 0.0.105
 

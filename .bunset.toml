@@ -1,2 +1,24 @@
-scope = "changed"
-bump = "patch"
+# Every @workglow/* package carries the same version, every release.
+#
+# lockstep refuses any option that would leave a package behind the shared
+# version line, rather than silently overriding it, and versions the private
+# packages (@workglow/aws, @workglow/cloudflare) so they stay on the line
+# instead of stalling at the version they were last published-but-not-shipped at.
+lockstep = true
+
+# Explicit rather than inherited from the --all the release script passes:
+# scope = "changed" used to sit here, inert only because that flag overrode it.
+scope = "all"
+
+# Derived per release from the commits themselves: a break takes the break slot
+# (the minor on this 0.x line), a feat the minor, anything else the patch.
+bump = "auto"
+
+# Commit the changes to the repository. 
+commit = true
+# Tag the release.
+tag = true
+# Push the changes to the repository.
+push = true
+# Write the release notes.
+release = true

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.9
+
+## 0.4.8
+
+### Features
+
+#### pricing
+
+- refactor model pricing structure to support timing tiers and enhance cost estimation
+- enhance model pricing structure and update cost estimation logic
+
+## 0.4.7
+
 ## 0.4.6
 
 ### Chores

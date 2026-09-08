@@ -9,7 +9,7 @@ import type { JSX } from "preact";
 import { render } from "preact";
 import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { RunEvent } from "../../run-events/RunEventTypes";
-import { renderCliLine } from "../argv";
+import { renderCliLine, type WebInvocation } from "../argv";
 import type { WebField } from "../commandFields";
 import { findCommandNode, type WebCommandNode } from "../commandTree";
 import type { PanelData, WebStatusItem } from "../extensions";
@@ -27,7 +27,13 @@ import {
   startRun,
   type RunSummary,
 } from "./api";
-import { formErrors, initialValues, toInvocation, type FormValues } from "./formModel";
+import {
+  formErrors,
+  initialValues,
+  toInvocation,
+  valuesFromInvocation,
+  type FormValues,
+} from "./formModel";
 import {
   HEARTBEAT_MS,
   HEARTBEAT_TIMEOUT_MS,
@@ -35,6 +41,7 @@ import {
   reduceHeartbeat,
   type CliLiveness,
 } from "./heartbeat";
+import { loadRailWidths, saveRailWidths, type RailSide, type RailWidths } from "./railWidths";
 import {
   applyRecord,
   emptyRunView,
@@ -47,6 +54,7 @@ import {
 import { CommandTree } from "./views/CommandTree";
 import { HumanPrompt } from "./views/HumanPrompt";
 import { OptionsForm } from "./views/OptionsForm";
+import { RailResizer } from "./views/RailResizer";
 import { ResultTab } from "./views/ResultTab";
 import { RunConsole } from "./views/RunConsole";
 
@@ -142,6 +150,8 @@ function App(): JSX.Element {
   >(undefined);
   const [error, setError] = useState<string | undefined>(undefined);
   const [theme, setTheme] = useState<"light" | "auto" | "dark">("auto");
+  /** Rail widths, restored from the last session and dragged by the seams. */
+  const [rails, setRails] = useState<RailWidths>(loadRailWidths);
   const closeStreamRef = useRef<(() => void) | undefined>(undefined);
 
   const running = run !== undefined && view.state === "running";
@@ -221,6 +231,35 @@ function App(): JSX.Element {
         .catch((cause: Error) => setError(cause.message));
     },
     [detachRun, node]
+  );
+
+  /**
+   * Carries one row of a result panel into the command it is an argument for:
+   * selects that command and fills its form from the invocation the panel
+   * attached to the row.
+   *
+   * Fills, and stops there — the row is a suggestion someone is being asked to
+   * judge, and the command behind it usually writes. The run stays attached on
+   * purpose, so the table the button was clicked in is still on the Result tab
+   * for the next row; that table is a worklist, and detaching would close it
+   * after one.
+   */
+  const prefillFrom = useCallback(
+    (invocation: WebInvocation) => {
+      const owner = findCommandNode(commands, invocation.path);
+      if (!owner) return;
+      setNode(owner);
+      setPane(stackedPane("select"));
+      setTab("options");
+      setOpen((current) => new Set([...current, ...openPathsFor(owner.path)]));
+      void getFields(owner.path, invocation.args)
+        .then((result) => {
+          setFields(result.fields);
+          setValues(valuesFromInvocation(result.fields, invocation));
+        })
+        .catch((cause: Error) => setError(cause.message));
+    },
+    [commands]
   );
 
   /** An argument decides which schema applies, so changing one re-asks. */
@@ -343,6 +382,14 @@ function App(): JSX.Element {
     else document.documentElement.dataset.theme = theme;
   }, [theme]);
 
+  useEffect(() => {
+    saveRailWidths(rails);
+  }, [rails]);
+
+  const resizeRail = useCallback((side: RailSide, width: number): void => {
+    setRails((current) => (current[side] === width ? current : { ...current, [side]: width }));
+  }, []);
+
   useEffect(() => () => closeStreamRef.current?.(), []);
 
   useEffect(() => {
@@ -372,8 +419,12 @@ function App(): JSX.Element {
   const crumbs = node ? [binaryName, ...node.path] : [binaryName];
 
   return (
-    <div className="app" data-pane={pane}>
-      <aside className="rail">
+    <div
+      className="app"
+      data-pane={pane}
+      style={`--rail-l:${rails.left}px;--rail-r:${rails.right}px`}
+    >
+      <aside className="rail rail-l" aria-label="Commands">
         <div className="brand">
           <div className="mark">w</div>
           <div>
@@ -404,46 +455,14 @@ function App(): JSX.Element {
           }
           onSelect={selectNode}
         />
-        <div className="railsec">
-          <h4>Runs</h4>
-          {runs.length === 0 ? <div className="cmd-d">Nothing has run yet.</div> : null}
-          {runs.slice(0, 6).map((summary) => (
-            <button key={summary.id} className="runitem" onClick={() => attach(summary)}>
-              <span
-                className={`dot ${summary.state === "running" ? "run" : summary.state === "completed" ? "ok" : "fail"}`}
-              />
-              <span className="lbl">{summary.cli.replace(`${binaryName} `, "")}</span>
-              <span className="t">
-                {summary.endedAt
-                  ? `${((summary.endedAt - summary.startedAt) / 1000).toFixed(1)}s`
-                  : "…"}
-              </span>
-            </button>
-          ))}
-        </div>
-        {widgets.map((widget) => (
-          <div className="railsec" key={widget.id}>
-            <h4>{widget.title}</h4>
-            {widget.items.map((item) =>
-              item.kind === "text" ? (
-                <div className={`sline${item.tone ? ` t-${item.tone}` : ""}`} key={item.label}>
-                  <span className="sl-l">{item.label}</span>
-                  <span className="sl-v">{item.value}</span>
-                </div>
-              ) : (
-                <div className="meter" key={item.label}>
-                  <span>
-                    {item.value} / {item.max} {item.label}
-                  </span>
-                  <span className="bar">
-                    <i style={`width:${Math.min(100, (item.value / (item.max || 1)) * 100)}%`} />
-                  </span>
-                </div>
-              )
-            )}
-          </div>
-        ))}
       </aside>
+
+      <RailResizer
+        side="left"
+        width={rails.left}
+        otherWidth={rails.right}
+        onResize={(width) => resizeRail("left", width)}
+      />
 
       {pendingRun ? (
         <div
@@ -502,7 +521,6 @@ function App(): JSX.Element {
                 )}
               </>
             ))}
-            {node ? <span className="cmd-d">{node.description}</span> : null}
           </div>
           <div className="spacer" />
           <div className="ctl">
@@ -586,6 +604,7 @@ function App(): JSX.Element {
             <OptionsForm
               binaryName={binaryName}
               path={node.path}
+              description={node.description}
               fields={fields}
               values={values}
               errors={errors}
@@ -622,7 +641,9 @@ function App(): JSX.Element {
               }}
             />
           ) : null}
-          {tab === "result" && run ? <ResultTab run={run} state={view} panels={panels} /> : null}
+          {tab === "result" && run ? (
+            <ResultTab run={run} state={view} panels={panels} onAction={prefillFrom} />
+          ) : null}
         </div>
 
         <footer className="statusbar">
@@ -644,6 +665,58 @@ function App(): JSX.Element {
           <span>No page reloads — the document is mounted once and patched per event</span>
         </footer>
       </main>
+
+      <RailResizer
+        side="right"
+        width={rails.right}
+        otherWidth={rails.left}
+        onResize={(width) => resizeRail("right", width)}
+      />
+
+      {/* Status lives on its own rail so the command tree keeps the left one:
+          runs first, then whatever the CLI contributed (fetch state, database
+          size, …). Read on a slow poll; see the effect above. */}
+      <aside className="rail rail-r" aria-label="Status">
+        <div className="railsec">
+          <h4>Runs</h4>
+          {runs.length === 0 ? <div className="cmd-d">Nothing has run yet.</div> : null}
+          {runs.slice(0, 6).map((summary) => (
+            <button key={summary.id} className="runitem" onClick={() => attach(summary)}>
+              <span
+                className={`dot ${summary.state === "running" ? "run" : summary.state === "completed" ? "ok" : "fail"}`}
+              />
+              <span className="lbl">{summary.cli.replace(`${binaryName} `, "")}</span>
+              <span className="t">
+                {summary.endedAt
+                  ? `${((summary.endedAt - summary.startedAt) / 1000).toFixed(1)}s`
+                  : "…"}
+              </span>
+            </button>
+          ))}
+        </div>
+        {widgets.map((widget) => (
+          <div className="railsec" key={widget.id}>
+            <h4>{widget.title}</h4>
+            {widget.items.map((item) =>
+              item.kind === "text" ? (
+                <div className={`sline${item.tone ? ` t-${item.tone}` : ""}`} key={item.label}>
+                  <span className="sl-l">{item.label}</span>
+                  <span className="sl-v">{item.value}</span>
+                </div>
+              ) : (
+                <div className="meter" key={item.label}>
+                  <span>
+                    {item.value} / {item.max} {item.label}
+                  </span>
+                  <span className="bar">
+                    <i style={`width:${Math.min(100, (item.value / (item.max || 1)) * 100)}%`} />
+                  </span>
+                </div>
+              )
+            )}
+          </div>
+        ))}
+      </aside>
     </div>
   );
 }

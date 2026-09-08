@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.4.9
+
+### Bug Fixes
+
+#### storage
+
+- restore the deleteSearch guard on the transaction path
+- align `in` with SQL on nulls, refuse a table-wide deleteSearch
+
+## 0.4.8
+
+### Bug Fixes
+
+#### sqlite
+
+- similaritySearch decoded an already-decoded vector (#889)
+
+## 0.4.7
+
+### Chores
+
+- migrate from Prettier to oxfmt for code formatting
+
 ## 0.4.6
 
 ### Features

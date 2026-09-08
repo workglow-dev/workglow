@@ -1,5 +1,67 @@
 # @workglow/test
 
+## 0.4.9
+
+### Features
+
+#### storage
+
+- add the not-in search operator
+
+### Bug Fixes
+
+#### storage
+
+- an undefined criterion matches nothing, on every backend
+- restore the deleteSearch guard on the transaction path
+- align `in` with SQL on nulls, refuse a table-wide deleteSearch
+
+#### test
+
+- drop a @ts-expect-error Vitest 5 made unused
+
+### Chores
+
+- update dependencies
+
+### Updated Dependencies
+
+- `miniflare`: ^5.20260903.0-alpha
+
+## 0.4.8
+
+### Features
+
+#### pricing
+
+- refactor model pricing resolution and enhance test coverage
+- enhance model pricing structure and update cost estimation logic
+
+#### tests
+
+- add HFT fetch stall watchdog tests
+
+### Bug Fixes
+
+- handle Retry-After: 0 and negative values correctly (#888)
+
+#### sqlite
+
+- similaritySearch decoded an already-decoded vector (#889)
+
+## 0.4.7
+
+### Bug Fixes
+
+#### storage
+
+- queue concurrent transactions whose participants differ
+- queue unrelated concurrent callers on the connection mutex
+
+### Chores
+
+- migrate from Prettier to oxfmt for code formatting
+
 ## 0.4.6
 
 ### Features
@@ -61,10 +123,6 @@
 ### Updated Dependencies
 
 - `miniflare`: ^5.20260828.0-alpha
-
-## 0.4.3
-
-## 0.4.2
 
 ## 0.4.1
 
@@ -1163,8 +1221,6 @@
 - `@cloudflare/workers-types`: ^4.20260702.1
 - `miniflare`: ^4.20260701.0
 
-## 0.3.21
-
 ## 0.3.20
 
 ### Features
@@ -1523,8 +1579,6 @@
 
 - add browser-specific AI provider classes and registration functions
 
-## 0.3.3
-
 ## 0.3.2
 
 ### Features
@@ -1544,8 +1598,6 @@
 - `@aws-sdk/client-sqs`: ^3.1052.0
 - `@cloudflare/workers-types`: ^4.20260521.1
 - `miniflare`: ^4.20260520.0
-
-## 0.3.1
 
 ## 0.3.0
 
@@ -2152,8 +2204,6 @@
 
 - enhance preview output handling in TaskRunner
 
-## 0.2.22
-
 ## 0.2.21
 
 ### Features
@@ -2365,8 +2415,6 @@
 #### streaming
 
 - formalize primitive contract, cancel semantics, add stress tests
-
-## 0.2.13
 
 ## 0.2.12
 
@@ -2885,10 +2933,6 @@
 
 - `@electric-sql/pglite`: ^0.4.1
 
-## 0.0.121
-
-## 0.0.120
-
 ## 0.0.119
 
 ### Features
@@ -3018,17 +3062,11 @@
 
 - fix prettier formatting in GraphToWorkflowCode files
 
-## 0.0.115
-
 ## 0.0.114
 
 ### Updated Dependencies
 
 - `@types/pg`: ^8.18.0
-
-## 0.0.113
-
-## 0.0.112
 
 ## 0.0.111
 

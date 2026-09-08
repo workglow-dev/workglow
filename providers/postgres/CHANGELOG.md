@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.4.9
+
+### Bug Fixes
+
+#### storage
+
+- restore the deleteSearch guard on the transaction path
+- align `in` with SQL on nulls, refuse a table-wide deleteSearch
+
+## 0.4.8
+
+## 0.4.7
+
+### Bug Fixes
+
+#### storage
+
+- keep connection-transaction put deferral off the ALS store
+
+### Documentation
+
+#### postgres
+
+- give the real reason a pool transaction chains on its client
+
+### Chores
+
+- migrate from Prettier to oxfmt for code formatting
+
 ## 0.4.6
 
 ### Features

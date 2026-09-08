@@ -125,23 +125,105 @@ textarea {
 
 /* ---------- shell ---------- */
 .app {
+  /* Both rail widths are drag state, written back as inline custom properties
+     on this element. The values here are the fallback for a first paint that
+     happens before the script sets them. */
+  --rail-l: 266px;
+  --rail-r: 248px;
   display: grid;
-  grid-template-columns: 266px minmax(0, 1fr);
+  grid-template-columns: var(--rail-l) minmax(0, 1fr) var(--rail-r);
+  grid-template-areas: "rail main status";
   height: 100dvh;
   min-height: 560px;
+  /* Containing block for the two resize handles, which sit on the seams rather
+     than inside the rails (the status rail scrolls; a child of it would ride
+     the scroll instead of holding the edge). */
+  position: relative;
+}
+
+/* ---------- resize handles ---------- */
+.resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 9px;
+  z-index: 5;
+  cursor: col-resize;
+  /* Without this a touch drag scrolls the page instead of moving the seam. */
+  touch-action: none;
+}
+.resizer-l {
+  left: calc(var(--rail-l) - 4px);
+}
+.resizer-r {
+  right: calc(var(--rail-r) - 4px);
+}
+/* The seam itself is the rail's existing 1px border; this paints over it on
+   hover and while dragging so the target is visible without adding a gutter
+   that would be there all the time. */
+.resizer::after {
+  content: "";
+  position: absolute;
+  inset: 0 3px;
+  background: transparent;
+  transition: background 0.12s ease;
+}
+.resizer:hover::after,
+.resizer:focus-visible::after,
+.resizer[data-dragging="true"]::after {
+  background: var(--accent);
+}
+.resizer:focus-visible {
+  outline: none;
+}
+/* While a seam is being dragged the cursor must not flicker to a text caret
+   over the panes it passes. */
+.app:has(.resizer[data-dragging="true"]) {
+  cursor: col-resize;
+  user-select: none;
 }
 .rail {
   background: var(--panel);
-  border-right: 1px solid var(--line);
   display: flex;
   flex-direction: column;
   min-height: 0;
 }
+/* Commands on the left, status on the right: the tree gets the full height it
+   needs, and the runs/fetch/database lines stop pushing it up. */
+.rail-l {
+  grid-area: rail;
+  border-right: 1px solid var(--line);
+  position: relative;
+  z-index: 1;
+}
+.rail-r {
+  grid-area: status;
+  border-left: 1px solid var(--line);
+  overflow-y: auto;
+  position: relative;
+  z-index: 1;
+}
+.rail-r .railsec:first-child {
+  border-top: 0;
+}
 .main {
+  grid-area: main;
   display: grid;
+  /* An implicit `auto` column sizes to min-content. WebKit then lets the
+     form's max-width (and Safari's intrinsic <input> minimum) blow the
+     middle track out over the status rail. Pin one shrinking column. */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   min-width: 0;
   min-height: 0;
+  /* Clip rather than scroll: a vertical scrollport here would steal
+     position:sticky from .body. Isolation keeps a sticky cmdbar from
+     compositing over the status rail. */
+  overflow-x: clip;
+  isolation: isolate;
+}
+.main > * {
+  min-width: 0;
 }
 
 /* ---------- rail ---------- */
@@ -263,16 +345,26 @@ textarea {
   color: var(--accent-2);
   font-weight: 600;
 }
+/* The name is the thing being chosen: it never wraps or truncates. The
+   description is the concession — it takes what is left and ellipsizes. */
 .cmd-n {
   font-family: var(--mono);
   font-size: var(--fs-12);
+  flex: none;
+  white-space: nowrap;
 }
 .cmd-d {
   font-size: var(--fs-11);
   color: var(--ink-3);
+  flex: 1 1 0;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.cmd .badges {
+  flex: none;
+  margin-left: auto;
 }
 .grp-h {
   background: none;
@@ -292,12 +384,29 @@ textarea {
   flex: none;
   display: inline-block;
 }
-.cmd.grp .cmd-n {
-  color: var(--ink);
-  font-weight: 500;
+/* A sub-group row is set exactly like the leaves around it — the caret is
+   what says it opens; a heavier face would outrank the group heading above. */
+.cmd.sub .cmd-n {
+  color: inherit;
+  font-weight: 400;
 }
-.cmd.grp .cmd-d {
-  font-size: 10px;
+/* One box per subtree: the rule runs from under the parent's caret past its
+   last child, so where a subtree ends is drawn, not inferred from indent. */
+.kids {
+  margin-left: 10px;
+  padding-left: 3px;
+  border-left: 1px solid var(--line);
+}
+.kids .kids {
+  margin-left: 12px;
+  margin-top: 1px;
+  margin-bottom: 4px;
+}
+.kids .cmd {
+  padding-left: 6px;
+}
+.cmd.sub[aria-expanded="true"] .caret {
+  color: var(--ink-2);
 }
 .railsec {
   border-top: 1px solid var(--line-2);
@@ -407,7 +516,9 @@ textarea {
   gap: 6px;
   font-family: var(--mono);
   font-size: var(--fs-13);
+  flex: 1;
   min-width: 0;
+  overflow: hidden;
 }
 .crumb b {
   font-weight: 600;
@@ -417,11 +528,6 @@ textarea {
 }
 .crumb .dim {
   color: var(--ink-3);
-}
-.crumb .cmd-d {
-  margin-left: 8px;
-  min-width: 0;
-  flex: 1;
 }
 .spacer {
   flex: 1;
@@ -491,6 +597,19 @@ textarea {
   opacity: 0.45;
   cursor: not-allowed;
 }
+/* Sized to sit inside a table cell without growing the row. */
+.btn.sm {
+  padding: 2px 8px;
+  font-size: var(--fs-11);
+  white-space: nowrap;
+}
+
+/* Several actions on one row stay on one line, and wrap only when narrow. */
+.rowacts {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
 .kbd {
   font-family: var(--mono);
   font-size: 10px;
@@ -550,12 +669,22 @@ textarea {
 /* ---------- body ---------- */
 .body {
   overflow: auto;
+  min-width: 0;
   min-height: 0;
   padding: 18px;
+  /* Flex centering, not margin:auto. WebKit resolves auto side margins on a
+     max-width block inside a grid item against the outer grid (the whole
+     app), which shifts .wrap over the status rail and leaves the main
+     column empty on the left. */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 .wrap {
+  width: 100%;
   max-width: 1040px;
-  margin: 0 auto;
+  min-width: 0;
+  flex-shrink: 0;
 }
 .lede {
   color: var(--ink-2);
@@ -583,6 +712,11 @@ h2.sec::after {
 h2.sec:first-child {
   margin-top: 0;
 }
+/* The command description leads the options pane; the first section under it
+   does not need the full inter-section gap on top of the lede's own. */
+.lede + h2.sec {
+  margin-top: 0;
+}
 
 /* ---------- form ---------- */
 .card {
@@ -590,6 +724,8 @@ h2.sec:first-child {
   border: 1px solid var(--line);
   border-radius: var(--r);
   box-shadow: var(--shadow);
+  min-width: 0;
+  max-width: 100%;
 }
 .field {
   display: grid;
@@ -597,6 +733,8 @@ h2.sec:first-child {
   gap: 14px;
   padding: 11px 14px;
   border-bottom: 1px solid var(--line-2);
+  min-width: 0;
+  max-width: 100%;
 }
 .field:last-child {
   border-bottom: 0;
@@ -624,11 +762,16 @@ h2.sec:first-child {
   font-size: 10px;
   color: var(--ink-3);
 }
+.fc {
+  min-width: 0;
+}
 .fc input[type="text"],
 .fc input[type="number"],
 .fc select,
 .fc textarea {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   background: var(--sunk);
   border: 1px solid transparent;
   border-radius: var(--r-sm);
@@ -791,6 +934,8 @@ details.adv > summary:hover {
   position: sticky;
   bottom: -18px;
   margin-top: 16px;
+  width: 100%;
+  max-width: 100%;
   background: var(--screen);
   border: 1px solid var(--screen-line);
   border-radius: var(--r);
@@ -805,6 +950,7 @@ details.adv > summary:hover {
   font-size: var(--fs-12);
   color: var(--scr-fg);
   flex: 1;
+  min-width: 0;
   overflow-x: auto;
   white-space: nowrap;
   padding-bottom: 2px;
@@ -847,6 +993,8 @@ details.adv > summary:hover {
   font-size: var(--fs-12);
   overflow: hidden;
   box-shadow: var(--shadow);
+  min-width: 0;
+  max-width: 100%;
 }
 .scr-head {
   display: flex;
@@ -1476,6 +1624,11 @@ pre.json .n {
   background: var(--sunk);
   color: var(--ink-2);
   font-size: var(--fs-12);
+  min-width: 0;
+  max-width: 100%;
+}
+.cnote > span {
+  min-width: 0;
 }
 .cnote .badges {
   margin-left: 0;
@@ -1682,9 +1835,36 @@ pre.json .n {
     transition: none !important;
   }
 }
+@media (max-width: 1080px) {
+  .app {
+    grid-template-columns: var(--rail-l) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "rail main"
+      "status main";
+  }
+  .rail-r {
+    border-left: 0;
+    border-right: 1px solid var(--line);
+    border-top: 1px solid var(--line);
+    max-height: 40dvh;
+  }
+  /* Status stacks under the commands here, so its width is no longer its own
+     to drag — it shares the rail column. */
+  .resizer-r {
+    display: none;
+  }
+}
 @media (max-width: 820px) {
+  /* One column, one pane at a time: there is no seam to drag. */
+  .resizer {
+    display: none;
+  }
   .app {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "rail"
+      "status";
   }
   .app[data-pane="list"] .main {
     display: none;
@@ -1697,6 +1877,9 @@ pre.json .n {
   }
   .rail {
     border-right: 0;
+  }
+  .app[data-pane="detail"] {
+    grid-template-areas: "main";
   }
   .field {
     grid-template-columns: minmax(0, 1fr);

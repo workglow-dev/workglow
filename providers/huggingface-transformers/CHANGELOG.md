@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.4.9
+
+## 0.4.8
+
+### Features
+
+#### pricing
+
+- enhance model pricing structure and update cost estimation logic
+
+#### tests
+
+- add HFT fetch stall watchdog tests
+
+## 0.4.7
+
+### Chores
+
+- migrate from Prettier to oxfmt for code formatting
+
 ## 0.4.6
 
 ### Chores

@@ -42,6 +42,7 @@ import {
   runInTransactionOnConnection,
   runNativeConnectionTransaction,
   runOnConnection,
+  runReadOnConnection,
   runSingleSessionConnectionTransaction,
   safeEmit,
   setConnectionTxQuery,
@@ -922,6 +923,23 @@ export class PostgresTabularStorage<
     return this.mutex(fn);
   }
 
+  /**
+   * Chain first, then this instance's mutex — the order {@link guardedWrite}
+   * uses. A connection transaction holds the chain, not the mutex, so a read
+   * taking only the mutex read uncommitted rows off the shared session.
+   *
+   * A real `pg.Pool` has no shared handle and needs none: each read checks out
+   * its own client and sees only committed rows, which is also why this skips
+   * the `assertNotForeignConnectionTx` guard `guardedWrite` needs.
+   */
+  protected guardedRead<T>(fn: () => Promise<T>): Promise<T> {
+    const handle = this.connectionHandle();
+    if (handle !== null) {
+      return runReadOnConnection(handle, this, () => this.mutex(fn));
+    }
+    return this.mutex(fn);
+  }
+
   async runConnectionTransaction<T>(
     participants: readonly AnyTabularStorage[],
     fn: () => Promise<T>
@@ -937,13 +955,20 @@ export class PostgresTabularStorage<
         return await runNativeConnectionTransaction({
           handle,
           // Each real-pool transaction owns its own checked-out client, so it
-          // must NOT chain on the pool: two concurrent
-          // `withConnectionTransaction` calls with different participants would
-          // otherwise see each other's owner set on the pool's chain slot and
-          // throw `ConnectionReentryError`. `handle` (the pool) still names the
-          // connection for nesting detection.
+          // must NOT chain on the pool: the pool's chain slot admits one holder
+          // at a time, so chaining there would make every pooled transaction
+          // wait for every other one and erase the pool. Concurrent callers are
+          // no longer REFUSED for sharing a slot — an unrelated one queues and
+          // opens its own `BEGIN` after the first commits — so what is at stake
+          // here is throughput, not an error. `handle` (the pool) still names
+          // the connection for nesting detection.
           chainHandle: client,
           participants,
+          // The pool keeps serving unrelated callers on other clients while
+          // this transaction runs, and their rows survive its ROLLBACK — so
+          // deferral must follow enlistment rather than cover the participants
+          // wholesale.
+          ownsSession: false,
           begin: async () => {
             setConnectionTxQuery({ query: client.query.bind(client) });
             await client.query("BEGIN");
@@ -1271,7 +1296,7 @@ export class PostgresTabularStorage<
    * @emits "get" event with the key when successful
    */
   async get(key: PrimaryKey): Promise<Entity | undefined> {
-    return this.mutex(() => this._getInternal(key));
+    return this.guardedRead(() => this._getInternal(key));
   }
 
   private async _getInternal(key: PrimaryKey): Promise<Entity | undefined> {
@@ -1328,12 +1353,12 @@ export class PostgresTabularStorage<
         : Math.max(1, Math.min(COMPOUND_IN_TUPLE_LIMIT, Math.floor(30000 / pkColCount)));
     let rows: Entity[];
     if (keys.length <= chunkSize) {
-      rows = await this.mutex(() => this._getBulkInternal(keys));
+      rows = await this.guardedRead(() => this._getBulkInternal(keys));
     } else {
       rows = [];
       for (let i = 0; i < keys.length; i += chunkSize) {
         const chunk = keys.slice(i, i + chunkSize);
-        const chunkRows = await this.mutex(() => this._getBulkInternal(chunk));
+        const chunkRows = await this.guardedRead(() => this._getBulkInternal(chunk));
         rows.push(...chunkRows);
       }
     }
@@ -1410,7 +1435,7 @@ export class PostgresTabularStorage<
    * @returns Promise resolving to an array of entries or undefined if not found
    */
   async getAll(options?: QueryOptions<Entity>): Promise<Entity[] | undefined> {
-    return this.mutex(() => this._getAllInternal(options));
+    return this.guardedRead(() => this._getAllInternal(options));
   }
 
   private async _getAllInternal(options?: QueryOptions<Entity>): Promise<Entity[] | undefined> {
@@ -1473,7 +1498,7 @@ export class PostgresTabularStorage<
    * @returns Promise resolving to the count of stored items
    */
   async size(): Promise<number> {
-    return this.mutex(() => this._sizeInternal());
+    return this.guardedRead(() => this._sizeInternal());
   }
 
   private async _sizeInternal(): Promise<number> {
@@ -1486,7 +1511,7 @@ export class PostgresTabularStorage<
    * Counts rows matching the specified search criteria.
    */
   override async count(criteria?: SearchCriteria<Entity>): Promise<number> {
-    return this.mutex(() => this._countInternal(criteria));
+    return this.guardedRead(() => this._countInternal(criteria));
   }
 
   private async _countInternal(criteria?: SearchCriteria<Entity>): Promise<number> {
@@ -1511,7 +1536,7 @@ export class PostgresTabularStorage<
    * @returns Array of entities or undefined if no records found
    */
   async getOffsetPage(offset: number, limit: number): Promise<Entity[] | undefined> {
-    return this.mutex(() => this._getOffsetPageInternal(offset, limit));
+    return this.guardedRead(() => this._getOffsetPageInternal(offset, limit));
   }
 
   private async _getOffsetPageInternal(
@@ -1578,7 +1603,7 @@ export class PostgresTabularStorage<
    * and run on the transaction-bound `db`.
    */
   override async getPage(request: PageRequest<Entity> = {}): Promise<Page<Entity>> {
-    return this.mutex(() => this._getPageInternal(request));
+    return this.guardedRead(() => this._getPageInternal(request));
   }
 
   private async _getPageInternal(request: PageRequest<Entity>): Promise<Page<Entity>> {
@@ -1589,7 +1614,7 @@ export class PostgresTabularStorage<
     criteria: SearchCriteria<Entity>,
     request: PageRequest<Entity> = {}
   ): Promise<Page<Entity>> {
-    return this.mutex(() => this._queryPageInternal(criteria, request));
+    return this.guardedRead(() => this._queryPageInternal(criteria, request));
   }
 
   private async _queryPageInternal(
@@ -1674,14 +1699,22 @@ export class PostgresTabularStorage<
    * @param criteria - Object with column names as keys and values or SearchConditions
    */
   async deleteSearch(criteria: DeleteSearchCriteria<Entity>): Promise<void> {
+    // Ahead of the write lock: a refused delete has no business queueing
+    // behind other writers, and this is the same first line of
+    // `deleteSearch` every other backend opens with.
+    if (!this.shouldRunDeleteSearch(criteria)) return;
     return this.guardedWrite(() => this._deleteSearchInternal(criteria));
   }
 
   private async _deleteSearchInternal(criteria: DeleteSearchCriteria<Entity>): Promise<void> {
-    const criteriaKeys = Object.keys(criteria) as Array<keyof Entity>;
-    if (criteriaKeys.length === 0) {
-      return;
-    }
+    // Repeated rather than redundant: {@link createTxView}'s Proxy routes
+    // `tx.deleteSearch` straight here by the `_*Internal` naming convention, so
+    // a guard living only on the public method is skipped by every call made
+    // through a transaction handle. Unguarded, `tx.deleteSearch({})` builds
+    // `DELETE FROM t WHERE ` (a syntax error) and criteria that are nothing but
+    // empty `not-in` lists build `WHERE 1 = 1`, emptying the table instead of
+    // raising StorageUnfilteredDeleteError.
+    if (!this.shouldRunDeleteSearch(criteria)) return;
     return this.runDeleteSearchOnHandle(criteria);
   }
 
@@ -1710,6 +1743,14 @@ export class PostgresTabularStorage<
     match: SearchCriteria<Entity>,
     patch: Partial<Entity>
   ): Promise<Entity | undefined> {
+    // Repeated rather than redundant, exactly as `deleteSearch` is:
+    // {@link createTxView}'s Proxy routes `tx.updateWhere` straight here by the
+    // `_*Internal` naming convention, so a guard living only on the public
+    // method is skipped by every call made through a transaction handle.
+    // Unguarded, `tx.updateWhere({ id: "a" }, { id: "b" })` rewrites the row's
+    // identity in place — or aborts the transaction on a UNIQUE violation —
+    // instead of raising StorageValidationError.
+    this.assertPatchKeepsPrimaryKey(patch);
     const patchKeys = Object.keys(patch) as Array<keyof Entity>;
     if (patchKeys.length === 0) return undefined;
     return this.runUpdateWhereOnHandle(match, patch, patchKeys);
@@ -1754,7 +1795,7 @@ export class PostgresTabularStorage<
     criteria: SearchCriteria<Entity>,
     options?: QueryOptions<Entity>
   ): Promise<Entity[] | undefined> {
-    return this.mutex(() => this._queryInternal(criteria, options));
+    return this.guardedRead(() => this._queryInternal(criteria, options));
   }
 
   private async _queryInternal(
@@ -1812,7 +1853,7 @@ export class PostgresTabularStorage<
     criteria: SearchCriteria<Entity>,
     options: CoveringIndexQueryOptions<Entity, K>
   ): Promise<Pick<Entity, K>[]> {
-    return this.mutex(() => this._queryIndexInternal(criteria, options));
+    return this.guardedRead(() => this._queryIndexInternal(criteria, options));
   }
 
   private async _queryIndexInternal<K extends keyof Entity & string>(

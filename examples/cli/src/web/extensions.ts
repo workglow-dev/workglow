@@ -17,6 +17,30 @@ import type { WebInvocation } from "./argv";
  * is a new {@link PanelData} kind, which is one shared change rather than a
  * plugin loader.
  */
+/**
+ * The command one row of a table is an argument for.
+ *
+ * A worklist is only half of the work: a table of suggested aliases is read to
+ * decide which ones to record, and recording one means copying two values out
+ * of the table and typing them into another command's form. This carries that
+ * command with the row instead.
+ *
+ * The console FILLS the form and switches to it; it does not run it. The rows
+ * that have an action are the ones a human is being asked to judge, and the
+ * command behind the button is usually one that writes.
+ */
+export interface PanelRowAction {
+  /** Button text. Short — it sits inside a table cell. */
+  readonly label: string;
+  /**
+   * The button's tooltip. A cell has room for `Add →` and not for what the
+   * arrow points at, so the sentence saying which value survives goes here.
+   */
+  readonly title?: string;
+  /** The command to select, and the values to fill its form with. */
+  readonly invocation: WebInvocation;
+}
+
 export type PanelData =
   | {
       readonly kind: "table";
@@ -28,6 +52,16 @@ export type PanelData =
        * the panel exists to save.
        */
       readonly rowTones?: readonly (WebTone | undefined)[];
+      /**
+       * Per-row actions, positionally aligned with `rows`. Rendered as one
+       * extra column, present only when some row carries an action.
+       *
+       * A list rather than one action, because a row is not always a single
+       * decision: a suggested alias is a pair of names and which of the two
+       * survives is exactly what the reader is being asked, so that row offers
+       * the merge in both directions.
+       */
+      readonly rowActions?: readonly (readonly PanelRowAction[] | undefined)[];
       /** Footnote under the table: what was truncated, what a column means. */
       readonly note?: string;
     }
@@ -138,6 +172,7 @@ export interface WebStatusWidget {
 const panels: WebPanel[] = [];
 const fieldWidgets = new Map<string, WebFieldWidget>();
 const statusWidgets: WebStatusWidget[] = [];
+const statusReadCleanups: Array<() => Promise<void>> = [];
 
 export function registerWebPanel(panel: WebPanel): void {
   const at = panels.findIndex((candidate) => candidate.id === panel.id);
@@ -186,40 +221,88 @@ export function registerWebStatusWidget(widget: WebStatusWidget): void {
   else statusWidgets.push(widget);
 }
 
+/**
+ * Runs after every status-rail read, success or failure.
+ *
+ * The rail is polled while the console is open. A package whose widgets open
+ * database connections registers a cleanup here so those backends are closed
+ * before the next 15s poll, instead of sitting idle until process exit.
+ */
+export function registerWebStatusReadCleanup(cleanup: () => Promise<void>): void {
+  statusReadCleanups.push(cleanup);
+}
+
 export function listWebStatusWidgets(): readonly WebStatusWidget[] {
   return [...statusWidgets];
 }
 
-/** Reads every status widget, dropping any that cannot answer right now. */
-export async function readWebStatusWidgets(): Promise<
-  readonly {
-    readonly id: string;
-    readonly title: string;
-    readonly source: string;
-    readonly items: readonly WebStatusItem[];
-  }[]
-> {
-  const results = await Promise.all(
-    statusWidgets.map(async (widget) => {
+export interface WebStatusWidgetReading {
+  readonly id: string;
+  readonly title: string;
+  readonly source: string;
+  readonly items: readonly WebStatusItem[];
+}
+
+let statusReadInFlight: Promise<readonly WebStatusWidgetReading[]> | undefined;
+
+/**
+ * Reads every status widget, dropping any that cannot answer right now.
+ *
+ * Callers overlapping in time share one pass. The rail is polled on a bare
+ * interval by every open tab and served concurrently, so two reads can be in
+ * progress at once — and the cleanups below close resources the widgets share
+ * (a database connection, typically). Run under each other, the first read's
+ * teardown closes the connection the second is still querying: that read's
+ * widgets throw, get dropped as unanswerable, and the rows vanish from the rail
+ * with nothing logged. Sharing the pass also means the cleanups run once per
+ * pass rather than once per caller.
+ *
+ * The in-flight promise is only cleared after the cleanups have finished, so a
+ * read that starts later never overlaps an earlier one's teardown either.
+ */
+export function readWebStatusWidgets(): Promise<readonly WebStatusWidgetReading[]> {
+  statusReadInFlight ??= readStatusWidgetsOnce().finally(() => {
+    statusReadInFlight = undefined;
+  });
+  return statusReadInFlight;
+}
+
+async function readStatusWidgetsOnce(): Promise<readonly WebStatusWidgetReading[]> {
+  try {
+    const results = await Promise.all(
+      statusWidgets.map(async (widget) => {
+        try {
+          return {
+            id: widget.id,
+            title: widget.title,
+            source: widget.source,
+            items: (await widget.read()).map((item) =>
+              item.kind === "text" ? item : { ...item, kind: "meter" as const }
+            ),
+          };
+        } catch {
+          return undefined;
+        }
+      })
+    );
+    return results.filter((entry): entry is NonNullable<typeof entry> => entry !== undefined);
+  } finally {
+    // Close connections the widgets opened for this poll. A thrown cleanup
+    // must not fail the rail: the numbers already landed, and a close error
+    // is not something the operator can act on from this page.
+    for (const cleanup of statusReadCleanups) {
       try {
-        return {
-          id: widget.id,
-          title: widget.title,
-          source: widget.source,
-          items: (await widget.read()).map((item) =>
-            item.kind === "text" ? item : { ...item, kind: "meter" as const }
-          ),
-        };
+        await cleanup();
       } catch {
-        return undefined;
+        /* ignore */
       }
-    })
-  );
-  return results.filter((entry): entry is NonNullable<typeof entry> => entry !== undefined);
+    }
+  }
 }
 
 export function resetWebExtensionsForTesting(): void {
   panels.length = 0;
   fieldWidgets.clear();
   statusWidgets.length = 0;
+  statusReadCleanups.length = 0;
 }

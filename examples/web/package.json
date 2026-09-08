@@ -1,6 +1,7 @@
 {
   "name": "@workglow/web",
-  "version": "0.4.6",
+  "private": true,
+  "version": "0.4.9",
   "bugs": {
     "url": "https://github.com/workglow-dev/libs/issues"
   },
@@ -19,8 +20,8 @@
   },
   "dependencies": {
     "@codemirror/lang-json": "^6.0.2",
-    "@codemirror/state": "6.7.2",
-    "@codemirror/view": "6.43.10",
+    "@codemirror/state": "6.7.4",
+    "@codemirror/view": "6.43.11",
     "@codemirror/language": "6.12.4",
     "@lezer/common": "1.5.2",
     "@lezer/highlight": "1.2.3",
@@ -48,12 +49,12 @@
     "react": "catalog:",
     "react-dom": "^19.2.8",
     "react-icons": "^5.7.0",
-    "react-resizable-panels": "^4.12.3",
+    "react-resizable-panels": "^4.12.4",
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
     "@types/react": "catalog:",
-    "@types/react-dom": "^19.2.5",
+    "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
     "@tailwindcss/vite": "^4.3.3",
     "tailwindcss": "^4.3.3",

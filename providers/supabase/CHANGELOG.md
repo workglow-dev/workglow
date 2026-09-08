@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.4.9
+
+### Features
+
+#### storage
+
+- add the not-in search operator
+
+### Bug Fixes
+
+#### storage
+
+- an undefined criterion matches nothing, on every backend
+- restore the deleteSearch guard on the transaction path
+- align `in` with SQL on nulls, refuse a table-wide deleteSearch
+
+## 0.4.8
+
+## 0.4.7
+
+### Chores
+
+- migrate from Prettier to oxfmt for code formatting
+
 ## 0.4.6
 
 ### Chores

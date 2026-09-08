@@ -1,5 +1,27 @@
 # @workglow/tasks
 
+## 0.4.9
+
+### Chores
+
+- update dependencies
+
+### Updated Dependencies
+
+- `undici`: ^8.10.2
+
+## 0.4.8
+
+### Bug Fixes
+
+- handle Retry-After: 0 and negative values correctly (#888)
+
+## 0.4.7
+
+### Chores
+
+- migrate from Prettier to oxfmt for code formatting
+
 ## 0.4.6
 
 ### Chores

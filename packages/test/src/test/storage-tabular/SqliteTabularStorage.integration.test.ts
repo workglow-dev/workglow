@@ -490,7 +490,7 @@ describe("SqliteTabularStorage shared-connection safety", () => {
     return [a, b, db] as const;
   }
 
-  it("sibling single-op throws ConnectionReentryError during a transaction on the same handle", async () => {
+  it("unrelated concurrent sibling op waits for the transaction instead of being refused", async () => {
     const [a, b] = await makeSharedPair();
     let releaseInner: () => void = () => {};
     const innerCanFinish = new Promise<void>((resolve) => {
@@ -501,24 +501,81 @@ describe("SqliteTabularStorage shared-connection safety", () => {
       signalTxStarted = resolve;
     });
 
+    const order: string[] = [];
     const txPromise = a.withTransaction(async (tx) => {
       // After this awaited put returns, we are provably inside the tx body,
       // which means the shared ConnectionMutex has already set
-      // `state.txOwner = a`.
+      // `state.txOwners = {a}`.
       await tx.put({ name: "tx-row", type: "x", option: "tx", success: true });
       signalTxStarted();
       await innerCanFinish;
+      order.push("TX-BODY-END");
     });
 
     await txStarted;
 
-    // A sibling put from a *different* storage instance on the same handle
-    // must fail fast, not sneak into the tx BEGIN/COMMIT window and not
-    // block silently. The connection mutex throws ConnectionReentryError
-    // synchronously with mode="sibling-op".
+    // A sibling put from a *different* storage instance on the same handle,
+    // issued from a task that is NOT an async descendant of the transaction
+    // body. Its write cannot escape the BEGIN, so refusing it would only
+    // dead-letter a caller that did nothing wrong — in its own task, where the
+    // transaction's caller cannot catch it. It queues on the connection chain.
     let siblingErr: unknown;
-    await b.put({ name: "sibling-row", type: "x", option: "sib", success: true }).catch((err) => {
-      siblingErr = err;
+    const sibling = b
+      .put({ name: "sibling-row", type: "x", option: "sib", success: true })
+      .then(() => {
+        order.push("SIBLING-WRITE");
+      })
+      .catch((err: unknown) => {
+        siblingErr = err;
+      });
+
+    // An unrelated concurrent READ on the same connection, also queued rather
+    // than run: it would otherwise execute on the same session inside the open
+    // BEGIN and report whatever the transaction has written so far.
+    let readSettled = false;
+    const concurrentRead = b.get({ name: "sibling-row", type: "x" }).then((row) => {
+      readSettled = true;
+      return row;
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    // Neither refused nor slipped inside the open BEGIN. The sibling write has
+    // not landed, and the sibling read has not answered.
+    expect(siblingErr).toBeUndefined();
+    expect(order).toEqual([]);
+    expect(readSettled).toBe(false);
+
+    releaseInner();
+    await txPromise;
+    await sibling;
+    // The read ran after COMMIT released the connection, so it sees the
+    // sibling write that was queued ahead of it.
+    expect(await concurrentRead).toBeDefined();
+
+    expect(siblingErr).toBeUndefined();
+    expect(order).toEqual(["TX-BODY-END", "SIBLING-WRITE"]);
+    expect(await b.get({ name: "sibling-row", type: "x" })).toBeDefined();
+
+    // The outer tx still commits cleanly, and the shared connection is
+    // released so a further sibling put also succeeds.
+    expect(await a.get({ name: "tx-row", type: "x" })).toBeDefined();
+    await b.put({ name: "post-tx-row", type: "x", option: "sib", success: true });
+    expect(await b.get({ name: "post-tx-row", type: "x" })).toBeDefined();
+  });
+
+  it("sibling single-op from inside the transaction body still throws ConnectionReentryError", async () => {
+    const [a, b] = await makeSharedPair();
+
+    // A descendant of the body is the caller whose write WOULD escape the
+    // BEGIN — it must still be refused, and its row must not exist.
+    let siblingErr: unknown;
+    await a.withTransaction(async (tx) => {
+      await tx.put({ name: "tx-row", type: "x", option: "tx", success: true });
+      await b
+        .put({ name: "sibling-row", type: "x", option: "sib", success: true })
+        .catch((err: unknown) => {
+          siblingErr = err;
+        });
     });
 
     expect(siblingErr).toBeInstanceOf(ConnectionReentryError);
@@ -529,14 +586,8 @@ describe("SqliteTabularStorage shared-connection safety", () => {
     expect(reentry.message).toContain("SAVEPOINT");
     expect(reentry.message).toContain("single storage instance");
 
-    releaseInner();
-    await txPromise;
-
-    // The outer tx still commits cleanly, and the shared connection is
-    // released so a normal sibling put now succeeds.
+    expect(await b.get({ name: "sibling-row", type: "x" })).toBeUndefined();
     expect(await a.get({ name: "tx-row", type: "x" })).toBeDefined();
-    await b.put({ name: "post-tx-row", type: "x", option: "sib", success: true });
-    expect(await b.get({ name: "post-tx-row", type: "x" })).toBeDefined();
   });
 
   it("rejects cross-instance nested withTransaction within 500ms (no hang)", async () => {
@@ -586,6 +637,63 @@ describe("SqliteTabularStorage shared-connection safety", () => {
     });
     expect(await a.get({ name: "from-a", type: "x" })).toMatchObject({ option: "va" });
     expect(await b.get({ name: "from-b", type: "x" })).toMatchObject({ option: "vb" });
+  });
+
+  it("two concurrent withConnectionTransaction calls with overlapping participant sets both commit", async () => {
+    const [a, b, db] = await makeSharedPair();
+    const c = new SqliteTabularStorage<typeof CompoundSchema, typeof CompoundPrimaryKeyNames>(
+      db,
+      `shared_c_${uuid4().replace(/-/g, "_")}`,
+      CompoundSchema,
+      CompoundPrimaryKeyNames
+    );
+    await c.setupDatabase();
+
+    // The shape a concurrent sweep produces: one unit of work opens a
+    // transaction over {a, b} and another, in a different task on the same
+    // handle, opens one over {b, c}. The sets overlap but are not equal, and
+    // neither call is an async descendant of the other. Only one BEGIN can be
+    // open on a single SQLite handle, so the second waits — refusing it would
+    // fail a unit of work that has nothing wrong with it.
+    const order: string[] = [];
+    let releaseFirst: () => void = () => {};
+    const firstCanFinish = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    let signalFirstStarted: () => void = () => {};
+    const firstStarted = new Promise<void>((resolve) => {
+      signalFirstStarted = resolve;
+    });
+
+    const first = withConnectionTransaction([a, b], async () => {
+      order.push("BEGIN-1");
+      await a.put({ name: "first", type: "x", option: "va", success: true });
+      signalFirstStarted();
+      await firstCanFinish;
+      order.push("END-1");
+    });
+    await firstStarted;
+
+    let secondError: unknown;
+    const second = withConnectionTransaction([b, c], async () => {
+      order.push("BEGIN-2");
+      await c.put({ name: "second", type: "x", option: "vc", success: true });
+    }).catch((err: unknown) => {
+      secondError = err;
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(secondError).toBeUndefined();
+    expect(order).toEqual(["BEGIN-1"]);
+
+    releaseFirst();
+    await first;
+    await second;
+
+    expect(secondError).toBeUndefined();
+    expect(order).toEqual(["BEGIN-1", "END-1", "BEGIN-2"]);
+    expect(await a.get({ name: "first", type: "x" })).toMatchObject({ option: "va" });
+    expect(await c.get({ name: "second", type: "x" })).toMatchObject({ option: "vc" });
   });
 
   it("withConnectionTransaction rolls back both tables when the callback throws", async () => {
