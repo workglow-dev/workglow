@@ -37,8 +37,8 @@ const READS = [
   ["KbSearchTask", KbSearchTask],
   ["KbToDocumentsTask", KbToDocumentsTask],
   ["HierarchyJoinTask", HierarchyJoinTask],
-  ["TextRerankerTask", TextRerankerTask],
   ["AiChatWithKbTask", AiChatWithKbTask],
+  ["ChunkRetrievalTask", ChunkRetrievalTask],
 ] as const satisfies readonly (readonly [string, EntitlementDeclaringTaskClass])[];
 
 const WRITES = [
@@ -47,7 +47,6 @@ const WRITES = [
   ["DocumentUpsertTask", DocumentUpsertTask],
   ["ChunkVectorUpsertTask", ChunkVectorUpsertTask],
   ["KbReindexTask", KbReindexTask],
-  ["ChunkRetrievalTask", ChunkRetrievalTask],
 ] as const satisfies readonly (readonly [string, EntitlementDeclaringTaskClass])[];
 
 describe("knowledge-base tasks declare the storage they reach", () => {
@@ -72,15 +71,27 @@ describe("knowledge-base tasks declare the storage they reach", () => {
   it("keeps the inference its AI base class declares when adding storage", () => {
     // `entitlements()` REPLACES the inherited declaration, so a subclass that
     // returns only its own storage silently drops what its base said it does.
-    const ids = TextRerankerTask.entitlements().entitlements.map((e) => e.id);
+    const ids = AiChatWithKbTask.entitlements().entitlements.map((e) => e.id);
     expect(ids).toContain(Entitlements.AI_INFERENCE);
     expect(ids).toContain(Entitlements.STORAGE_READ);
   });
 
-  it("declares the write ChunkRetrievalTask performs on its first hybrid search", () => {
-    // `installTextIndex` writes an index; reporting only storage:read would
-    // understate it by exactly the operation a reader would want to approve.
+  it("leaves a pure reranker ungated — it takes documents, not a knowledge base", () => {
+    // Its input ports are query/documents/topK/model. The only `kb.` in the file
+    // is a comment saying a KB invokes THIS task; the dependency runs the other
+    // way, and gating it would put a click in front of ordinary scoring.
+    expect(taskClassNeedsApproval(TextRerankerTask)).toBe(false);
+    expect(taskClassReach(TextRerankerTask)).toEqual([]);
+  });
+
+  it("does not claim ChunkRetrievalTask writes, because it only searches", () => {
+    // It names `installTextIndex` in an error message telling the caller how to
+    // fix a missing index, and never calls it — and that method assigns a field
+    // rather than touching storage anyway. `hybridSearch` throws without an
+    // index rather than installing one. Over-declaring reach costs the same as
+    // under-declaring it: a prompt that overstates is a prompt people stop reading.
     const ids = taskClassReach(ChunkRetrievalTask).map((e) => e.id);
-    expect(ids).toContain(Entitlements.STORAGE_WRITE);
+    expect(ids).not.toContain(Entitlements.STORAGE_WRITE);
+    expect(ids).toContain(Entitlements.STORAGE_READ);
   });
 });

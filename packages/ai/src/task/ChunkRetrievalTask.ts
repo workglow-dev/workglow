@@ -244,7 +244,6 @@ export class ChunkRetrievalTask extends Task<
     return {
       entitlements: [
         { id: Entitlements.STORAGE_READ, reason: "Searches chunks in a knowledge base" },
-        { id: Entitlements.STORAGE_WRITE, reason: "Installs a text index on first hybrid search" },
         {
           id: Entitlements.AI_INFERENCE,
           reason: "Embeds the query through an owned embedding task",
