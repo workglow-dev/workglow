@@ -17,8 +17,8 @@ export interface PostgresTypeMapOptions {
   readonly getNonNullType: (typeDef: JsonSchema) => JsonSchema;
   /**
    * Optional hook for the pgvector extension: given the resolved non-null
-   * type of a `string` column, return a `vector(N)` column type, or undefined
-   * to fall through to the normal string handling. Backends without pgvector
+   * type of a column, return a `vector(N)` column type, or undefined to fall
+   * through to the normal handling for that type. Backends without pgvector
    * (e.g. Supabase via PostgREST) omit this.
    */
   readonly vectorTypeFor?: (actualType: Exclude<JsonSchema, boolean>) => string | undefined;
@@ -40,6 +40,15 @@ export function mapPostgresType(typeDef: JsonSchema, options: PostgresTypeMapOpt
   // Handle BLOB type
   if (actualType.contentEncoding === "blob") return "BYTEA";
 
+  // Backend-specific vector column (pgvector), when supported. Consulted
+  // before the switch because the embedding schema this repo writes is
+  // `{ type: "array", format: "TypedArray" }` — gating the hook on
+  // `type: "string"` sent every such column to `JSONB /* generic array */`,
+  // which no `vector_*_ops` operator class accepts, so the index was never
+  // built and every search fell back to scanning the table in memory.
+  const vectorType = options.vectorTypeFor?.(actualType);
+  if (vectorType) return vectorType;
+
   switch (actualType.type) {
     case "string": {
       // Handle special string formats that map to a dedicated column type
@@ -47,16 +56,12 @@ export function mapPostgresType(typeDef: JsonSchema, options: PostgresTypeMapOpt
       if (actualType.format === "date") return "DATE";
       if (actualType.format === "uuid") return "UUID";
 
-      // Formats carrying an implied width (`email`, `uri`) resolve before the
-      // pgvector hook. Read from the shared table so the width this DDL
-      // declares is the width `varcharWidth` reports to the schemaless
-      // backends — the two cannot drift apart.
+      // Formats carrying an implied width (`email`, `uri`). Read from the
+      // shared table so the width this DDL declares is the width
+      // `varcharWidth` reports to the schemaless backends — the two cannot
+      // drift apart.
       const formatWidth = varcharWidthForFormat(actualType.format);
       if (formatWidth !== undefined) return `VARCHAR(${formatWidth})`;
-
-      // Backend-specific vector column (pgvector), when supported.
-      const vectorType = options.vectorTypeFor?.(actualType);
-      if (vectorType) return vectorType;
 
       // Use a VARCHAR with maxLength if specified
       if (typeof actualType.maxLength === "number") {
