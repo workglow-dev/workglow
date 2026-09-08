@@ -6,6 +6,7 @@ import { configDefaults, coverageConfigDefaults, defineConfig } from "vitest/con
 import { discoverTestFiles, listTestProjects } from "./scripts/lib/testDiscovery.ts";
 import {
   coverageIncludeGlobs,
+  distBundleGuardPlugin,
   listWorkspacePackages,
   resolveTestTarget,
   workspaceSourcePlugin,
@@ -97,6 +98,9 @@ const discovered = discoverTestFiles();
  * bundles are what gets loaded. The nightly Bun run already exercises them —
  * `bun test` resolves `exports` natively — so nothing in CI sets this; it is
  * the local escape hatch for reproducing a bundle-only failure under vitest.
+ * Its plugin is a guard rather than nothing at all, because the tree a
+ * developer reaches for it on is usually a `use-source` tree, where `dist`
+ * re-exports `src` and the target would silently measure nothing.
  */
 const target = resolveTestTarget(process.env.WORKGLOW_TEST_TARGET);
 
@@ -114,8 +118,11 @@ const target = resolveTestTarget(process.env.WORKGLOW_TEST_TARGET);
  * non-publishing workspaces from, so it is read exactly once for both uses.
  */
 const workspacePackages = listWorkspacePackages(__dirname);
-const projectPlugins =
-  target === "dist" ? [] : [workspaceSourcePlugin(__dirname, workspacePackages)];
+const projectPlugins = [
+  target === "dist"
+    ? distBundleGuardPlugin(__dirname, workspacePackages)
+    : workspaceSourcePlugin(__dirname, workspacePackages),
+];
 
 /**
  * One project per workspace that actually holds tests, derived from the same

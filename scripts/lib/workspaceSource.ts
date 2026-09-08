@@ -29,7 +29,7 @@
  * `use-dist` afterwards.
  */
 
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { closeSync, existsSync, openSync, readdirSync, readFileSync, readSync } from "node:fs";
 import { join } from "node:path";
 // `vitest/config` re-exports vite's own `Plugin`. Imported from there because
 // `vite` is not a direct dependency of this workspace and does not resolve from
@@ -37,6 +37,7 @@ import { join } from "node:path";
 import type { Plugin } from "vitest/config";
 // Extensions required on both: this module is in `vitest.config.ts`'s graph,
 // which Vite's native config loader resolves without extension inference.
+import { SOURCE_STUB_SENTINEL } from "./sourceStubs.ts";
 import { listDirs, PACKAGE_GROUPS, ROOT } from "./testDiscovery.ts";
 
 /** Source extensions a dist entry can have come from, in resolution order. */
@@ -195,6 +196,39 @@ export function distToSource(id: string): string | undefined {
     if (existsSync(candidate)) return candidate;
   }
   return undefined;
+}
+
+/** Bytes worth reading to find the sentinel: `use-source` writes it first. */
+const STUB_PROBE_BYTES = 512;
+
+/** Verdict per file, so one entry is probed once however often it resolves. */
+const stubProbeCache = new Map<string, boolean>();
+
+/**
+ * Whether a built entry is a `use-source` stub rather than a real bundle.
+ *
+ * Reads only the first bytes rather than the file: a real entry here is a
+ * multi-megabyte bundle, and the sentinel `use-source` writes is on line one.
+ * An entry that cannot be read answers `false` — the import itself fails a
+ * moment later with a better message than this one could give.
+ */
+export function isSourceStubFile(file: string): boolean {
+  const cached = stubProbeCache.get(file);
+  if (cached !== undefined) return cached;
+  let verdict = false;
+  let handle: number | undefined;
+  try {
+    handle = openSync(file, "r");
+    const buffer = Buffer.alloc(STUB_PROBE_BYTES);
+    const read = readSync(handle, buffer, 0, STUB_PROBE_BYTES, 0);
+    verdict = buffer.subarray(0, read).toString("utf8").includes(SOURCE_STUB_SENTINEL);
+  } catch {
+    verdict = false;
+  } finally {
+    if (handle !== undefined) closeSync(handle);
+  }
+  stubProbeCache.set(file, verdict);
+  return verdict;
 }
 
 /**
@@ -356,6 +390,35 @@ export interface WorkspaceResolveContext<
  * Extracted from the plugin so it can be driven directly: inside a `Plugin`
  * object literal the hook is reachable only through a Vite build.
  */
+async function resolveOwnedSpecifier<TResolved extends WorkspaceResolvedId>(
+  packages: readonly WorkspacePackage[],
+  context: WorkspaceResolveContext<TResolved>,
+  source: string,
+  importer: string | undefined,
+  options: object
+): Promise<TResolved | null> {
+  // Bare workspace specifiers only: a relative import already points at source,
+  // and resolving every third-party specifier twice would tax the whole run for
+  // nothing.
+  const owner = ownerOf(packages, source);
+  if (owner === undefined) return null;
+  const resolved = await context.resolve(source, importer, { ...options, skipSelf: true });
+  if (resolved) return resolved;
+  // Throwing, not warning: an unresolvable @workglow/* specifier already fails
+  // the run a moment later. This only replaces the message.
+  const importerPackage = importerPackageOf(packages, importer);
+  throw new Error(
+    unresolvedWorkspaceMessage({
+      source,
+      owner,
+      importer,
+      importerPackage,
+      importerDeclaresDependency: importerPackage?.dependencies.has(owner.name),
+      distHasBuiltEntries: hasBuiltEntries(owner.dir),
+    })
+  );
+}
+
 export async function resolveWorkspaceSourceId<TResolved extends WorkspaceResolvedId>(
   packages: readonly WorkspacePackage[],
   context: WorkspaceResolveContext<TResolved>,
@@ -365,34 +428,55 @@ export async function resolveWorkspaceSourceId<TResolved extends WorkspaceResolv
   // only `skipSelf` is this function's own contribution.
   options: object
 ): Promise<TResolved | null> {
-  // Bare workspace specifiers only: a relative import already points at source,
-  // and resolving every third-party specifier twice would tax the whole run for
-  // nothing.
-  const owner = ownerOf(packages, source);
-  if (owner === undefined) return null;
-  const resolved = await context.resolve(source, importer, { ...options, skipSelf: true });
-  if (!resolved) {
-    // Throwing, not warning: an unresolvable @workglow/* specifier already
-    // fails the run a moment later. This only replaces the message.
-    const importerPackage = importerPackageOf(packages, importer);
-    throw new Error(
-      unresolvedWorkspaceMessage({
-        source,
-        owner,
-        importer,
-        importerPackage,
-        importerDeclaresDependency: importerPackage?.dependencies.has(owner.name),
-        distHasBuiltEntries: hasBuiltEntries(owner.dir),
-      })
-    );
-  }
-  if (resolved.external) return resolved;
+  const resolved = await resolveOwnedSpecifier(packages, context, source, importer, options);
+  if (!resolved || resolved.external) return resolved;
   const sourceFile = distToSource(resolved.id);
   return sourceFile === undefined ? resolved : { ...resolved, id: sourceFile };
 }
 
-/** The plugin name, so a test can assert attachment without repeating a literal. */
+/**
+ * The `dist` target's own hook: resolve normally, and refuse a resolution that
+ * landed on a `use-source` stub.
+ *
+ * `use-source` (or `rebuild`) is the normal state of a working tree here, and
+ * `use-dist` is rarely run — so the tree a developer reaches for
+ * `WORKGLOW_TEST_TARGET=dist` on is usually one whose `dist` re-exports `src`.
+ * Left unchecked the run is worse than useless: a stub collapses a package's
+ * entries onto one source module, so every bundle-shaped assertion — a
+ * cross-entry `instanceof`, an export-name parity check — passes for the wrong
+ * reason, and the target reports a clean sweep over bundles it never loaded.
+ *
+ * Checked lazily, per resolution, rather than by scanning all 41 packages at
+ * startup: only the entries a run actually imports can mislead it, and the
+ * message can then name the file.
+ */
+export async function resolveWorkspaceDistId<TResolved extends WorkspaceResolvedId>(
+  packages: readonly WorkspacePackage[],
+  context: WorkspaceResolveContext<TResolved>,
+  source: string,
+  importer: string | undefined,
+  options: object
+): Promise<TResolved | null> {
+  const resolved = await resolveOwnedSpecifier(packages, context, source, importer, options);
+  if (!resolved || resolved.external) return resolved;
+  if (isSourceStubFile(resolved.id)) throw new Error(stubbedBundleMessage(resolved.id));
+  return resolved;
+}
+
+/** The message for a `dist` run that resolved to a `use-source` stub. */
+export function stubbedBundleMessage(file: string): string {
+  return (
+    `[${DIST_BUNDLE_GUARD_PLUGIN_NAME}] WORKGLOW_TEST_TARGET="dist" exercises the built ` +
+    `bundles, but ${file} is a \`use-source\` stub re-exporting src. Every bundle-shaped ` +
+    `assertion would pass for the wrong reason, over a bundle nothing loaded. Run ` +
+    `\`bun run rebuild\` for real bundles, or unset WORKGLOW_TEST_TARGET to run against ` +
+    `src, which is the default.`
+  );
+}
+
+/** The plugin names, so a test can assert attachment without repeating a literal. */
 export const WORKSPACE_SOURCE_PLUGIN_NAME = "workglow:workspace-source";
+export const DIST_BUNDLE_GUARD_PLUGIN_NAME = "workglow:dist-bundle-guard";
 
 /**
  * Redirect workspace package imports from `dist` to `src`.
@@ -417,6 +501,26 @@ export function workspaceSourcePlugin(
     enforce: "pre",
     async resolveId(source, importer, options) {
       return resolveWorkspaceSourceId(packages, this, source, importer, options);
+    },
+  };
+}
+
+/**
+ * The `dist` target's counterpart: leave every specifier on its bundle, and
+ * refuse one that resolved to a `use-source` stub.
+ *
+ * Attached in the source plugin's place rather than alongside it, so exactly
+ * one of the two owns workspace resolution at any time.
+ */
+export function distBundleGuardPlugin(
+  root: string = ROOT,
+  packages: readonly WorkspacePackage[] = listWorkspacePackages(root)
+): Plugin {
+  return {
+    name: DIST_BUNDLE_GUARD_PLUGIN_NAME,
+    enforce: "pre",
+    async resolveId(source, importer, options) {
+      return resolveWorkspaceDistId(packages, this, source, importer, options);
     },
   };
 }
