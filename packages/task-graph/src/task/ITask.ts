@@ -376,6 +376,8 @@ export interface ITaskStaticProperties {
   readonly cachePolicy?: CachePolicy;
   readonly hasDynamicSchemas: boolean;
   readonly hasDynamicEntitlements: boolean;
+  /** Whether entitlements come from contained tasks rather than this class's declaration. */
+  readonly entitlementsFromChildren?: boolean | undefined;
   readonly passthroughInputsToOutputs?: boolean;
   readonly isGraphOutput?: boolean;
   readonly isPassthrough?: boolean;

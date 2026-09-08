@@ -118,6 +118,21 @@ export class Task<
   public static hasDynamicEntitlements: boolean = false;
 
   /**
+   * Whether this task's entitlements come from tasks it CONTAINS rather than
+   * from its own declaration.
+   *
+   * Distinct from {@link hasDynamicEntitlements}, and the two must not be
+   * conflated by anything deciding whether a static declaration can be
+   * trusted. A task is dynamic when it refines what it already declares —
+   * an AI task declares `ai:inference` statically and adds `ai:model` scoped
+   * to the resolved model id at run time — and there the static answer is
+   * representative. A task whose entitlements come from children declares
+   * NOTHING statically while its instance may reach anywhere, so the static
+   * answer is not merely coarse, it is empty and misleading.
+   */
+  public static entitlementsFromChildren: boolean = false;
+
+  /**
    * Entitlements required by this task class.
    * Subclasses override to declare their permission requirements.
    */
