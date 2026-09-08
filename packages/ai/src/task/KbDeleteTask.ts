@@ -6,8 +6,14 @@
 
 import type { KnowledgeBase } from "@workglow/knowledge-base";
 import { TypeKnowledgeBase } from "@workglow/knowledge-base";
-import type { CachePolicy, IExecuteContext, IRunConfig, TaskConfig } from "@workglow/task-graph";
-import { CreateWorkflow, Task, Workflow } from "@workglow/task-graph";
+import type {
+  CachePolicy,
+  IExecuteContext,
+  IRunConfig,
+  TaskConfig,
+  TaskEntitlements,
+} from "@workglow/task-graph";
+import { CreateWorkflow, Entitlements, Task, Workflow } from "@workglow/task-graph";
 import type { DataPortSchema } from "@workglow/util/schema";
 import type { Capability } from "../capability/Capabilities";
 
@@ -57,6 +63,18 @@ export class KbDeleteTask extends Task<KbDeleteTaskInput, KbDeleteTaskOutput, Kb
   public static override title = "KB Delete Document";
   public static override description = "Delete a document and its chunks from a knowledge base.";
   public static override cachePolicy: CachePolicy = { kind: "none" };
+
+  /** Declared so a host can ask what this reaches before running it. */
+  public static override entitlements(): TaskEntitlements {
+    return {
+      entitlements: [
+        {
+          id: Entitlements.STORAGE_WRITE,
+          reason: "Deletes a document and its chunks from a knowledge base",
+        },
+      ],
+    };
+  }
 
   public static override inputSchema(): DataPortSchema {
     return inputSchema as DataPortSchema;

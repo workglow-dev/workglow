@@ -5,7 +5,7 @@
  */
 
 import type { IRunConfig, TaskConfig } from "@workglow/task-graph";
-import { CreateWorkflow, GraphAsTask, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, Task, Workflow } from "@workglow/task-graph";
 import type { DataPortSchema, FromSchema, TypedArraySchemaOptions } from "@workglow/util/schema";
 import {
   cosineSimilarity,
@@ -95,7 +95,7 @@ export type VectorSimilarityTaskOutput = FromSchema<
 >;
 export type VectorSimilarityTaskConfig = TaskConfig<VectorSimilarityTaskInput>;
 
-export class VectorSimilarityTask extends GraphAsTask<
+export class VectorSimilarityTask extends Task<
   VectorSimilarityTaskInput,
   VectorSimilarityTaskOutput,
   VectorSimilarityTaskConfig
