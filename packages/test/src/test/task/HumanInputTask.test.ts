@@ -458,7 +458,11 @@ describe("HumanApprovalTask", () => {
 
   test("static type and category", () => {
     expect(HumanApprovalTask.type).toBe("HumanApprovalTask");
-    expect(HumanApprovalTask.category).toBe("Flow Control");
+    // "Human", not "Flow Control": both of these run perfectly well on their
+    // own, and that category is read as "needs a graph around it" — the CLI's
+    // `task list` and the MCP server's tool list both hide what it names.
+    expect(HumanApprovalTask.category).toBe("Human");
+    expect(HumanInputTask.category).toBe("Human");
   });
 
   test("output schema includes action, approved, and reason", () => {

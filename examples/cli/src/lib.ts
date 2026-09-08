@@ -6,6 +6,12 @@
 
 export { runWorkglowCli, type WorkglowCliOptions } from "./bootstrap";
 export {
+  DEFAULT_MCP_HOST,
+  DEFAULT_MCP_PORT,
+  MCP_TOKEN_ENV,
+  registerMcpServeCommand,
+} from "./commands/mcpServe";
+export {
   DEFAULT_WEB_HOST,
   DEFAULT_WEB_PORT,
   registerWebCommand,
