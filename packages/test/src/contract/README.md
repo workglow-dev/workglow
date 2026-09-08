@@ -111,6 +111,7 @@ Capability flags:
 | `IMigrationRunner`                      | `contract/storage-migrations/runMigrationRunnerContract`        | Postgres, SQLite, IndexedDB                                                |
 | `IQueueStorage` + `IRateLimiterStorage` | `test/job-queue/genericJobQueueTests`                           | InMemory, IndexedDB, Postgres, SQLite, Supabase                            |
 | `ITabularStorage`                       | `test/storage-tabular/genericTabularStorageTests`               | InMemory, IndexedDB, Postgres, SQLite, Supabase, FsFolder, HuggingFace     |
+| `IVectorStorage`                        | `contract/vector-storage/runVectorStorageContract`              | InMemory, SQLite, Postgres, IndexedDB, Scoped, Telemetry                   |
 | `IEntitlementProfile`                   | `contract/entitlement-profile/runEntitlementProfileConformance` | Browser, Desktop, Server, Custom                                           |
 | `IBrowserContext`                       | `contract/browser-context/runIBrowserContextConformance`        | Mock, Playwright, BunWebView, Electron                                     |
 | `IHumanConnector`                       | `contract/human-connector/runHumanConnectorConformance`         | MockHumanConnector, McpElicitationConnector                                |
