@@ -93,19 +93,25 @@
     // `bun run lint` and the CI lint job both build types first.
     //
     // Everything type-aware in `correctness` is ON except the ten below,
-    // which the tree does not pass yet. The counts are what they report today;
-    // they are real findings rather than false positives, and each is its own
-    // cleanup rather than part of the linter swap. Turn one on with its fixes.
+    // which the tree does not pass yet. They are real findings rather than
+    // false positives, and each is its own cleanup rather than part of the
+    // linter swap. Turn one on with its fixes.
+    //
+    // `// budgeted` means the finding count is enforced by
+    // `scripts/lint-budget.json` -- it may shrink, never grow. The count is
+    // deliberately NOT repeated here: it lived only in these comments until
+    // now, and three of the nine had already drifted (77->79, 59->62, 7->9)
+    // with nothing to notice.
     // ---------------------------------------------------------------------
-    "typescript/no-base-to-string": "off", // 77
-    "typescript/unbound-method": "off", // 59
-    "typescript/no-floating-promises": "off", // 56
-    "typescript/restrict-template-expressions": "off", // 56
-    "typescript/no-redundant-type-constituents": "off", // 35
-    "typescript/await-thenable": "off", // 7
-    "typescript/require-array-sort-compare": "off", // 7
-    "typescript/no-useless-default-assignment": "off", // 4
-    "typescript/no-misused-spread": "off", // 3
+    "typescript/no-base-to-string": "off", // budgeted
+    "typescript/unbound-method": "off", // budgeted
+    "typescript/no-floating-promises": "off", // budgeted
+    "typescript/restrict-template-expressions": "off", // budgeted
+    "typescript/no-redundant-type-constituents": "off", // budgeted
+    "typescript/await-thenable": "off", // budgeted
+    "typescript/require-array-sort-compare": "off", // budgeted
+    "typescript/no-useless-default-assignment": "off", // budgeted
+    "typescript/no-misused-spread": "off", // budgeted
     // 9 findings, all "explicit undefined is unnecessary on an optional
     // parameter" -- which is the house style (`T | undefined` over `T?`), not a
     // defect. This one stays off rather than waiting for a cleanup.
