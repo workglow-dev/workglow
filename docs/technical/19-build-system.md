@@ -60,7 +60,6 @@ build order and caching behavior.
         "dist/**/*.js",
         "dist/**/*.js.map",
         "dist/**/*.d.ts",
-        "dist/**/*.d.ts.map",
         "tsconfig.tsbuildinfo"
       ]
     },
@@ -75,7 +74,6 @@ build order and caching behavior.
       "dependsOn": ["build-clean", "^build-types"],
       "outputs": [
         "dist/**/*.d.ts",
-        "dist/**/*.d.ts.map",
         "tsconfig.tsbuildinfo"
       ]
     },
@@ -136,7 +134,7 @@ to a task have not changed since the last run, Turbo replays the cached outputs 
 re-executing the build. The `outputs` array tells Turbo which files to save and restore:
 
 - `dist/**/*.js` and `dist/**/*.js.map` — compiled JavaScript and source maps
-- `dist/**/*.d.ts` and `dist/**/*.d.ts.map` — TypeScript declaration files and declaration maps
+- `dist/**/*.d.ts` — TypeScript declaration files
 - `tsconfig.tsbuildinfo` — TypeScript incremental build info
 
 The `build-clean` and `watch*` tasks set `"cache": false` because clean operations should always
@@ -361,7 +359,7 @@ The root `tsconfig.json` establishes the base configuration inherited by all pac
     "strict": true,
     "declaration": true,
     "emitDeclarationOnly": true,
-    "declarationMap": true,
+    "declarationMap": false,
     "incremental": true
   }
 }
@@ -370,7 +368,7 @@ The root `tsconfig.json` establishes the base configuration inherited by all pac
 Key settings:
 
 - `emitDeclarationOnly: true` — only `.d.ts` files are emitted (JavaScript is handled by `bun build`)
-- `declarationMap: true` — generates `.d.ts.map` files so IDEs can navigate from declaration to source
+- `declarationMap: false` — skip `.d.ts.map` files; published `.d.ts` is the navigation target
 - `composite: true` + `incremental: true` — enables project references and build caching
 - `moduleResolution: "bundler"` — resolves imports the way modern bundlers do (supports conditional exports)
 
