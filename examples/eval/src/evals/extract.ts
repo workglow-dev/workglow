@@ -9,6 +9,7 @@ import type { Usage } from "@workglow/task-graph";
 import { USAGE_OUTPUT_KEY, Workflow } from "@workglow/task-graph";
 import type { ExtractedRow } from "../score/extraction";
 import { fenceText } from "./prompt";
+import { cellText } from "./cellText";
 import { runWithStreamChunks } from "./streamSubscribe";
 import type { ColumnOptions, DatasetContext, RowExecutor } from "./types";
 
@@ -134,7 +135,7 @@ export function makeExtractExecutor(
     : undefined;
 
   return async (row, onStreamChunk, owner) => {
-    const text = String(row[options.textColumn] ?? "");
+    const text = cellText(row[options.textColumn]);
     const expectedRows = parseExpectedRows(row[options.expectedColumn], options.expectedColumn);
     const fields =
       explicitFields ?? resolveExtractionFields(expectedRows, options.keyField, undefined);
