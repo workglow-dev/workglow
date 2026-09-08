@@ -5,6 +5,7 @@
  */
 
 import { PGlite } from "@electric-sql/pglite";
+import { vector } from "@electric-sql/pglite-pgvector";
 import { PostgresVectorStorage } from "@workglow/postgres/storage";
 import { StorageValidationError } from "@workglow/storage";
 import { setLogger, uuid4 } from "@workglow/util";
@@ -28,7 +29,7 @@ const VecSchema = {
 const VecPK = ["id"] as const;
 const DIM = 4;
 
-const db = new PGlite() as unknown as Pool;
+const db = new PGlite({ extensions: { vector } }) as unknown as Pool;
 
 describe("PostgresVectorStorage validation", () => {
   const logger = getTestingLogger();
