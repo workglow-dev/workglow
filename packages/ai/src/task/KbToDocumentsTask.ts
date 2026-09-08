@@ -6,8 +6,14 @@
 
 import type { DocumentNode, KnowledgeBase } from "@workglow/knowledge-base";
 import { TypeKnowledgeBase } from "@workglow/knowledge-base";
-import type { CachePolicy, IExecuteContext, IRunConfig, TaskConfig } from "@workglow/task-graph";
-import { CreateWorkflow, Task, Workflow } from "@workglow/task-graph";
+import type {
+  CachePolicy,
+  IExecuteContext,
+  IRunConfig,
+  TaskConfig,
+  TaskEntitlements,
+} from "@workglow/task-graph";
+import { CreateWorkflow, Entitlements, Task, Workflow } from "@workglow/task-graph";
 import type { DataPortSchema } from "@workglow/util/schema";
 import type { Capability } from "../capability/Capabilities";
 
@@ -80,6 +86,18 @@ export class KbToDocumentsTask extends Task<
   public static override description =
     "List documents from a knowledge base, optionally filtering to only those that need embedding";
   public static override cachePolicy: CachePolicy = { kind: "none" }; // Depends on external state
+
+  /** Declared so a host can ask what this reaches before running it. */
+  public static override entitlements(): TaskEntitlements {
+    return {
+      entitlements: [
+        {
+          id: Entitlements.STORAGE_READ,
+          reason: "Lists and reads documents from a knowledge base",
+        },
+      ],
+    };
+  }
 
   public static override inputSchema(): DataPortSchema {
     return inputSchema as DataPortSchema;

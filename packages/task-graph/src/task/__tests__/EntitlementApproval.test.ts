@@ -34,6 +34,8 @@ function taskClass(
 describe("INFERENCE_ENTITLEMENTS", () => {
   it("is exactly the three ids a running model already implies", () => {
     expect([...INFERENCE_ENTITLEMENTS].sort()).toEqual(["ai", "ai:inference", "ai:model"]);
+    // Frozen: the gate must not be widenable by a stray push at run time.
+    expect(Object.isFrozen(INFERENCE_ENTITLEMENTS)).toBe(true);
   });
 });
 
@@ -60,7 +62,7 @@ describe("entitlementsBeyond", () => {
   it("honours a caller-supplied ambient set", () => {
     const beyond = entitlementsBeyond(
       [{ id: Entitlements.NETWORK_HTTP }, { id: Entitlements.STORAGE_READ }],
-      new Set([Entitlements.NETWORK_HTTP])
+      [Entitlements.NETWORK_HTTP]
     );
     expect(beyond.map((e) => e.id)).toEqual(["storage:read"]);
   });
@@ -117,6 +119,23 @@ describe("taskClassNeedsApproval", () => {
     expect(taskClassNeedsApproval(refinesOwnFamily)).toBe(false);
   });
 
+  it("gates a class that cannot be asked what it declares", () => {
+    // Catalogs populate `taskClass` by cast, so a class without the static is
+    // reachable here. Reading that as an empty declaration is indistinguishable
+    // from a task that genuinely reaches nothing — the reading this prevents.
+    expect(taskClassNeedsApproval({} as EntitlementDeclaringTaskClass)).toBe(true);
+  });
+
+  it("gates a class whose declaration throws rather than letting the gate crash", () => {
+    const throws: EntitlementDeclaringTaskClass = {
+      entitlements: () => {
+        throw new Error("registry lookup failed");
+      },
+    };
+    expect(() => taskClassNeedsApproval(throws)).not.toThrow();
+    expect(taskClassNeedsApproval(throws)).toBe(true);
+  });
+
   it("gates GraphAsTask, whose reach is only knowable from its subgraph", () => {
     expect(GraphAsTask.entitlements().entitlements).toEqual([]);
     expect(GraphAsTask.entitlementsFromChildren).toBe(true);
@@ -144,15 +163,30 @@ describe("describeTaskClassReach", () => {
     );
   });
 
+  it("marks an optional entitlement as one the task may take", () => {
+    // Kept rather than skipped (unlike evaluatePolicy, which is deciding
+    // whether to allow a run, not what to tell a person before they approve).
+    const described = describeTaskClassReach(
+      taskClass([{ id: Entitlements.NETWORK_HTTP, optional: true }])
+    );
+    expect(described).toBe("may use network:http");
+  });
+
+  it("does not claim a class reaches nothing when it cannot be asked", () => {
+    expect(describeTaskClassReach({} as EntitlementDeclaringTaskClass)).toContain(
+      "not declared up front"
+    );
+  });
+
   it("says so plainly when nothing is reached beyond a model", () => {
     expect(describeTaskClassReach(taskClass([{ id: Entitlements.AI_MODEL }]))).toBe(
-      "(nothing beyond running a model)"
+      "(nothing beyond what the caller already holds)"
     );
   });
 
   it("does not report a composed class as reaching nothing", () => {
     const described = describeTaskClassReach(taskClass([], true));
-    expect(described).not.toBe("(nothing beyond running a model)");
+    expect(described).not.toBe("(nothing beyond what the caller already holds)");
     expect(described).toContain("not declared up front");
   });
 

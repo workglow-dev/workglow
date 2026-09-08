@@ -6,8 +6,14 @@
 
 import type { DocumentMetadata, DocumentNode, KnowledgeBase } from "@workglow/knowledge-base";
 import { Document, DocumentMetadataSchema, TypeKnowledgeBase } from "@workglow/knowledge-base";
-import type { CachePolicy, IExecuteContext, IRunConfig, TaskConfig } from "@workglow/task-graph";
-import { CreateWorkflow, Task, Workflow } from "@workglow/task-graph";
+import type {
+  CachePolicy,
+  IExecuteContext,
+  IRunConfig,
+  TaskConfig,
+  TaskEntitlements,
+} from "@workglow/task-graph";
+import { CreateWorkflow, Entitlements, Task, Workflow } from "@workglow/task-graph";
 import type { DataPortSchema } from "@workglow/util/schema";
 import type { Capability } from "../capability/Capabilities";
 
@@ -104,6 +110,15 @@ export class DocumentUpsertTask extends Task<
   public static override title = "Add Document";
   public static override description = "Persist a parsed document tree to a knowledge base";
   public static override cachePolicy: CachePolicy = { kind: "none" }; // Has side effects
+
+  /** Declared so a host can ask what this reaches before running it. */
+  public static override entitlements(): TaskEntitlements {
+    return {
+      entitlements: [
+        { id: Entitlements.STORAGE_WRITE, reason: "Writes a document into a knowledge base" },
+      ],
+    };
+  }
 
   public static override inputSchema(): DataPortSchema {
     return inputSchema as DataPortSchema;

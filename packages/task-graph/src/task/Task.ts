@@ -129,6 +129,13 @@ export class Task<
    * representative. A task whose entitlements come from children declares
    * NOTHING statically while its instance may reach anywhere, so the static
    * answer is not merely coarse, it is empty and misleading.
+   *
+   * "Children" means tasks NOT KNOWN UNTIL RUN TIME — the subgraph a
+   * `GraphAsTask` is handed. A task that owns a fixed, hard-coded child in
+   * `execute()` is not this: its reach is knowable from its own source, so it
+   * declares the union its children need and leaves this false. Setting it
+   * there would tell a reader the reach is undeclared when it is merely
+   * inherited — the same misleading prompt in the other direction.
    */
   public static entitlementsFromChildren: boolean = false;
 

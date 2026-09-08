@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { TaskConfig } from "@workglow/task-graph";
-import { CreateWorkflow, Workflow } from "@workglow/task-graph";
+import type { TaskConfig, TaskEntitlements } from "@workglow/task-graph";
+import { CreateWorkflow, Entitlements, Workflow, mergeEntitlements } from "@workglow/task-graph";
 import type { DataPortSchema } from "@workglow/util/schema";
 import type { Capability } from "../capability/Capabilities";
 import type { ModelConfig } from "../model/ModelSchema";
@@ -108,6 +108,15 @@ export class TextRerankerTask extends AiTask<
   public static override description =
     "Score documents against a query using a cross-encoder reranker model";
   public static override readonly requires = ["text.reranking"] as const satisfies Capability[];
+
+  /** Reaches a knowledge base on top of the inference its base class declares. */
+  public static override entitlements(): TaskEntitlements {
+    return mergeEntitlements(super.entitlements(), {
+      entitlements: [
+        { id: Entitlements.STORAGE_READ, reason: "Reads chunks from a knowledge base" },
+      ],
+    });
+  }
 
   public static override inputSchema(): DataPortSchema {
     return inputSchema as DataPortSchema;

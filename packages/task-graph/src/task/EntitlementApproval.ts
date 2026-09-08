@@ -20,7 +20,13 @@ export interface EntitlementDeclaringTaskClass {
    * read as false — see {@link taskClassNeedsApproval} for who owns the gap.
    */
   readonly entitlementsFromChildren?: boolean | undefined;
-  entitlements(): TaskEntitlements;
+  /**
+   * Optional because `TaskDefinition`-style catalogs are populated by cast, so
+   * a class reaching this rule without the static is reachable in practice.
+   * A class that cannot be asked is treated as unknown, never as empty — see
+   * {@link readDeclaration}.
+   */
+  entitlements?: (() => TaskEntitlements) | undefined;
 }
 
 /**
@@ -33,11 +39,34 @@ export interface EntitlementDeclaringTaskClass {
  * not otherwise have: a host and a request body, a path on disk, code, an MCP
  * server, a browser, stored data, a credential.
  */
-export const INFERENCE_ENTITLEMENTS: ReadonlySet<EntitlementId> = new Set<EntitlementId>([
+export const INFERENCE_ENTITLEMENTS: readonly EntitlementId[] = Object.freeze([
   Entitlements.AI,
   Entitlements.AI_MODEL,
   Entitlements.AI_INFERENCE,
 ]);
+
+/**
+ * Reads a class's declaration, distinguishing "declares nothing" from "cannot
+ * be asked".
+ *
+ * `entitlements` is typed as required on `ITaskStaticProperties`, but catalogs
+ * populate `taskClass` by cast, so a class arriving here without the static is
+ * reachable. Calling it unguarded throws inside the approval path — a gate that
+ * crashes rather than fails closed — and defaulting to an empty list is worse
+ * still: it is indistinguishable from a task that genuinely reaches nothing,
+ * which is the exact reading this module exists to prevent.
+ */
+function readDeclaration(taskClass: EntitlementDeclaringTaskClass): {
+  readonly known: boolean;
+  readonly entitlements: readonly TaskEntitlement[];
+} {
+  if (typeof taskClass.entitlements !== "function") return { known: false, entitlements: [] };
+  try {
+    return { known: true, entitlements: taskClass.entitlements().entitlements ?? [] };
+  } catch {
+    return { known: false, entitlements: [] };
+  }
+}
 
 /**
  * The declared entitlements that fall outside `ambient`.
@@ -49,12 +78,20 @@ export const INFERENCE_ENTITLEMENTS: ReadonlySet<EntitlementId> = new Set<Entitl
  * taxonomy gates the tasks declaring it instead of inheriting a pass from its
  * parent. Fail-closed on a new capability is the property this exists for; a
  * caller that genuinely wants a broader pass names the id in `ambient`.
+ *
+ * An `optional` entitlement is kept rather than skipped, which is where this
+ * parts company with {@link evaluatePolicy} deliberately. That function decides
+ * whether to ALLOW a run and may reasonably ignore reach a task degrades
+ * gracefully without; this one decides what to TELL a person before they
+ * approve, and "might use the network" is exactly what they are being asked
+ * about. The two answer different questions and are not interchangeable.
  */
 export function entitlementsBeyond(
   declared: readonly TaskEntitlement[],
-  ambient: ReadonlySet<EntitlementId> = INFERENCE_ENTITLEMENTS
+  ambient: Iterable<EntitlementId> = INFERENCE_ENTITLEMENTS
 ): readonly TaskEntitlement[] {
-  return declared.filter((entitlement) => !ambient.has(entitlement.id));
+  const held = ambient instanceof Set ? ambient : new Set(ambient);
+  return declared.filter((entitlement) => !held.has(entitlement.id));
 }
 
 /**
@@ -69,9 +106,9 @@ export function entitlementsBeyond(
  */
 export function taskClassReach(
   taskClass: EntitlementDeclaringTaskClass,
-  ambient: ReadonlySet<EntitlementId> = INFERENCE_ENTITLEMENTS
+  ambient: Iterable<EntitlementId> = INFERENCE_ENTITLEMENTS
 ): readonly TaskEntitlement[] {
-  return entitlementsBeyond(taskClass.entitlements().entitlements, ambient);
+  return entitlementsBeyond(readDeclaration(taskClass).entitlements, ambient);
 }
 
 /**
@@ -100,21 +137,33 @@ export function taskClassReach(
  */
 export function taskClassNeedsApproval(
   taskClass: EntitlementDeclaringTaskClass,
-  ambient: ReadonlySet<EntitlementId> = INFERENCE_ENTITLEMENTS
+  ambient: Iterable<EntitlementId> = INFERENCE_ENTITLEMENTS
 ): boolean {
-  if (taskClassReach(taskClass, ambient).length > 0) return true;
+  const declaration = readDeclaration(taskClass);
+  if (!declaration.known) return true;
+  if (entitlementsBeyond(declaration.entitlements, ambient).length > 0) return true;
   return taskClass.entitlementsFromChildren === true;
 }
 
 function describeEntitlement(entitlement: TaskEntitlement): string {
+  // An optional entitlement is reach the task may take, so the card says "may
+  // use" rather than dropping it — see `entitlementsBeyond` on why it is kept.
+  const verb = entitlement.optional ? "may use " : "";
   const scope = entitlement.resources?.length ? ` → ${entitlement.resources.join(", ")}` : "";
   return entitlement.reason
-    ? `${entitlement.id} (${entitlement.reason})${scope}`
-    : `${entitlement.id}${scope}`;
+    ? `${verb}${entitlement.id} (${entitlement.reason})${scope}`
+    : `${verb}${entitlement.id}${scope}`;
 }
 
 /** What a composed class's reach amounts to, whatever else it declares. */
 const UNDECLARED_REACH = "not declared up front — it depends on the tasks this one runs";
+
+/**
+ * Phrased against `ambient` rather than against inference specifically: the set
+ * is a parameter, so a batch runner or CLI passing its own would otherwise be
+ * told a class that runs no model "reaches nothing beyond running a model".
+ */
+const NOTHING_BEYOND_AMBIENT = "(nothing beyond what the caller already holds)";
 
 /**
  * `network:http (Fetches data from URLs via HTTP/HTTPS)` — one line an approval
@@ -131,12 +180,14 @@ const UNDECLARED_REACH = "not declared up front — it depends on the tasks this
  */
 export function describeTaskClassReach(
   taskClass: EntitlementDeclaringTaskClass,
-  ambient: ReadonlySet<EntitlementId> = INFERENCE_ENTITLEMENTS
+  ambient: Iterable<EntitlementId> = INFERENCE_ENTITLEMENTS
 ): string {
-  const reach = taskClassReach(taskClass, ambient);
+  const declaration = readDeclaration(taskClass);
+  const reach = entitlementsBeyond(declaration.entitlements, ambient);
   const declared = reach.map(describeEntitlement).join("; ");
-  if (taskClass.entitlementsFromChildren !== true) {
-    return reach.length > 0 ? declared : "(nothing beyond running a model)";
-  }
+  // Unknown and composed are the same answer to a reader: the list, if any, is
+  // not the whole of it.
+  const undeclared = !declaration.known || taskClass.entitlementsFromChildren === true;
+  if (!undeclared) return reach.length > 0 ? declared : NOTHING_BEYOND_AMBIENT;
   return reach.length > 0 ? `${declared}; plus more ${UNDECLARED_REACH}` : UNDECLARED_REACH;
 }

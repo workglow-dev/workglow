@@ -6,8 +6,14 @@
 
 import type { ChunkRecord, KnowledgeBase } from "@workglow/knowledge-base";
 import { ChunkRecordArraySchema, TypeKnowledgeBase } from "@workglow/knowledge-base";
-import type { CachePolicy, IExecuteContext, IRunConfig, TaskConfig } from "@workglow/task-graph";
-import { CreateWorkflow, Task, Workflow } from "@workglow/task-graph";
+import type {
+  CachePolicy,
+  IExecuteContext,
+  IRunConfig,
+  TaskConfig,
+  TaskEntitlements,
+} from "@workglow/task-graph";
+import { CreateWorkflow, Entitlements, Task, Workflow } from "@workglow/task-graph";
 import type { DataPortSchema, TypedArray } from "@workglow/util/schema";
 import { TypedArraySchema } from "@workglow/util/schema";
 import type { Capability } from "../capability/Capabilities";
@@ -101,6 +107,15 @@ export class ChunkVectorUpsertTask extends Task<
   public static override description =
     "Store chunks + their embeddings in a knowledge base (1:1 aligned)";
   public static override cachePolicy: CachePolicy = { kind: "none" }; // Has side effects
+
+  /** Declared so a host can ask what this reaches before running it. */
+  public static override entitlements(): TaskEntitlements {
+    return {
+      entitlements: [
+        { id: Entitlements.STORAGE_WRITE, reason: "Writes chunk vectors into a knowledge base" },
+      ],
+    };
+  }
 
   public static override inputSchema(): DataPortSchema {
     return inputSchema as DataPortSchema;

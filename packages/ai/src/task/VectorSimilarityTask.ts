@@ -5,7 +5,7 @@
  */
 
 import type { IRunConfig, TaskConfig } from "@workglow/task-graph";
-import { CreateWorkflow, GraphAsTask, Workflow } from "@workglow/task-graph";
+import { CreateWorkflow, Task, Workflow } from "@workglow/task-graph";
 import type { DataPortSchema, FromSchema, TypedArraySchemaOptions } from "@workglow/util/schema";
 import {
   cosineSimilarity,
@@ -95,7 +95,7 @@ export type VectorSimilarityTaskOutput = FromSchema<
 >;
 export type VectorSimilarityTaskConfig = TaskConfig<VectorSimilarityTaskInput>;
 
-export class VectorSimilarityTask extends GraphAsTask<
+export class VectorSimilarityTask extends Task<
   VectorSimilarityTaskInput,
   VectorSimilarityTaskOutput,
   VectorSimilarityTaskConfig
@@ -103,14 +103,6 @@ export class VectorSimilarityTask extends GraphAsTask<
   static override readonly type = "VectorSimilarityTask";
   /** Pure-compute vector similarity — no provider capability required. */
   public static readonly requires: readonly Capability[] = [] as const satisfies Capability[];
-  /**
-   * Extends {@link GraphAsTask} for its runner and config shape only — {@link execute}
-   * computes the similarities in process and never runs a subgraph, so the inherited
-   * "my reach lives in my children" answer is wrong here. Left inherited, a caller asking
-   * whether this class needs approval is told its reach is undeclared, and the prompt it
-   * draws describes tasks that do not exist.
-   */
-  public static override entitlementsFromChildren: boolean = false;
   static override readonly category = "Vector";
   static override readonly title = "Vector Similarity";
   public static override description =
