@@ -61,6 +61,9 @@ workglow workflow run my-pipeline
 
 # Serve the same commands in a browser
 workglow web
+
+# Serve the registered tasks to MCP clients
+workglow mcp serve
 ```
 
 ### Example Workflows
@@ -121,7 +124,7 @@ Run `workglow --help` for the current list; each group has its own `--help`.
 
 - `init` — create the configuration and directories
 - `model` — list, search and manage models
-- `mcp` — manage MCP servers
+- `mcp` — manage MCP servers, and `mcp serve` this CLI's tasks to MCP clients
 - `workflow` — list, add, edit and run saved workflows
 - `agent` — the same, for agents
 - `task` — list task types and run one by type
@@ -222,6 +225,69 @@ import { registerCommandSchemaProvider } from "@workglow/cli";
 registerCommandSchemaProvider({
   path: ["spac", "process"],
   resolve: async (args) => ({ input: schemaForIssuer(args[0]), config: undefined }),
+});
+```
+
+## MCP server
+
+`workglow mcp serve` offers this CLI's registered tasks to MCP clients as
+tools, over Streamable HTTP. One tool per task type, named for the registered
+type itself — `TextGenerationTask`, which is what `task list` prints with the
+`Task` suffix trimmed — with the task's own input schema as the tool's
+arguments and its output as the result. Nothing is duplicated: a task registered through
+`registerTasks` is a tool for the same reason it is a `task run` argument.
+
+```sh
+workglow mcp serve                       # http://127.0.0.1:8788/mcp
+workglow mcp serve --port 9100 --path /
+workglow mcp serve --task TextGeneration --task Delay
+```
+
+It binds **loopback** and **requires a bearer token**, generated per process
+and printed at startup along with a ready-made client config:
+
+```
+mcp server listening on http://127.0.0.1:8788/mcp — 114 tasks offered as tools
+bearer token: 3nS2...
+client config: {"type":"http","url":"http://127.0.0.1:8788/mcp","headers":{"Authorization":"Bearer 3nS2..."}}
+```
+
+A client config has to hold the same token across restarts, so pin one with
+`WORKGLOW_MCP_TOKEN` (preferred — an argument that never changes is one every
+other process can read out of `ps`) or `--token`. `--no-auth` drops the gate
+entirely, which anything that can reach the port can then walk through;
+exposing the server with `--host` warns for the same reason the web console
+does.
+
+Flow-control and hidden tasks are left out — a `MapTask` with no subgraph
+around it is not a tool anyone can call, and `"Hidden"` is what a class that
+named no category gets, which covers `JsonTask` (it runs a graph handed to it,
+so publishing it would put every excluded task back within reach) and
+`LambdaTask` (its config is a function, which no client can send). `--task`
+narrows the list to exactly what you name, that filter included.
+
+A task that asks a person asks the client driving the call, through **MCP
+elicitation**, rather than the terminal nobody is sitting at: each tool call
+runs against its own registry carrying an `McpElicitationConnector` bound to
+that call. A client that did not advertise `elicitation` gets a tool error
+saying so instead of a call that never returns.
+
+### Serving MCP from your own host
+
+The parts worth sharing live in `@workglow/mcp/server`, not here:
+`createTaskMcpServer` builds the tool surface over any transport,
+`startMcpHttpServer` hosts it from `node:http`, `McpSessionRouter` holds the
+Streamable HTTP sessions for a host that already has its own web framework,
+and `authorizeBearer` is the token check.
+
+```ts
+import { createTaskMcpServer, generateBearerToken, startMcpHttpServer } from "@workglow/mcp/server";
+
+const handle = await startMcpHttpServer({
+  port: 8788,
+  host: "127.0.0.1",
+  token: generateBearerToken(),
+  createServer: () => createTaskMcpServer({ name: "my-app", version: "1.0.0" }),
 });
 ```
 

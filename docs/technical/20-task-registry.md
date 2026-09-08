@@ -106,7 +106,7 @@ export interface ITaskStaticProperties {
 | Property                     | Type                     | Required | Description                                                                                                                                   |
 | ---------------------------- | ------------------------ | -------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | `type`                       | `string`                 | Yes      | Unique identifier used as the registry key and in serialized JSON. By convention, matches the class name (e.g. `"DelayTask"`).                |
-| `category`                   | `string`                 | No       | Grouping label for UI display. Common values: `"Utility"`, `"Flow Control"`, `"AI"`, `"String"`, `"Scalar"`, `"Vector"`, `"MCP"`, `"Hidden"`. |
+| `category`                   | `string`                 | No       | Grouping label for UI display. Common values: `"Utility"`, `"Flow Control"`, `"Human"`, `"AI"`, `"String"`, `"Scalar"`, `"Vector"`, `"MCP"`, `"Hidden"`. |
 | `title`                      | `string`                 | No       | Short human-readable label. Defaults to `""` in the `Task` base class.                                                                        |
 | `description`                | `string`                 | No       | Longer explanation of what the task does. Used in CLI help, tooltips, and agent tool descriptions.                                            |
 | `cachePolicy`                | `CachePolicy`            | Yes      | Whether and where the task's output can be cached given the same input. Tasks with side effects set this to `{ kind: "none" }`.               |
@@ -469,7 +469,7 @@ const categories = new Set<string>();
 for (const [, ctor] of TaskRegistry.all) {
   if (ctor.category) categories.add(ctor.category);
 }
-// Set { "Flow Control", "Utility", "AI", "String", "Scalar", "Vector", "MCP", ... }
+// Set { "Flow Control", "Human", "Utility", "AI", "String", "Scalar", "Vector", "MCP", ... }
 ```
 
 ### Inspecting schemas

@@ -1,4 +1,4 @@
-name: Nightly Bun runtime parity
+name: Nightly Bun parity & coverage
 
 # Bun is a supported local runner and occasionally surfaces bugs vitest does not,
 # but it is not worth gating every PR on: running the whole suite under Bun spends
@@ -13,6 +13,12 @@ name: Nightly Bun runtime parity
 # compatibility shim rather than a product bug — pin such a file to vitest or
 # rewrite it off the mocking API, but do not change product code to satisfy the
 # shim.
+#
+# The coverage run rides along for the same reason: it wants the whole suite in
+# ONE job (a per-slice number means nothing until the slices are merged, and
+# merging them is an artifact, a merge job and a cleanup job on every push), and
+# it is a measurement rather than a gate. Nightly is where a job may take an
+# hour and where nobody is waiting on it.
 
 # Bun is pinned exactly, matching `packageManager`: @workglow/sqlite/storage needs
 # `node:sqlite`, which Bun ships from 1.4.0. Floating tags would let an unrelated
@@ -56,3 +62,61 @@ jobs:
         env:
           WORKGLOW_SECRETS_PASSPHRASE: ${{ secrets.WORKGLOW_SECRETS_PASSPHRASE }}
         run: bun scripts/test.ts bun ${{ matrix.kind }} --except rag,browser,provider-hft,provider-nodellama,provider-api,provider-cactus
+
+  # The only job in the repo that collects coverage.
+  #
+  # Vitest resolves every `@workglow/*` specifier to the package's `src` rather
+  # than its bundle (`scripts/lib/workspaceSource.ts`), which is what makes the
+  # number mean anything: with bundles in play, `packages/test` exercises
+  # `packages/ai/dist/node.js` and v8 attributes those lines there, leaving
+  # `packages/ai/src/**` reading as untested.
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
+      - run: bun i
+      # Resolution still goes through each package's `exports`, which point at
+      # ./dist/*, so the built entries have to exist even though every one of
+      # them is then rewritten to `src`.
+      - run: bun run build
+      # One job, so nothing has to be merged back. The excluded sections are the
+      # ones that download models or call live APIs — the same set the Bun run
+      # above excludes — so their providers are under-counted here; that is the
+      # price of keeping this to a single unattended job.
+      - name: Run the suite with coverage
+        env:
+          WORKGLOW_COVERAGE: "1"
+          WORKGLOW_SECRETS_PASSPHRASE: ${{ secrets.WORKGLOW_SECRETS_PASSPHRASE }}
+        run: bun scripts/test.ts vitest unit integration --except rag,browser,provider-hft,provider-nodellama,provider-api,provider-cactus
+      # Runs even when a test failed: the report is still the thing this job
+      # exists to produce, and a red suite is reported by the step above.
+      - name: Coverage summary
+        if: always()
+        run: |
+          if [ ! -f coverage/coverage-summary.json ]; then
+            echo "No coverage report was produced." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          node -e '
+            const { total } = require("./coverage/coverage-summary.json");
+            const rows = ["lines", "statements", "functions", "branches"]
+              .map((k) => `| ${k} | ${total[k].pct}% | ${total[k].covered}/${total[k].total} |`);
+            require("node:fs").appendFileSync(
+              process.env.GITHUB_STEP_SUMMARY,
+              ["## Coverage", "", "| | % | covered |", "| --- | --- | --- |", ...rows, ""].join("\n")
+            );
+          '
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage
+          path: coverage
+          retention-days: 14

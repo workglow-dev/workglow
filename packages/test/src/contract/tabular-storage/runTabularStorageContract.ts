@@ -6,6 +6,7 @@
 
 import { describe } from "vitest";
 import { countMatchesQueryBlock } from "./assertions/countMatchesQuery";
+import { guardParityBlock } from "./assertions/guardParity";
 import { inListCriterionBlock } from "./assertions/inListCriterion";
 import { joinPushdownBlock } from "./assertions/joinPushdown";
 import { notInListCriterionBlock } from "./assertions/notInListCriterion";
@@ -25,6 +26,7 @@ export function runTabularStorageContract(opts: TabularStorageContractOpts): voi
     inListCriterionBlock(opts);
     notInListCriterionBlock(opts);
     joinPushdownBlock(opts);
+    guardParityBlock(opts);
   });
 }
 

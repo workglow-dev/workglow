@@ -133,7 +133,7 @@ export class HumanApprovalTask extends Task<
   HumanApprovalTaskConfig
 > {
   static override readonly type = "HumanApprovalTask";
-  static override readonly category = "Flow Control";
+  static override readonly category = "Human";
   public static override title = "Human Approval";
   public static override description =
     "Pauses execution to request approval from a human (approve/deny) via MCP elicitation";

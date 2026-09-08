@@ -35,7 +35,8 @@ export type TabularStorageContractAssertion =
   | "countMatchesQuery"
   | "inListCriterion"
   | "notInListCriterion"
-  | "joinPushdown";
+  | "joinPushdown"
+  | "guardParity";
 
 interface TabularStorageContractBaseOpts {
   readonly name: string;
