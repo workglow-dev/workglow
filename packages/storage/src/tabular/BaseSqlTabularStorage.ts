@@ -160,9 +160,10 @@ export abstract class BaseSqlTabularStorage<
    * the user's callback — so concurrent calls from outside `fn` queue behind
    * the transaction instead of slipping into it.
    *
-   * The Proxy returned by a backend's `createTxView` routes back to the private
-   * `_*Internal` methods, so calls made *through* the `tx` handle inside `fn`
-   * do not deadlock against the lock `withTransaction` is holding.
+   * The Proxy returned by {@link createTxView} neutralizes this lock for the
+   * duration of `fn`, so calls made *through* the `tx` handle inside `fn` run
+   * the same public methods without deadlocking against the lock
+   * `withTransaction` is holding.
    *
    * `protected` so subclasses that fully override `put`/`putBulk` (e.g.
    * `SqliteAiVectorStorage`, which builds its own vector-encoding SQL) can
@@ -184,6 +185,92 @@ export abstract class BaseSqlTabularStorage<
     } finally {
       release();
     }
+  }
+
+  /**
+   * Serialization wrapper every public read goes through before it reaches its
+   * `_*Internal` implementation. Split from {@link guardedWrite} because a
+   * backend that binds a shared connection handle takes a different chain slot
+   * for the two. The default here is the instance mutex alone; the backends
+   * with a shared handle override it.
+   *
+   * This pair and {@link mutex} are the ONLY things {@link createTxView}
+   * neutralizes, and that is what puts a guard written on a public method onto
+   * the transaction path as well: `tx.foo(...)` runs `foo`, not `_fooInternal`.
+   */
+  protected guardedRead<T>(fn: () => Promise<T>): Promise<T> {
+    return this.mutex(fn);
+  }
+
+  /** As {@link guardedRead}, for the statements that write. */
+  protected guardedWrite<T>(fn: () => Promise<T>): Promise<T> {
+    return this.mutex(fn);
+  }
+
+  /**
+   * Message of the error thrown when a `withTransaction` callback opens a
+   * second transaction — both from {@link createTxView}'s handle and from the
+   * backend's own re-entry check, so the two cannot drift. Overridden per
+   * backend to name the class and the SAVEPOINT advice that applies to it.
+   */
+  protected nestedTransactionMessage(): string {
+    return `${this.constructor.name}.withTransaction does not support nesting. Refactor to a single transaction.`;
+  }
+
+  /**
+   * Builds the `tx` handle a backend's `withTransaction` hands its callback.
+   *
+   * The handle is a Proxy over `this` that leaves every public method exactly
+   * where it is and neutralizes only what would deadlock: {@link mutex} and the
+   * {@link guardedRead}/{@link guardedWrite} wrappers that take it, which the
+   * open transaction already holds. `tx.foo(args)` therefore runs the public
+   * `foo` — with whatever it validates, chunks or emits — and reaches
+   * `_fooInternal` the same way a direct call does.
+   *
+   * That is the whole point: it used to resolve `tx.foo` to `_fooInternal` by
+   * name, which skipped the public method, so a guard written there was
+   * silently absent from the transaction path. That cost three fixes — 19a458c
+   * (`tx.deleteSearch({})` emptying the table), 4386d22 (`tx.updateWhere`
+   * rewriting a row's identity) and DuckDB's `tx.getBulk([])` parse error —
+   * and each could only restate the guard in the private method. There is now
+   * one entry point per method, so there is nothing left to keep in step.
+   *
+   * `extras` carries what a backend must additionally swap on the handle — the
+   * transaction-bound connection, an `inTransaction` that reads `true` for a
+   * pooled backend whose instance flag stays `false`.
+   */
+  protected createTxView(
+    deferredPutEvents: Entity[],
+    extras: Readonly<Record<string, unknown>> = {}
+  ): this {
+    const passThrough = <T>(fn: () => Promise<T>): Promise<T> => fn();
+    const nestedTransactionMessage = this.nestedTransactionMessage();
+    const overrides: Readonly<Record<string, unknown>> = {
+      withTransaction: () => {
+        throw new Error(nestedTransactionMessage);
+      },
+      mutex: passThrough,
+      guardedRead: passThrough,
+      guardedWrite: passThrough,
+      // Buffered rather than emitted, so listeners never observe rows that are
+      // about to roll back; `withTransaction` flushes after COMMIT.
+      emitPut: (entity: Entity) => {
+        deferredPutEvents.push(entity);
+      },
+      ...extras,
+    };
+    return new Proxy(this, {
+      get(target, prop, receiver) {
+        if (typeof prop === "string" && Object.hasOwn(overrides, prop)) {
+          return overrides[prop];
+        }
+        // Bound to the receiver, so a public method's `this.foo` and
+        // `this._fooInternal` keep routing through the proxy — including a
+        // subclass override, which the prototype-chain lookup already picks up.
+        const value = Reflect.get(target, prop, receiver);
+        return typeof value === "function" ? value.bind(receiver) : value;
+      },
+    }) as this;
   }
 
   protected constructPrimaryKeyColumns($delimiter: string = ""): string {

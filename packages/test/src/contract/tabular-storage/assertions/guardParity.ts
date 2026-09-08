@@ -121,7 +121,8 @@ const CASES: readonly GuardParityCase[] = [
 ];
 
 /**
- * Methods the `tx` handle routes that no guard rejects an input to, and why.
+ * Methods routed to a private implementation that no guard rejects an input
+ * to, and why.
  *
  * Not an exemption list — a name here is a claim that the method was read and
  * has nothing to check, and the coverage assertion below is what forces the
@@ -138,19 +139,20 @@ const UNGUARDED: Readonly<Record<string, string>> = {
   getOffsetPage: "takes two numbers and the SQL backends validate neither",
 };
 
-/** The public name the transaction proxy reaches `_fooInternal` by. */
+/** The public method `_fooInternal` implements. */
 function publicNameOf(internal: string): string | undefined {
   const match = /^_(.+)Internal$/.exec(internal);
   return match?.[1];
 }
 
 /**
- * Every method the transaction proxy routes, read off the instance rather than
- * listed here.
+ * Every method that reaches the database as a public wrapper over a private
+ * `_fooInternal`, read off the instance rather than listed here.
  *
- * The proxy resolves `tx.foo` by looking for a `_fooInternal` property, so this
- * is the same question it asks, asked of the same object — which is what makes
- * a method added later show up without anyone remembering to add it.
+ * That split is where a guard has two places it could go, and the shape a
+ * method arrives in when someone adds one — so asking the object which methods
+ * have it is what makes a method added later show up without anyone
+ * remembering this file exists.
  */
 function routedMethods(storage: Storage): string[] {
   const found = new Set<string>();
@@ -168,21 +170,22 @@ function routedMethods(storage: Storage): string[] {
 }
 
 /**
- * A guard on a public method is not a guard on the transaction path.
+ * A guard on a public method is a guard on the transaction path.
  *
- * `withTransaction` hands its callback a Proxy that resolves `tx.foo(...)` to
- * `_fooInternal(...)` by name, so a check written on `foo` is silently absent
- * from `tx.foo`. That has happened twice: a `deleteSearch` guard moved to the
- * public method turned `tx.deleteSearch({})` from a no-op into a `DELETE FROM t
- * WHERE` syntax error, and criteria excluding nothing into a truncated table;
- * and a primary-key guard on the public `updateWhere` alone let
- * `tx.updateWhere` rewrite a row's identity where the same call outside a
- * transaction threw. Both were found by reading the diff.
+ * It was not always. `withTransaction` used to hand its callback a Proxy that
+ * resolved `tx.foo(...)` to `_fooInternal(...)` by name, skipping the public
+ * method, so a check written on `foo` was silently absent from `tx.foo`. That
+ * cost three fixes — `tx.deleteSearch({})` turning from a no-op into a `DELETE
+ * FROM t WHERE` syntax error and criteria excluding nothing into a truncated
+ * table; `tx.updateWhere` rewriting a row's identity where the same call
+ * outside a transaction threw; `tx.getBulk([])` reaching DuckDB as `IN ()` —
+ * and each could only restate the guard in the private method.
  *
- * So the property is stated once, for both paths at once, and the set of
- * methods it covers is derived from the object rather than written down —
- * a method added with a guard on one path and not the other fails here without
- * anyone remembering this file exists.
+ * `createTxView` now leaves the public methods in place and neutralizes only
+ * the mutex, so `tx.foo(args)` runs `foo`. Parity is a property of the routing
+ * rather than of anyone's diligence, and this block is what says so out loud:
+ * every guard below is written once, on the public method, and asserted on both
+ * paths, over a set of methods derived from the object rather than written down.
  */
 export function guardParityBlock(opts: TabularStorageContractOpts): void {
   const expectFails = new Set(opts.expectedFailures ?? []);
@@ -241,12 +244,40 @@ export function guardParityBlock(opts: TabularStorageContractOpts): void {
       );
 
       itImpl(
-        "states, for every method the transaction proxy routes, what its guard is",
+        "runs the public method on the transaction path, not only its implementation",
         async () => {
-          // The ratchet. A `_fooInternal` added later is routed by the proxy the
-          // moment it exists, so it arrives on the transaction path whether or
-          // not anyone thought about its guard — and this is where that is
-          // noticed, rather than in the diff of the commit that drops one.
+          // What every case above now rests on, asserted on its own so a
+          // regression to name-based routing fails here first and says why.
+          //
+          // `getBulk` emits its event from the public method and nowhere else,
+          // so observing the event through the `tx` handle is observing the
+          // public method run — the guard-carrying half that resolving
+          // `tx.getBulk` to `_getBulkInternal` used to skip.
+          const emitted: Array<readonly unknown[]> = [];
+          const listener = (keys: readonly unknown[]): void => {
+            emitted.push(keys);
+          };
+          storage.on("getBulk", listener);
+          try {
+            await storage.withTransaction(async (tx) => {
+              await (tx as unknown as Storage).getBulk([{ name: "guard", type: "parity" }]);
+            });
+          } finally {
+            storage.off("getBulk", listener);
+          }
+
+          expect(emitted).toEqual([[{ name: "guard", type: "parity" }]]);
+        },
+        opts.timeout
+      );
+
+      itImpl(
+        "states, for every method with a private implementation, what its guard is",
+        async () => {
+          // The ratchet. A method added later reaches the transaction path the
+          // moment it exists, whether or not anyone thought about its guard —
+          // and this is where that is noticed, rather than in the diff of the
+          // commit that drops one.
           const covered = new Set(CASES.map((testCase) => testCase.method));
           const unstated = routedMethods(storage).filter(
             (method) => !covered.has(method) && UNGUARDED[method] === undefined

@@ -914,7 +914,7 @@ export class PostgresTabularStorage<
    * {@link assertNotForeignConnectionTx} closes it without taking a lock, so
    * pooled concurrency is unchanged.
    */
-  protected guardedWrite<T>(fn: () => Promise<T>): Promise<T> {
+  protected override guardedWrite<T>(fn: () => Promise<T>): Promise<T> {
     const handle = this.connectionHandle();
     if (handle !== null) {
       return runOnConnection(handle, this, () => this.mutex(fn));
@@ -932,7 +932,7 @@ export class PostgresTabularStorage<
    * its own client and sees only committed rows, which is also why this skips
    * the `assertNotForeignConnectionTx` guard `guardedWrite` needs.
    */
-  protected guardedRead<T>(fn: () => Promise<T>): Promise<T> {
+  protected override guardedRead<T>(fn: () => Promise<T>): Promise<T> {
     const handle = this.connectionHandle();
     if (handle !== null) {
       return runReadOnConnection(handle, this, () => this.mutex(fn));
@@ -1126,54 +1126,11 @@ export class PostgresTabularStorage<
     return result.aligned;
   }
 
-  /**
-   * Build a Proxy view of `this` for the `withTransaction` callback. The
-   * proxy:
-   *
-   *   - Swaps `db` for the transaction-bound handle so every query inside
-   *     `fn` runs on it: the dedicated client returned by `pool.connect()`
-   *     for a real `pg.Pool`, or the shared session for PGlite/PGLitePool.
-   *   - Routes any public method `foo` whose private sibling `_fooInternal`
-   *     exists to that sibling, so calls made through `tx` bypass the
-   *     mutex (PGlite path) and do not deadlock. The naming convention is
-   *     the only sync mechanism — adding a public method with a matching
-   *     `_fooInternal` is enough; no explicit map to keep in step.
-   *   - Reports `inTransaction === true`, which is what
-   *     {@link _putBulkInternal} keys off to skip its own BEGIN/COMMIT
-   *     and run on the swapped `db` directly.
-   *   - Overrides {@link emitPut} to queue events on a per-transaction
-   *     buffer; the outer `withTransaction` flushes that buffer after
-   *     `COMMIT` (or discards on `ROLLBACK`).
-   *   - Throws on nested `withTransaction` — Postgres has no autonomous
-   *     `BEGIN`. Use SAVEPOINT directly for nested rollback boundaries.
-   */
-  private createTxView(txDb: { query: Pool["query"] }, deferredPutEvents: Entity[]): this {
-    return new Proxy(this, {
-      get(t, prop, receiver) {
-        if (prop === "withTransaction") {
-          return () => {
-            throw new Error(
-              "PostgresTabularStorage.withTransaction does not support nesting. " +
-                "Use SAVEPOINT directly or refactor to a single transaction."
-            );
-          };
-        }
-        if (prop === "db") return txDb;
-        if (prop === "inTransaction") return true;
-        if (prop === "emitPut") {
-          return (entity: Entity) => deferredPutEvents.push(entity);
-        }
-        if (typeof prop === "string") {
-          const internal = (t as unknown as Record<string, unknown>)[`_${prop}Internal`];
-          if (typeof internal === "function") {
-            return (...args: unknown[]) =>
-              (internal as (...a: unknown[]) => unknown).apply(receiver, args);
-          }
-        }
-        const value = Reflect.get(t, prop, receiver);
-        return typeof value === "function" ? value.bind(receiver) : value;
-      },
-    }) as this;
+  protected override nestedTransactionMessage(): string {
+    return (
+      "PostgresTabularStorage.withTransaction does not support nesting. " +
+      "Use SAVEPOINT directly or refactor to a single transaction."
+    );
   }
 
   /**
@@ -1243,10 +1200,7 @@ export class PostgresTabularStorage<
     // nested `withTransaction` invoked via the original (rather than `tx`)
     // throws instead of deadlocking on its own mutex.
     if (this.inTransaction) {
-      throw new Error(
-        "PostgresTabularStorage.withTransaction does not support nesting. " +
-          "Use SAVEPOINT directly or refactor to a single transaction."
-      );
+      throw new Error(this.nestedTransactionMessage());
     }
     const handle = this.connectionHandle();
     const body = async (): Promise<T> => {
@@ -1273,7 +1227,7 @@ export class PostgresTabularStorage<
     await txDb.query("BEGIN");
     let result: T;
     try {
-      result = await fn(this.createTxView(txDb, deferredPutEvents));
+      result = await fn(this.createTxView(deferredPutEvents, { db: txDb, inTransaction: true }));
       await txDb.query("COMMIT");
     } catch (err) {
       try {
@@ -1596,11 +1550,10 @@ export class PostgresTabularStorage<
    * `getPage` issued while a `withTransaction` is in flight queues behind
    * the transaction's `BEGIN`/`COMMIT` instead of slipping in between them
    * on the shared session. On a real `pg.Pool`, {@link mutex} is a no-op —
-   * page reads fan out to other pool clients in parallel as expected. The
-   * Proxy returned by {@link createTxView} auto-routes to
-   * {@link _getPageInternal} via the `_*Internal` naming convention, so
-   * calls made through `tx` bypass the mutex (which the transaction holds)
-   * and run on the transaction-bound `db`.
+   * page reads fan out to other pool clients in parallel as expected. Through
+   * the `tx` handle {@link createTxView} builds, this same method runs with
+   * {@link guardedRead} neutralized, so the call bypasses the mutex the
+   * transaction holds and runs on the transaction-bound `db`.
    */
   override async getPage(request: PageRequest<Entity> = {}): Promise<Page<Entity>> {
     return this.guardedRead(() => this._getPageInternal(request));
@@ -1699,22 +1652,17 @@ export class PostgresTabularStorage<
    * @param criteria - Object with column names as keys and values or SearchConditions
    */
   async deleteSearch(criteria: DeleteSearchCriteria<Entity>): Promise<void> {
-    // Ahead of the write lock: a refused delete has no business queueing
-    // behind other writers, and this is the same first line of
-    // `deleteSearch` every other backend opens with.
+    // Stated once, for both paths: the `tx` handle runs this method, not
+    // `_deleteSearchInternal`. Ahead of the write lock because a refused delete
+    // has no business queueing behind other writers. Unguarded,
+    // `deleteSearch({})` builds `DELETE FROM t WHERE ` (a syntax error) and
+    // criteria that are nothing but empty `not-in` lists build `WHERE 1 = 1`,
+    // emptying the table instead of raising StorageUnfilteredDeleteError.
     if (!this.shouldRunDeleteSearch(criteria)) return;
     return this.guardedWrite(() => this._deleteSearchInternal(criteria));
   }
 
   private async _deleteSearchInternal(criteria: DeleteSearchCriteria<Entity>): Promise<void> {
-    // Repeated rather than redundant: {@link createTxView}'s Proxy routes
-    // `tx.deleteSearch` straight here by the `_*Internal` naming convention, so
-    // a guard living only on the public method is skipped by every call made
-    // through a transaction handle. Unguarded, `tx.deleteSearch({})` builds
-    // `DELETE FROM t WHERE ` (a syntax error) and criteria that are nothing but
-    // empty `not-in` lists build `WHERE 1 = 1`, emptying the table instead of
-    // raising StorageUnfilteredDeleteError.
-    if (!this.shouldRunDeleteSearch(criteria)) return;
     return this.runDeleteSearchOnHandle(criteria);
   }
 
@@ -1735,6 +1683,10 @@ export class PostgresTabularStorage<
     match: SearchCriteria<Entity>,
     patch: Partial<Entity>
   ): Promise<Entity | undefined> {
+    // Stated once, for both paths: the `tx` handle runs this method, not
+    // `_updateWhereInternal`. Unguarded, `updateWhere({ id: "a" }, { id: "b" })`
+    // rewrites the row's identity in place — or aborts the transaction on a
+    // UNIQUE violation — instead of raising StorageValidationError.
     this.assertPatchKeepsPrimaryKey(patch);
     return this.guardedWrite(() => this._updateWhereInternal(match, patch));
   }
@@ -1743,14 +1695,6 @@ export class PostgresTabularStorage<
     match: SearchCriteria<Entity>,
     patch: Partial<Entity>
   ): Promise<Entity | undefined> {
-    // Repeated rather than redundant, exactly as `deleteSearch` is:
-    // {@link createTxView}'s Proxy routes `tx.updateWhere` straight here by the
-    // `_*Internal` naming convention, so a guard living only on the public
-    // method is skipped by every call made through a transaction handle.
-    // Unguarded, `tx.updateWhere({ id: "a" }, { id: "b" })` rewrites the row's
-    // identity in place — or aborts the transaction on a UNIQUE violation —
-    // instead of raising StorageValidationError.
-    this.assertPatchKeepsPrimaryKey(patch);
     const patchKeys = Object.keys(patch) as Array<keyof Entity>;
     if (patchKeys.length === 0) return undefined;
     return this.runUpdateWhereOnHandle(match, patch, patchKeys);
