@@ -155,4 +155,15 @@ describe("describeTaskClassReach", () => {
     expect(described).not.toBe("(nothing beyond running a model)");
     expect(described).toContain("not declared up front");
   });
+
+  it("keeps the caveat when a composed class ALSO declares reach statically", () => {
+    // What such a class declares is its wrapper's share, not the whole answer,
+    // so printing only the list is the same misleading reading as reporting the
+    // empty set — the caveat is appended rather than chosen between.
+    const described = describeTaskClassReach(
+      taskClass([{ id: Entitlements.NETWORK_HTTP, reason: "Fetches data from URLs" }], true)
+    );
+    expect(described).toContain("network:http (Fetches data from URLs)");
+    expect(described).toContain("not declared up front");
+  });
 });

@@ -113,22 +113,30 @@ function describeEntitlement(entitlement: TaskEntitlement): string {
     : `${entitlement.id}${scope}`;
 }
 
+/** What a composed class's reach amounts to, whatever else it declares. */
+const UNDECLARED_REACH = "not declared up front — it depends on the tasks this one runs";
+
 /**
  * `network:http (Fetches data from URLs via HTTP/HTTPS)` — one line an approval
  * prompt can show for why this task is being confirmed at all.
  *
- * A class gated only by rule 2 above reports that its reach is undeclared
- * rather than reporting the empty static set as "reaches nothing", which is the
- * one reading that would make the prompt actively misleading.
+ * Three answers, and the third is why the caveat is appended rather than chosen
+ * between. A class declaring nothing and composing nothing says so plainly. A
+ * class gated only by rule 2 above reports that its reach is undeclared rather
+ * than reporting the empty static set as "reaches nothing", which is the one
+ * reading that would make the prompt actively misleading. A composed class that
+ * ALSO declares reach statically declares only its wrapper's share, so it gets
+ * both — printing just that list is the same misleading reading in a second
+ * spelling.
  */
 export function describeTaskClassReach(
   taskClass: EntitlementDeclaringTaskClass,
   ambient: ReadonlySet<EntitlementId> = INFERENCE_ENTITLEMENTS
 ): string {
   const reach = taskClassReach(taskClass, ambient);
-  if (reach.length > 0) return reach.map(describeEntitlement).join("; ");
-  if (taskClass.entitlementsFromChildren === true) {
-    return "not declared up front — it depends on the tasks this one runs";
+  const declared = reach.map(describeEntitlement).join("; ");
+  if (taskClass.entitlementsFromChildren !== true) {
+    return reach.length > 0 ? declared : "(nothing beyond running a model)";
   }
-  return "(nothing beyond running a model)";
+  return reach.length > 0 ? `${declared}; plus more ${UNDECLARED_REACH}` : UNDECLARED_REACH;
 }
