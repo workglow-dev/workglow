@@ -25,6 +25,58 @@ const BADGE_GLYPH: Readonly<Record<WebCommandBadge, string>> = {
   destructive: "!",
 };
 
+/**
+ * The `all` marker, on both sides of an order.
+ *
+ * On the `all` itself it is a count, because the name is the thing that
+ * misleads: `4/5` says four of the five commands beside it, and the one it
+ * leaves out is named in the tooltip and in the form.
+ *
+ * A member is marked only where that count leaves the question open — where
+ * the `all` skips something, so which rows it covers is a real question, or
+ * where this member runs only under a flag. An `all` that runs its whole group
+ * has already said so on its own row, and a chip repeated down every row under
+ * it is one nobody reads.
+ */
+export function RunsMarker({ node }: { node: WebCommandNode }): JSX.Element | null {
+  const group = node.path.slice(0, -1).join(" ");
+  if (node.runsInOrder) {
+    const { members, skipped } = node.runsInOrder;
+    const of = members.length + skipped.length;
+    return (
+      <span className="badges">
+        <span
+          className={`cb cb-all${skipped.length > 0 ? " partial" : ""}`}
+          title={
+            `Runs ${members.length} of the ${of} commands under \`${group}\`, in order: ` +
+            `${members.map((member) => member.name).join(" → ")}` +
+            (skipped.length > 0 ? `. Not run: ${skipped.join(", ")}` : "")
+          }
+        >
+          ALL {members.length}/{of}
+        </span>
+      </span>
+    );
+  }
+  if (node.runsIn && (node.runsIn.skipped > 0 || node.runsIn.when !== undefined)) {
+    const { command, step, of, when } = node.runsIn;
+    return (
+      <span className="badges">
+        <span
+          className="cb cb-all"
+          title={
+            `Step ${step} of ${of} of \`${[group, command].filter(Boolean).join(" ")}\`` +
+            (when ? ` — ${when}` : "")
+          }
+        >
+          {when ? "ALL?" : "ALL"}
+        </span>
+      </span>
+    );
+  }
+  return null;
+}
+
 export function CommandBadges({
   badges,
   className = "",
@@ -68,6 +120,7 @@ function NodeRow({
       <button className="cmd" aria-current={current} onClick={() => onSelect(node)}>
         <span className="cmd-n">{node.name}</span>
         <span className="cmd-d">{node.description}</span>
+        <RunsMarker node={node} />
         <CommandBadges badges={node.badges} />
       </button>
     );
@@ -104,6 +157,10 @@ function NodeRow({
           <span className="caret">{isOpen ? "▾" : "▸"}</span>
           <span className="cmd-n">{node.name}</span>
           <span className="cmd-d">{node.description}</span>
+          {/* A sub-group can itself be a member — `sync forms` is one step of
+              `sync all` — and the marker has to survive the row being closed,
+              which is exactly when nobody can see its `all` beneath it. */}
+          <RunsMarker node={node} />
         </button>
       )}
       {children}

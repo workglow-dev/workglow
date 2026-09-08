@@ -610,6 +610,8 @@ function App(): JSX.Element {
               errors={errors}
               badges={node.badges}
               note={node.note}
+              runsInOrder={node.runsInOrder}
+              runsIn={node.runsIn}
               onChange={onFieldChange}
               onRun={onRun}
               canRun={cli.online}

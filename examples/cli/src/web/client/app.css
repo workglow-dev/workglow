@@ -1612,6 +1612,61 @@ pre.json .n {
   background: color-mix(in srgb, var(--fail) 10%, transparent);
   font-weight: 700;
 }
+/* Membership in an `all`, not a cost: outlined rather than filled, so it reads
+   beside the cost badges without competing with them. `partial` is the one an
+   operator has to look twice at — an `all` that leaves siblings out. */
+.cb-all {
+  color: var(--ink-2);
+  border-color: var(--line-2);
+  white-space: nowrap;
+}
+.cb-all.partial {
+  color: var(--run);
+  border-color: color-mix(in srgb, var(--run) 40%, transparent);
+}
+
+/* The order behind that marker, spelled out where the Run button is. */
+.plan {
+  margin-bottom: 14px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--sunk);
+  font-size: var(--fs-12);
+  color: var(--ink-2);
+}
+/* Not the uppercase rail heading: it names commands, and a command spelled in
+   capitals is not the command anyone types. */
+.plan h3 {
+  margin: 0;
+  font-size: var(--fs-12);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.plan ol {
+  margin: 6px 0 0;
+  padding-left: 20px;
+}
+.plan li {
+  margin: 1px 0;
+}
+.plan code {
+  font-family: var(--mono);
+  font-size: var(--fs-11);
+  color: var(--ink);
+}
+.plan .when {
+  margin-left: 6px;
+  color: var(--ink-3);
+  font-size: var(--fs-11);
+}
+.plan .skipped {
+  margin: 6px 0 0;
+  color: var(--ink-3);
+}
+.plan .skipped code {
+  color: var(--ink-2);
+}
 
 .cnote {
   display: flex;
