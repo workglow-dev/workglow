@@ -7,6 +7,7 @@
 import type { Server as McpServerInstance } from "@modelcontextprotocol/sdk/server";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
+import { getLogger } from "@workglow/util";
 import {
   createServer as createHttpServer,
   type IncomingMessage,
@@ -212,17 +213,18 @@ async function serve(
     // the client simply went away, and answering that with "request body too
     // large" tells an operator the wrong thing about their own traffic.
     if (error instanceof BodyTooLargeError) {
+      // Ours, and it names only the limit the operator configured.
       sendError(res, 413, -32000, error.message);
     } else if (!res.headersSent) {
-      sendError(res, 400, -32000, error instanceof Error ? error.message : "malformed request");
+      sendError(res, 400, -32000, "could not read request body");
     }
     return;
   }
   let parsed: unknown;
   try {
     parsed = JSON.parse(body);
-  } catch (error) {
-    sendError(res, 400, -32700, error instanceof Error ? error.message : "malformed request body");
+  } catch {
+    sendError(res, 400, -32700, "malformed JSON in request body");
     return;
   }
 
@@ -273,8 +275,14 @@ export async function startMcpHttpServer(
 
   const server = createHttpServer((req, res) => {
     serve(req, res, ctx).catch((error: unknown) => {
-      const message = error instanceof Error ? error.message : String(error);
-      if (!res.headersSent) sendError(res, 500, -32603, message);
+      // The caller learns only that it failed. An unexpected throw here
+      // carries whatever the thrower put in it — a filesystem path, a
+      // connection string — and this endpoint answers anyone who reaches the
+      // port. The operator gets the detail on the server's own log instead.
+      getLogger().error("mcp server request failed", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      if (!res.headersSent) sendError(res, 500, -32603, "internal server error");
       else res.destroy();
     });
   });

@@ -207,6 +207,38 @@ describe("startMcpHttpServer, authenticated", () => {
     expect(JSON.parse(response.body).error.code).toBe(-32700);
   });
 
+  it("keeps a server-side failure's detail off the wire", async () => {
+    // An unexpected throw here carries whatever the thrower put in it, and
+    // this endpoint answers anyone who reaches the port.
+    const handle = track(
+      await startMcpHttpServer({
+        port: 0,
+        host: "127.0.0.1",
+        token: TOKEN,
+        createServer: () => {
+          throw new Error("connect ECONNREFUSED /var/secrets/db.sock");
+        },
+      })
+    );
+    const response = await rawPost(
+      handle.url,
+      { Authorization: `Bearer ${TOKEN}`, "content-type": "application/json" },
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: {
+          protocolVersion: "2025-06-18",
+          capabilities: {},
+          clientInfo: { name: "x", version: "1" },
+        },
+      })
+    );
+    expect(response.status).toBe(500);
+    expect(response.body).not.toContain("/var/secrets");
+    expect(JSON.parse(response.body).error.message).toBe("internal server error");
+  });
+
   it("serves the registered tasks as tools once a client authenticates", async () => {
     const handle = track(await open(TOKEN));
     const client = track(await connect(handle, TOKEN));
