@@ -94,13 +94,15 @@ export class SqliteTabularStorage<
 
   /**
    * Runs a write through the cross-instance connection chain (when the
-   * handle is shared) and then this instance's own mutex. Calls arriving
-   * through the `tx` proxy go straight to the `_*Internal` methods and never
-   * re-enter here. The chain is consulted even while `inTransaction` is set:
+   * handle is shared) and then this instance's own mutex. The `tx` proxy
+   * neutralizes this wrapper for the duration of the transaction, so a call
+   * arriving through it runs the same public method without re-taking locks the
+   * transaction holder already owns. The chain is consulted even while
+   * `inTransaction` is set:
    * `runOnConnection` inlines a genuine descendant of the open transaction
    * body and queues an unrelated concurrent call.
    */
-  protected guardedWrite<T>(fn: () => Promise<T>): Promise<T> {
+  protected override guardedWrite<T>(fn: () => Promise<T>): Promise<T> {
     const handle = this.connectionHandle();
     if (handle !== null) {
       return runOnConnection(handle, this, () => this.mutex(fn));
@@ -860,53 +862,11 @@ export class SqliteTabularStorage<
     return result.aligned;
   }
 
-  /**
-   * Build a Proxy view of `this` for the `withTransaction` callback. The
-   * proxy:
-   *
-   *   - Routes any public method `foo` whose private sibling `_fooInternal`
-   *     exists to that sibling, so calls made *through* `tx` bypass the
-   *     mutex held by `withTransaction` and do not deadlock. The naming
-   *     convention is the only sync mechanism — adding a new public method
-   *     with a matching `_fooInternal` is enough; no map to keep in step.
-   *   - Overrides {@link emitPut} so events emitted inside `fn` queue on a
-   *     per-transaction buffer instead of firing immediately, then get
-   *     flushed by `withTransaction` after `COMMIT` (or discarded on
-   *     `ROLLBACK`).
-   *   - Throws on nested `withTransaction` — SQLite has no autonomous
-   *     `BEGIN`. Use SAVEPOINT directly for nested rollback boundaries.
-   */
-  private createTxView(deferredPutEvents: Entity[]): this {
-    return new Proxy(this, {
-      get(t, prop, receiver) {
-        if (prop === "withTransaction") {
-          return () => {
-            throw new Error(
-              "SqliteTabularStorage.withTransaction does not support nesting. " +
-                "Run nested rollback boundaries with SAVEPOINT directly, or refactor to a single transaction."
-            );
-          };
-        }
-        if (prop === "emitPut") {
-          return (entity: Entity) => deferredPutEvents.push(entity);
-        }
-        if (typeof prop === "string") {
-          // Bracket access walks the prototype chain, so a subclass override
-          // of `_${prop}Internal` (e.g. SqliteAiVectorStorage's
-          // vector-encoding `_putInternal` / `_putBulkInternal`) wins over
-          // the parent's implementation. `apply(receiver, ...)` then runs it
-          // bound to the proxy so nested `tx.foo()` calls keep routing
-          // through the proxy as well.
-          const internal = (t as unknown as Record<string, unknown>)[`_${prop}Internal`];
-          if (typeof internal === "function") {
-            return (...args: unknown[]) =>
-              (internal as (...a: unknown[]) => unknown).apply(receiver, args);
-          }
-        }
-        const value = Reflect.get(t, prop, receiver);
-        return typeof value === "function" ? value.bind(receiver) : value;
-      },
-    }) as this;
+  protected override nestedTransactionMessage(): string {
+    return (
+      "SqliteTabularStorage.withTransaction does not support nesting. " +
+      "Run nested rollback boundaries with SAVEPOINT directly, or refactor to a single transaction."
+    );
   }
 
   /**
@@ -918,9 +878,10 @@ export class SqliteTabularStorage<
    * Concurrent ops on the same storage instance from *outside* `fn` queue
    * on this storage's mutex until the transaction commits or rolls back, so
    * unrelated work cannot accidentally run inside the open transaction.
-   * The `tx` handle passed to `fn` is a Proxy that routes back to internal
-   * (unlocked) implementations, so calls *through* `tx` inside `fn` do not
-   * deadlock against the mutex.
+   * The `tx` handle passed to `fn` is the {@link BaseSqlTabularStorage.createTxView}
+   * Proxy: the same public methods with the mutex neutralized, so calls
+   * *through* `tx` inside `fn` keep every guard and do not deadlock against the
+   * lock this transaction is holding.
    *
    * Nested `withTransaction` calls on `tx` throw rather than reusing the
    * outer transaction implicitly. Use {@link Sqlite.Database} `SAVEPOINT`s
@@ -928,10 +889,7 @@ export class SqliteTabularStorage<
    */
   override async withTransaction<T>(fn: (tx: this) => Promise<T>): Promise<T> {
     if (this.inTransaction) {
-      throw new Error(
-        "SqliteTabularStorage.withTransaction does not support nesting. " +
-          "Run nested rollback boundaries with SAVEPOINT directly, or refactor to a single transaction."
-      );
+      throw new Error(this.nestedTransactionMessage());
     }
     // Connection-first / instance-second: the shared chain bounds work on the
     // handle, then the per-instance mutex bounds work reaching THIS storage.
@@ -1240,10 +1198,10 @@ export class SqliteTabularStorage<
    * Goes through {@link guardedRead} so a `getPage` call issued while a
    * transaction is in flight queues behind it instead of firing a
    * `prepare`/`stmt.all` against the shared connection between that
-   * transaction's `BEGIN` and `COMMIT`. The proxy returned by
-   * {@link createTxView} routes back to {@link _getPageInternal} directly,
-   * so calls made *through* the `tx` handle bypass both locks and run on the
-   * same connection.
+   * transaction's `BEGIN` and `COMMIT`. Through the `tx` handle
+   * {@link createTxView} builds, this same method runs with
+   * {@link guardedRead} neutralized, so the call bypasses both locks — which
+   * the transaction already holds — and runs on the same connection.
    */
   override async getPage(request: PageRequest<Entity> = {}): Promise<Page<Entity>> {
     return this.guardedRead(() => this._getPageInternal(request));
@@ -1355,22 +1313,17 @@ export class SqliteTabularStorage<
    * @param criteria - Object with column names as keys and values or SearchConditions
    */
   async deleteSearch(criteria: DeleteSearchCriteria<Entity>): Promise<void> {
-    // Ahead of the write lock: a refused delete has no business queueing
-    // behind other writers, and this is the same first line of
-    // `deleteSearch` every other backend opens with.
+    // Stated once, for both paths: the `tx` handle runs this method, not
+    // `_deleteSearchInternal`. Ahead of the write lock because a refused delete
+    // has no business queueing behind other writers. Unguarded,
+    // `deleteSearch({})` builds ``DELETE FROM `t` WHERE `` (a syntax error) and
+    // criteria that are nothing but empty `not-in` lists build `WHERE 1 = 1`,
+    // emptying the table instead of raising StorageUnfilteredDeleteError.
     if (!this.shouldRunDeleteSearch(criteria)) return;
     return this.guardedWrite(() => this._deleteSearchInternal(criteria));
   }
 
   private async _deleteSearchInternal(criteria: DeleteSearchCriteria<Entity>): Promise<void> {
-    // Repeated rather than redundant: {@link createTxView}'s Proxy routes
-    // `tx.deleteSearch` straight here by the `_*Internal` naming convention, so
-    // a guard living only on the public method is skipped by every call made
-    // through a transaction handle. Unguarded, `tx.deleteSearch({})` builds
-    // ``DELETE FROM `t` WHERE `` (a syntax error) and criteria that are nothing
-    // but empty `not-in` lists build `WHERE 1 = 1`, emptying the table instead
-    // of raising StorageUnfilteredDeleteError.
-    if (!this.shouldRunDeleteSearch(criteria)) return;
     this.runDeleteSearchOnHandle(criteria);
   }
 
@@ -1393,6 +1346,10 @@ export class SqliteTabularStorage<
     match: SearchCriteria<Entity>,
     patch: Partial<Entity>
   ): Promise<Entity | undefined> {
+    // Stated once, for both paths: the `tx` handle runs this method, not
+    // `_updateWhereInternal`. Unguarded, `updateWhere({ id: "a" }, { id: "b" })`
+    // rewrites the row's identity in place instead of raising
+    // StorageValidationError.
     this.assertPatchKeepsPrimaryKey(patch);
     return this.guardedWrite(() => this._updateWhereInternal(match, patch));
   }
@@ -1401,13 +1358,6 @@ export class SqliteTabularStorage<
     match: SearchCriteria<Entity>,
     patch: Partial<Entity>
   ): Promise<Entity | undefined> {
-    // Repeated rather than redundant, exactly as `deleteSearch` is:
-    // {@link createTxView}'s Proxy routes `tx.updateWhere` straight here by the
-    // `_*Internal` naming convention, so a guard living only on the public
-    // method is skipped by every call made through a transaction handle.
-    // Unguarded, `tx.updateWhere({ id: "a" }, { id: "b" })` rewrites the row's
-    // identity in place instead of raising StorageValidationError.
-    this.assertPatchKeepsPrimaryKey(patch);
     const patchKeys = Object.keys(patch) as Array<keyof Entity>;
     if (patchKeys.length === 0) return undefined;
     return this.runUpdateWhereOnHandle(match, patch, patchKeys);

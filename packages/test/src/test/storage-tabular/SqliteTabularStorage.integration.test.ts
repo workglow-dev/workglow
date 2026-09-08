@@ -899,10 +899,11 @@ describe("SqliteTabularStorage entity prototypes", () => {
 });
 
 describe("SqliteTabularStorage join inside a transaction", () => {
-  // `_joinInternal` exists solely so `createTxView` routes `tx.join()` past
-  // the lock `withTransaction` holds. If that routing ever breaks, the join
-  // waits on a lock its own caller owns and this test hangs rather than
-  // failing on a value — which is why it is worth pinning on both paths.
+  // `createTxView` runs the public `join` with `guardedRead` neutralized, so
+  // the join never waits on the lock `withTransaction` holds. If that ever
+  // breaks, the join waits on a lock its own caller owns and this test hangs
+  // rather than failing on a value — which is why it is worth pinning on both
+  // paths.
   it("runs a pushed-down join through the tx proxy without deadlocking", async () => {
     await Sqlite.init();
     const db = new Sqlite.Database(":memory:");
