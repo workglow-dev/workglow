@@ -169,6 +169,13 @@ See `packages/task-graph/README.md` and `src/EXECUTION_MODEL.md`.
 - `runPreview()` → `executePreview()` — UI previews only, stays PENDING, must be fast
 - Lifecycle: `PENDING → PROCESSING → COMPLETED | FAILED | ABORTED`
 
+`taskGraphJsonShapeError` / `validateTaskGraphJsonShape` check a `TaskGraphJson` **before**
+`createGraphFromGraphJSON` touches it. That function throws from inside its own
+construction, in words written for whoever wrote the deserializer — the wrong audience for
+graph JSON this process did not author (a file, a request body, a model's output), where the
+caller's next move is handing a reason back to whoever supplied it. Structural only: whether
+a `type` is runnable is a question about the host's registry, asked separately.
+
 Schemas are JSON Schema. `format` annotations drive runtime type resolution
 (`"model"`, `"model:EmbeddingTask"`, `"storage:tabular"`, `"knowledge-base"`);
 `x-ui-manual: true` marks user-added ports. Register classes with `TaskRegistry.registerTask`.
@@ -202,6 +209,28 @@ RAG tasks: `ChunkVectorUpsertTask` (`knowledgeBase` + `chunks` + `vector`, optio
 `doc_title`), `ChunkRetrievalTask` (`knowledgeBase` + `query` + `model`, with
 `method: "similarity" | "hybrid"`), `HierarchyJoinTask`, `RerankerTask`,
 `QueryExpanderTask`, `TextChunkerTask`, `HierarchicalChunkerTask`.
+
+**Conversation helpers for a host driving multiple turns.** Neither runs inside a task;
+both exist because a caller keeping its own message list hits problems the providers cannot
+fix for it.
+
+`normalizeHistoryForModel` / `trimHistoryForModel` (`ChatHistory.ts`). The first repairs
+`user, user` and `tool, user`, which strict chat templates reject outright —
+HuggingFace's `apply_chat_template` throws `Conversation roles must alternate`, and a host
+reaches that state honestly when a stopped turn leaves a trailing user message. The second
+caps a list by **characters**, not tokens (this package has no tokenizer where it runs, and
+a wrong one is worse than an honest approximation), dropping whole turns from the front and
+cutting only at `user` boundaries so no `tool_result` outlives its `tool_use`. It keeps the
+newest turn even over budget: the alternative is a conversation erased for being too long.
+
+`uniquifyToolCallIds` / `repairDuplicateToolCallIds` / `collectToolUseIds`
+(`ToolCallIds.ts`). Tool-call ids are unique only within one model run — Gemini restarts at
+`call_0` every run, and `Gemini_ToolCalling` already compensates inside its own message
+conversion. That fixes what reaches the provider, not what a caller keeps: a host holding
+several rounds in one list collides on round two, and the symptom is not a crash but patches
+landing on the wrong entry and answers resolving the wrong call. Ids are opaque to providers,
+which rebuild their id→name map per run, so renaming both halves of a pair is invisible
+downstream.
 
 **Cache checkpoints** — `CacheCheckpointTask` (requires `["cache.checkpoint"]`) warms a
 prompt prefix and emits a `checkpoint` handle (`format: "cache-checkpoint"`) that
@@ -432,6 +461,15 @@ that cannot reach the CDN.
 `EventEmitter`, `ServiceRegistry` (DI), `DirectedAcyclicGraph`, `DataPortSchema`/`JsonSchema`,
 `SchemaUtils`/`SchemaValidation`, `uuid4`, `sleep`, `WorkerManager`/`WorkerServer`, vector
 math, tensor types.
+
+`validateModelAuthoredSchema` (`/schema`) bounds a JSON Schema a **model wrote** before it
+reaches a form renderer: property count, nesting depth, and an allowlist of `format` values.
+The allowlist is the load-bearing part and is frozen, because in this codebase `format` does
+not style a field — it selects a runtime editor and resolves a live resource
+(`"storage:tabular"`, `"knowledge-base"`, `"credential"`), so an unbounded `format` is the
+model choosing a resource. It is the schema-side counterpart to `sanitizeToolArgs`, which
+already hardens the *arguments* half of the same surface. It returns the reason rather than
+throwing, since the caller's next move is usually handing that reason back to the model.
 
 `WorkerManager` is written against the web `Worker` interface, and `Worker.node.ts` presents
 `node:worker_threads` through it. Two mismatches there are silent rather than loud, so leave

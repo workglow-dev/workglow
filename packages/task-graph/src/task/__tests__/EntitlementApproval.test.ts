@@ -59,6 +59,16 @@ describe("entitlementsBeyond", () => {
     expect(beyond.map((e) => e.id)).toEqual(["ai:autonomous-egress"]);
   });
 
+  it("accepts a Set as well as an array", () => {
+    // The parameter is an Iterable, and a Set is the shape a caller reaches
+    // for first; passing one must not re-wrap it into a different answer.
+    const beyond = entitlementsBeyond(
+      [{ id: Entitlements.NETWORK_HTTP }, { id: Entitlements.STORAGE_READ }],
+      new Set([Entitlements.NETWORK_HTTP])
+    );
+    expect(beyond.map((e) => e.id)).toEqual(["storage:read"]);
+  });
+
   it("honours a caller-supplied ambient set", () => {
     const beyond = entitlementsBeyond(
       [{ id: Entitlements.NETWORK_HTTP }, { id: Entitlements.STORAGE_READ }],
@@ -124,6 +134,15 @@ describe("taskClassNeedsApproval", () => {
     // reachable here. Reading that as an empty declaration is indistinguishable
     // from a task that genuinely reaches nothing — the reading this prevents.
     expect(taskClassNeedsApproval({} as EntitlementDeclaringTaskClass)).toBe(true);
+  });
+
+  it("treats a declaration missing its entitlements array as declaring nothing", () => {
+    // `entitlements()` is typed to return { entitlements }, but a hand-rolled
+    // or cast class can return a bare object; reading undefined.length there
+    // would throw inside the gate.
+    const malformed = { entitlements: () => ({}) } as unknown as EntitlementDeclaringTaskClass;
+    expect(taskClassReach(malformed)).toEqual([]);
+    expect(taskClassNeedsApproval(malformed)).toBe(false);
   });
 
   it("gates a class whose declaration throws rather than letting the gate crash", () => {
