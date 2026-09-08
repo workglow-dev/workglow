@@ -111,16 +111,26 @@ function extractTransferables(obj: any, ownedBuffersOnly: boolean = false): Tran
 }
 
 /**
+ * Sends one message from the worker back to the thread that spawned it,
+ * optionally transferring (rather than cloning) the listed buffers.
+ *
+ * The signature is deliberately the loose intersection of the two platform
+ * primitives it wraps — the browser's `self.postMessage` and Node's
+ * `parentPort.postMessage` — since their transfer-list types do not otherwise
+ * agree.
+ */
+export type WorkerServerPost = (message: unknown, transfer?: readonly unknown[]) => void;
+
+/**
  * Construction-time options for {@link WorkerServerBase}.
  *
  * All fields are optional and safe to omit — defaults match the previous
  * hard-coded values.
  *
- * The platform-specific `WorkerServer` subclasses (`Worker.bun.ts`,
- * `Worker.node.ts`, `Worker.browser.ts`) forward an optional
- * {@link WorkerServerBaseOptions} argument to this base constructor, so
- * `new WorkerServer({ pendingAbortHardCap: ... })` is configurable in
- * production as well as in tests.
+ * The platform-specific `WorkerServer` subclasses (`Worker.node.ts`,
+ * `Worker.browser.ts`) forward an optional {@link WorkerServerBaseOptions}
+ * argument to this base constructor, so `new WorkerServer({ pendingAbortHardCap: ... })`
+ * is configurable in production as well as in tests.
  */
 export interface WorkerServerBaseOptions {
   /**
@@ -135,6 +145,18 @@ export interface WorkerServerBaseOptions {
    * entries through vitest's fake-timer heap.
    */
   readonly pendingAbortHardCap?: number;
+
+  /**
+   * How this server sends messages back to the thread that spawned it.
+   *
+   * Defaults to the worker global `postMessage`, which is what a browser (and
+   * Bun) worker scope provides. Node worker threads have no such global — only
+   * `parentPort` — so `Worker.node.ts` passes `parentPort.postMessage` bound to
+   * its port. The default resolves the global on every call rather than at
+   * construction, so a test can stub `globalThis.postMessage` after the server
+   * is built.
+   */
+  readonly post?: WorkerServerPost;
 }
 
 /**
@@ -146,7 +168,29 @@ export class WorkerServerBase {
   constructor(options: WorkerServerBaseOptions = {}) {
     this.pendingAbortHardCap =
       options.pendingAbortHardCap ?? WorkerServerBase.PENDING_ABORT_HARD_CAP;
+    this.post = options.post ?? WorkerServerBase.globalPost;
   }
+
+  /**
+   * Fallback {@link WorkerServerPost} for platforms whose worker scope exposes
+   * a global `postMessage`. Looked up per call so a stub installed after
+   * construction still takes effect, and reported by name when absent —
+   * a bare `postMessage(...)` would instead fail with a ReferenceError that
+   * says nothing about which platform seam went unwired.
+   */
+  private static readonly globalPost: WorkerServerPost = (message, transfer) => {
+    const post = (globalThis as { postMessage?: WorkerServerPost }).postMessage;
+    if (typeof post !== "function") {
+      throw new Error(
+        "No worker postMessage available: this scope has no global postMessage, " +
+          "and no `post` was supplied to WorkerServerBase."
+      );
+    }
+    post(message, transfer);
+  };
+
+  /** Bound sender for this server's port. See {@link WorkerServerBaseOptions.post}. */
+  private readonly post: WorkerServerPost;
 
   private static readonly PENDING_ABORT_TTL_MS = 30_000;
   private static readonly PENDING_ABORT_HARD_CAP = 10_000;
@@ -212,8 +256,7 @@ export class WorkerServerBase {
     this.completedRequests.add(id);
     const transferables = extractTransferables(result);
     const uniqueTransferables = [...new Set(transferables)];
-    // @ts-expect-error - Ignore type mismatch between standard Transferable and Bun.Transferable
-    postMessage({ id, type: "complete", data: result }, uniqueTransferables);
+    this.post({ id, type: "complete", data: result }, uniqueTransferables);
   };
 
   private postError = (id: string, error: unknown) => {
@@ -243,7 +286,7 @@ export class WorkerServerBase {
     } else {
       data = { message: String(error), name: "Error" };
     }
-    postMessage({ id, type: "error", data });
+    this.post({ id, type: "error", data });
   };
 
   private postStreamChunk = (id: string, event: any) => {
@@ -262,13 +305,12 @@ export class WorkerServerBase {
     // empty list.
     const transferables = [...new Set(extractTransferables(event, true))];
     try {
-      // @ts-expect-error - Ignore type mismatch between standard Transferable and Bun.Transferable
-      postMessage({ id, type: "stream_chunk", data: event }, transferables);
+      this.post({ id, type: "stream_chunk", data: event }, transferables);
     } catch {
       // An unforeseen transfer failure (a buffer detached between extraction
       // and post, a platform refusing a specific transferable) must not fail
       // the job: degrade to the pre-transfer behavior and clone the event.
-      postMessage({ id, type: "stream_chunk", data: event });
+      this.post({ id, type: "stream_chunk", data: event });
     }
   };
 
@@ -278,7 +320,7 @@ export class WorkerServerBase {
    * so WorkerManager can skip unnecessary roundtrips for unregistered calls.
    */
   sendReady() {
-    postMessage({
+    this.post({
       type: "ready",
       functions: Object.keys(this.functions),
       streamFunctions: Object.keys(this.streamFunctions),
@@ -546,7 +588,7 @@ export class WorkerServerBase {
       const postProgress = (progress: number, message?: string, details?: any) => {
         // Don't send progress updates after the request is completed/aborted
         if (!this.completedRequests.has(id)) {
-          postMessage({ id, type: "progress", data: { progress, message, details } });
+          this.post({ id, type: "progress", data: { progress, message, details } });
         }
       };
       const result = await fn(input, model, postProgress, abortController.signal);
