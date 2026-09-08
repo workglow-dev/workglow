@@ -190,7 +190,7 @@ export function validateJoinSpec<L, R>(
       validateOrderBy(properties, [{ column: column as never, direction }]);
     } else if (direction !== "ASC" && direction !== "DESC") {
       throw new StorageValidationError(
-        `Invalid sort direction "${direction}". Must be "ASC" or "DESC"`
+        `Invalid sort direction "${String(direction)}". Must be "ASC" or "DESC"`
       );
     }
   }

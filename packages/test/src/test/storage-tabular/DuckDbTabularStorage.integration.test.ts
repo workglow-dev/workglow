@@ -692,8 +692,8 @@ describe("DuckDbTabularStorage join", () => {
   beforeAll(async () => {
     shared = await DuckDb.open(":memory:");
   });
-  afterAll(async () => {
-    await shared.close();
+  afterAll(() => {
+    shared.close();
   });
 
   // Two tables on one database: the join runs as a single statement.
