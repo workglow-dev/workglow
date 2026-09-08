@@ -96,6 +96,15 @@ export function CommandBadges({
   );
 }
 
+/**
+ * One row: the command, and what it costs to run.
+ *
+ * The rail carries the NAME and nothing else. A description clipped to what a
+ * 266px rail has left over is a sentence nobody can read and a column that
+ * pushes the badges — the part that has to be legible before you click — into
+ * whatever is left; the full line reads in the options pane, and on the row's
+ * tooltip.
+ */
 function NodeRow({
   node,
   depth,
@@ -117,9 +126,13 @@ function NodeRow({
   if (node.children.length === 0) {
     const current = selectedPath.join(".") === key;
     return (
-      <button className="cmd" aria-current={current} onClick={() => onSelect(node)}>
+      <button
+        className="cmd"
+        aria-current={current}
+        title={node.description}
+        onClick={() => onSelect(node)}
+      >
         <span className="cmd-n">{node.name}</span>
-        <span className="cmd-d">{node.description}</span>
         <RunsMarker node={node} />
         <CommandBadges badges={node.badges} />
       </button>
@@ -153,10 +166,14 @@ function NodeRow({
           <span>{node.name}</span>
         </button>
       ) : (
-        <button className="cmd sub" aria-expanded={isOpen} onClick={() => onToggle(key)}>
+        <button
+          className="cmd sub"
+          aria-expanded={isOpen}
+          title={node.description}
+          onClick={() => onToggle(key)}
+        >
           <span className="caret">{isOpen ? "▾" : "▸"}</span>
           <span className="cmd-n">{node.name}</span>
-          <span className="cmd-d">{node.description}</span>
           {/* A sub-group can itself be a member — `sync forms` is one step of
               `sync all` — and the marker has to survive the row being closed,
               which is exactly when nobody can see its `all` beneath it. */}

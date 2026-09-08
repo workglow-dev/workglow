@@ -345,8 +345,10 @@ textarea {
   color: var(--accent-2);
   font-weight: 600;
 }
-/* The name is the thing being chosen: it never wraps or truncates. The
-   description is the concession — it takes what is left and ellipsizes. */
+/* The name is the whole row in the rail: it never wraps or truncates, and the
+   badges take the space after it. `.cmd-d` is the second column the same row
+   shape gets in a picker's result list, where the detail beside a label is the
+   point — it takes what is left and ellipsizes. */
 .cmd-n {
   font-family: var(--mono);
   font-size: var(--fs-12);
@@ -365,6 +367,13 @@ textarea {
 .cmd .badges {
   flex: none;
   margin-left: auto;
+}
+/* The `all` marker and the cost badges are two groups on one row, and two auto
+   margins split the free space between them — which staggers the marker down
+   the rail. Only the first takes the space; the rest close up behind it, so
+   every chip on every row lands in one right-hand cluster. */
+.cmd .badges ~ .badges {
+  margin-left: 0;
 }
 .grp-h {
   background: none;
