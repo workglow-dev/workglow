@@ -5,7 +5,7 @@
  */
 
 import { Server } from "@modelcontextprotocol/sdk/server";
-import type { CallToolResult, ListToolsResult } from "@modelcontextprotocol/sdk/types";
+import type { CallToolResult, ListToolsResult, RequestId } from "@modelcontextprotocol/sdk/types";
 import {
   CallToolRequestSchema,
   ErrorCode,
@@ -13,6 +13,8 @@ import {
   McpError,
 } from "@modelcontextprotocol/sdk/types";
 import type { IRunConfig, ITask, TaskInput } from "@workglow/task-graph";
+import { globalServiceRegistry, HUMAN_CONNECTOR, ServiceRegistry } from "@workglow/util";
+import { McpElicitationConnector } from "../tasks/McpElicitationConnector";
 import type { TaskToolSelection } from "./taskTools";
 import {
   buildTaskToolIndex,
@@ -29,9 +31,24 @@ export interface TaskMcpServerOptions extends TaskToolSelection {
   /**
    * Run options every tool call inherits — a runner id, a cache override.
    * `signal` is supplied per call from the client's cancellation and cannot be
-   * overridden here.
+   * overridden here, and `registry` is the parent of the per-call one described
+   * on {@link TaskMcpServerOptions.elicitation}.
    */
   readonly runConfig?: Omit<Partial<IRunConfig>, "signal">;
+  /**
+   * Route human-in-the-loop tasks to the calling client through MCP
+   * elicitation (default `true`).
+   *
+   * Each call runs against a child of the host's registry carrying an
+   * {@link McpElicitationConnector} under `HUMAN_CONNECTOR`, so a task that
+   * asks a person asks the one driving this session — rather than throwing
+   * because the host's own connector wants a terminal nobody is sitting at.
+   *
+   * Pass `false` when the host has a better way to reach its human than the
+   * MCP client does: the per-call child is then not created at all, and
+   * whatever `runConfig.registry` binds is what a task resolves.
+   */
+  readonly elicitation?: boolean;
 }
 
 /**
@@ -70,6 +87,33 @@ function forwardProgress(
 }
 
 /**
+ * The registry one tool call runs against: a child of the host's, carrying the
+ * connector that turns a task's human request into an MCP elicitation.
+ *
+ * A child rather than the host's own registry because the connector is bound to
+ * ONE tool call — it answers on that call's stream — and binding it globally
+ * would point every concurrent call's prompts at whichever client asked last.
+ * This is the same child-per-run the graph runner already makes when a caller
+ * supplies no registry, so nothing about resolution changes; the container
+ * copies its parent's registrations rather than delegating to it, which is why
+ * the parent has to be a booted one.
+ */
+function registryForCall(
+  parent: ServiceRegistry,
+  server: Server,
+  relatedRequestId: RequestId
+): ServiceRegistry {
+  const registry = new ServiceRegistry(parent.container.createChildContainer());
+  registry.registerInstance(
+    HUMAN_CONNECTOR,
+    new McpElicitationConnector(server, {
+      relatedRequestId,
+    })
+  );
+  return registry;
+}
+
+/**
  * An MCP server offering registered Workglow tasks as tools.
  *
  * Transport-agnostic on purpose: this is the half every host shares, and what
@@ -84,10 +128,14 @@ function forwardProgress(
  * schema the task already had.
  */
 export function createTaskMcpServer(options: TaskMcpServerOptions): Server {
+  const elicitation = options.elicitation !== false;
   const server = new Server(
     { name: options.name, version: options.version },
     {
-      capabilities: { tools: {} },
+      // `logging` is what makes a task's one-way human requests — notify and
+      // display — reach the client at all: without it `sendLoggingMessage` is
+      // a silent no-op inside the SDK.
+      capabilities: elicitation ? { tools: {}, logging: {} } : { tools: {} },
       ...(options.instructions ? { instructions: options.instructions } : {}),
     }
   );
@@ -118,9 +166,13 @@ export function createTaskMcpServer(options: TaskMcpServerOptions): Server {
               extra.sendNotification({ method: "notifications/progress", params })
             );
 
+      const parentRegistry = options.runConfig?.registry ?? globalServiceRegistry;
       try {
         const output = await task.run((request.params.arguments ?? {}) as Partial<TaskInput>, {
           ...options.runConfig,
+          ...(elicitation
+            ? { registry: registryForCall(parentRegistry, server, extra.requestId) }
+            : {}),
           signal: extra.signal,
         });
         return toolResultForOutput(output);

@@ -56,6 +56,13 @@ const handle = await startMcpHttpServer({
 console.log(handle.url, handle.token);
 ```
 
+Tasks that ask a person route to the calling client through MCP elicitation:
+each tool call runs against a child registry carrying an
+`McpElicitationConnector` bound to that call, so concurrent calls prompt their
+own client and the request travels on the call's own stream rather than the
+optional standalone one. Pass `elicitation: false` when the host has a better
+way to reach its human, and whatever `runConfig.registry` binds is used instead.
+
 A host with its own web framework skips `startMcpHttpServer` and keeps the two
 pieces under it: `McpSessionRouter` holds the Streamable HTTP sessions across
 requests, and `authorizeBearer` is the token check.
