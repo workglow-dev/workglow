@@ -1,5 +1,33 @@
 # @workglow/ai
 
+## 0.5.0
+
+### Breaking Changes
+
+- **features(storage)**: add join() to ITabularStorage with SQL pushdown (#893)
+
+### Features
+
+#### storage
+
+- add join() to ITabularStorage with SQL pushdown (#893)
+
+#### task-graph
+
+- add entitlement approval gate for ai task classes (#923)
+
+### Bug Fixes
+
+#### pricing
+
+- various fixes for pricing on models
+- merge a declared rate card over the provider's field by field
+- resolve rates from the live table and at the request's instant
+
+### Chores
+
+- revert version change not made by bunset
+
 ## 0.4.9
 
 ## 0.4.8

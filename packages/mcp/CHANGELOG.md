@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.5.0
+
+### Breaking Changes
+
+- **features(storage)**: add join() to ITabularStorage with SQL pushdown (#893)
+
+### Features
+
+- route human-in-the-loop tasks to the MCP client
+- serve registered tasks over MCP, behind a bearer token
+
+#### storage
+
+- add join() to ITabularStorage with SQL pushdown (#893)
+
+### Bug Fixes
+
+- keep server-side failure detail off the wire
+- make the bearer and tool-name parsers linear
+- close the gaps a review of the MCP server turned up
+
+### Chores
+
+- revert version change not made by bunset
+
 ## 0.4.9
 
 ## 0.4.8

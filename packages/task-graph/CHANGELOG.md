@@ -1,5 +1,36 @@
 # @workglow/task-graph
 
+## 0.5.0
+
+### Breaking Changes
+
+- **features(storage)**: add join() to ITabularStorage with SQL pushdown (#893)
+
+### Features
+
+#### storage
+
+- add join() to ITabularStorage with SQL pushdown (#893)
+
+#### task-graph
+
+- add entitlement approval gate for ai task classes (#923)
+
+### Bug Fixes
+
+#### task-graph
+
+- move `runPreview`'s return out of the `finally` block (#918)
+
+#### web-search
+
+- name a credential for a provider, fill Brave's open date bound, and thread abort
+- resolve the search credential once, in the task that sends it
+
+### Chores
+
+- revert version change not made by bunset
+
 ## 0.4.9
 
 ### Bug Fixes

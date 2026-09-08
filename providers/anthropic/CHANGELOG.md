@@ -1,5 +1,49 @@
 # Changelog
 
+## 0.5.0
+
+### Breaking Changes
+
+- **features(storage)**: add join() to ITabularStorage with SQL pushdown (#893)
+
+### Features
+
+#### storage
+
+- add join() to ITabularStorage with SQL pushdown (#893)
+
+#### anthropic
+
+- add grounded web-search provider subpath
+
+### Bug Fixes
+
+#### web-search
+
+- address code review across the package and its adapters
+- honour or refuse a named credential, stop registering providers on import, and keep two ports honest
+- name a credential for a provider, fill Brave's open date bound, and thread abort
+- let a provider declare that it takes one domain list, not both
+- make maxResults mean the same thing for every provider
+- keep test declarations out of the published tarball
+- correct rate-limiter claim and gate the grounded answer
+
+#### pricing
+
+- resolve rates from the live table and at the request's instant
+
+#### anthropic
+
+- give the package a test script so its tests actually run
+
+### Documentation
+
+- document @workglow/web-search in CLAUDE.md
+
+### Chores
+
+- revert version change not made by bunset
+
 ## 0.4.9
 
 ## 0.4.8

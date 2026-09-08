@@ -1,5 +1,21 @@
 # @workglow/job-queue
 
+## 0.5.0
+
+### Breaking Changes
+
+- **features(storage)**: add join() to ITabularStorage with SQL pushdown (#893)
+
+### Features
+
+#### storage
+
+- add join() to ITabularStorage with SQL pushdown (#893)
+
+### Chores
+
+- revert version change not made by bunset
+
 ## 0.4.9
 
 ## 0.4.8
