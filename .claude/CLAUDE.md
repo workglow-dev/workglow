@@ -67,6 +67,7 @@ util, sqlite            (foundation)
   → task-graph          (core DAG pipeline engine)
   → dataset, tasks      (KnowledgeBase, documents, chunks; utility tasks)
   → ai                  (AI task base classes, model registry, provider helpers)
+     web-search         (WebSearchTask + provider registry; depends on tasks, NOT on ai)
   → providers/*         (anthropic, openai, gemini, ollama, ...)
   → test                (integration tests), workglow (meta-package), debug (DevTools formatters)
 ```
@@ -97,9 +98,12 @@ moved onto the shared `node:sqlite` driver. The set is pinned by
 `packages/test/src/test/util/BunExportConditions.test.ts`, which fails until the fixture
 and this paragraph are updated together.
 
-Exceptions: `providers/*` ship `./ai` and `./ai-runtime` instead of browser/node.
-`@workglow/util` has extra named exports — `/schema`, `/graph`, `/worker`, `/media`,
-`/compress`.
+Exceptions: `providers/*` ship `./ai` and `./ai-runtime` instead of browser/node. A vendor
+may add further subpaths for surfaces outside the AI task framework: `@workglow/anthropic`,
+`@workglow/openai`, `@workglow/openrouter` and `@workglow/google-gemini` also ship
+`./web-search`, which implements `@workglow/web-search`'s provider interface and is loaded by
+neither AI entry. `@workglow/util` has extra named exports — `/schema`, `/graph`, `/worker`,
+`/media`, `/compress`.
 
 ## Code style
 
@@ -208,6 +212,93 @@ Run-fns receive an `AiSessionContext` (`sessionId`, `emitCheckpointId`, `prefix`
 config to share checkpoints across separate runs. Details on the per-provider degradation
 paths (including OpenAI's derived `prompt_cache_key`) live with those types.
 
+### `@workglow/web-search`
+
+`WebSearchTask` plus a provider registry. One normalized shape serves both plain search APIs
+and model-grounded search: `results` is always present (for a grounded provider these are its
+citations), and `answer` only from providers that synthesize one.
+
+**Server-side only.** Every commercial search API authenticates with a request header, which
+forces a CORS preflight none of them answer, and a browser-executed search would expose the
+key to any visitor. The browser entry registers the **task** (so a builder UI can render and
+validate the node) and **no providers**; running it there throws from the registry.
+
+Providers declare a `WebSearchCapabilities` record and the task enforces it. `domainFilter` is
+three-valued — `"native"`, `"query-operator"` (the task rewrites the query with `site:`), or
+`false`. `excludeDomainFilter` defaults to `domainFilter` and exists because OpenAI's
+`web_search` takes `filters.allowed_domains` with no blocked equivalent; `exclusiveDomainDirections`
+exists because Anthropic's takes one list or the other, never both. Over-declaring is the
+failure the whole record prevents: `"auto"` would route an option to a provider that cannot
+honor it and the adapter would throw after selection rather than before.
+
+Date filtering is **never emulated** — post-filtering by `publishedDate` breaks `maxResults`
+and drops every result whose date the provider omitted, so `dateFilter: false` means such a
+request is refused rather than approximated. The other half of that rule is that a provider
+declaring `dateFilter: true` has to send something for every range this task accepts: both
+Brave's `freshness` and Gemini's `timeRangeFilter` take a closed interval, so a half-open
+range is filled at the open end. Dropping it reports a bound as honored on a search that ran
+unfiltered, which is worse than refusing the request.
+
+A domain entry naming no domain is refused for the same reason, and for **every** provider
+rather than only the ones translating to `site:`. An entry cannot be empty or carry
+whitespace, parentheses or quotes — a host cannot contain them, so such a value is not a
+malformed domain but a value the caller did not mean (most often a list pasted into one
+entry), and there is no portable `site:` quoting to rescue it with anyway. Dropping it
+silently is the same trade the date rule refuses, one step worse: the `site:` translation
+emits no clause for an empty list and the task clears the list afterwards, so one bad entry
+in a single-entry list removes the restriction from both paths and the search runs across the
+whole web, succeeds, and reports nothing. Validating for every provider is what keeps the
+same entry from being refused on one route and forwarded verbatim to a vendor API on another.
+`queryOperators` keeps filtering as a backstop, so no future call site can splice a value
+that restructures a query.
+
+`provider` is a required input with no default, mirroring `response_type` on `FetchUrlTask` —
+which provider serves a request decides its cost, rate limit and quality. `"auto"` opts into
+capability routing; the provider that ran is always reported on the `provider` output port. A
+**pinned** provider that cannot honor an option throws rather than rerouting.
+
+**A credential is named for a provider, never for the request.** `credential_keys` maps
+provider name → credential-store key, and the key sent is the one named for the provider that
+runs, so a key issued for one vendor cannot reach another; routing prefers a provider a key is
+named for, since naming one states which vendors the caller holds a key for. The single
+`credential_key` port stays for a pinned provider, where the vendor is unambiguous, and is
+refused with `"auto"` — routing picks the vendor at run time, so an unnamed key would go
+wherever it landed. `scanGraphForCredentials` reads the map through its `additionalProperties`
+value schema, which is what still unlocks the store for the run.
+
+Seven providers ship: `brave`, `tavily`, `searxng` here; `anthropic`, `openai`, `openrouter`,
+`gemini` as a `./web-search` subpath on their vendor package, registered explicitly
+(`registerAnthropicWebSearchProvider()` and friends) rather than on import. **No provider
+auto-registers, the three built-ins included**: `node.ts` registers the task class and
+nothing else, and the host states which providers exist by calling
+`registerBuiltInWebSearchProviders()` or `registerWebSearchProvider()`. Registering on
+import would put Brave in front of `"auto"` routing in an app that only imported
+`@workglow/anthropic/web-search`, and stand a SearXNG instance up from an environment
+variable nobody read.
+
+HTTP adapters (Brave, Tavily, SearXNG) execute by **owning a `FetchUrlTask`**, inheriting
+credential resolution via `credential_key`, SafeFetch's redirect/SSRF checks, retry/backoff,
+per-attempt timeouts and the response cache. They do **not** inherit the queue's rate limiter:
+`FetchUrlTask` refuses `credential_key` on the queued path (a queued payload is persisted,
+secret included), so every keyed provider runs inline, and bounding a `MapTask` fan-out against
+a metered quota is the caller's job. The grounded adapters live in their vendor packages and
+use the vendor SDK, which is what keeps this package free of any dependency on `@workglow/ai`.
+Each hands `context.signal` to the SDK call, not just to a `throwIfAborted()` before it —
+otherwise an aborted run leaves a grounded turn in flight and pays for it.
+
+Two Anthropic-specific traps the adapter handles: a `web_search_tool_result` block carries a
+**list** on success and an error **object** on failure — at HTTP 200, raising nothing — so
+reading it unbranched records a quota failure as a search that found nothing; and a
+server-tool turn can stop with `stop_reason: "pause_turn"`, which must be resumed by pushing
+the paused assistant content back or the answer is silently truncated.
+
+Port-crossing types (`SearchResult`, `WebSearchUsage`, `WebSearchTaskOutput`) are `type`
+aliases, not interfaces: TypeScript gives an alias an implicit index signature and an interface
+none, so the interface form is not assignable to the `DataPorts` constraint `Task` imposes.
+
+Only SearXNG needs no API key and has no quota, so it is the only one whose integration test
+runs unmocked (`.integration.test.ts`, skipped unless `WEB_SEARCH_SEARXNG_URL` is set).
+
 ### `providers/*`
 
 Standalone packages with optional peer deps, each exposing `./ai` (main thread) and
@@ -290,9 +381,38 @@ terminal runs. Three load-bearing properties:
   ship, no plugin loader. Annotation patterns match a command path (`"*"` = one segment,
   trailing `"**"` = the rest); the more literal pattern wins per key. A field widget's
   `search` receives the rest of the form (`WebFieldWidgetContext`), which is what makes a
-  scoped picker possible. `PanelData` covers `table` (with per-row tones), `kv`, `stats`,
+  scoped picker possible. A command annotation also states what an `all`-style command
+  **runs** — its siblings, in order — and `annotateCommandTree` stamps both sides of that
+  from the one declaration: each member's step, and the siblings the `all` leaves out,
+  since `all` is a name that routinely covers less than the group it sits in.
+  `PanelData` covers `table` (with per-row tones), `kv`, `stats`,
   `timeline`, `markdown`, `empty` and `error`; a status widget contributes meters **or** text
   lines, since most of what an operator checks has no denominator to draw a bar against.
+
+`workglow mcp serve` is the second server the CLI hosts: the registered tasks offered to
+MCP clients as tools, one per task type, named for the registered type itself (`task list`
+prints the same types with the `Task` suffix trimmed) and carrying the
+task's own input schema. It **requires a bearer token by default** — generated per process
+and printed with a ready-made client config, pinnable through `WORKGLOW_MCP_TOKEN` or
+`--token` for a config that must survive a restart, and droppable only by saying `--no-auth`
+out loud. Loopback by default for the same reason the console is.
+
+A task that asks a person asks the MCP client, not the terminal: each tool call runs
+against a child registry carrying an `McpElicitationConnector` bound to that call. Bound
+per call rather than per process because the connector answers on one call's stream —
+and because `relatedRequestId` is what puts the elicitation on that stream at all. Without
+it the request rides the session's standalone SSE stream, which the spec leaves optional,
+and a client that never opened one has it dropped silently while the task waits forever.
+`elicitation.test.ts` pins this with a hand-rolled client, since the SDK's opens that
+stream eagerly and so cannot tell the two apart.
+
+**The parts of it worth sharing are not here.** `@workglow/mcp/server` holds them, because
+builder and embarc want the same server without the CLI around it: `createTaskMcpServer`
+(the tool surface, over any transport), `startMcpHttpServer` (`node:http`),
+`McpSessionRouter` (the Streamable HTTP session map, for a host that already has a web
+framework) and `authorizeBearer`. It is built on the SDK's low-level `Server` rather than
+`McpServer` because tasks describe themselves in JSON Schema and `registerTool` takes only
+Zod — going through it would mean converting a schema to Zod and back to publish it.
 
 **A downstream CLI reuses this, it does not copy it.** `runWorkglowCli()`
 (`src/bootstrap.ts`, exported from `lib.ts`) is the entire body of the `workglow` binary
@@ -358,6 +478,15 @@ the same discovery the runner uses. Anything path-shaped in shared project optio
 package root and silently fails to load. `testDiscovery.test.ts` fails if a discovered
 test file falls outside every project root — such a file does not error, it just stops
 running.
+
+**Coverage** — vitest resolves every `@workglow/*` specifier to the package's `src`
+(`scripts/lib/workspaceSource.ts`), so a cross-package suite covers `packages/ai/src/**`
+and not `packages/ai/dist/node.js`. Resolution still goes through `exports`, so `dist`
+still has to exist: build, or `use-source`, first. Only the nightly workflow collects
+coverage (`WORKGLOW_COVERAGE=1`, unit + integration in one job, minus the sections that
+download models or call live APIs); `WORKGLOW_TEST_TARGET=dist` turns the rewrite off to
+exercise the bundles instead, and refuses coverage there. The include/exclude globs are
+repo-root-relative, so coverage and `--project` cannot be combined.
 
 ## Developing without building
 

@@ -6,8 +6,13 @@
 
 import type { ChunkRecord, ChunkSearchResult, KnowledgeBase } from "@workglow/knowledge-base";
 import { TypeKnowledgeBase } from "@workglow/knowledge-base";
-import type { IExecuteContext, IRunConfig, TaskConfig } from "@workglow/task-graph";
-import { CreateWorkflow, Task, Workflow } from "@workglow/task-graph";
+import type {
+  IExecuteContext,
+  IRunConfig,
+  TaskConfig,
+  TaskEntitlements,
+} from "@workglow/task-graph";
+import { CreateWorkflow, Entitlements, Task, Workflow } from "@workglow/task-graph";
 import type { DataPortSchema, TypedArray } from "@workglow/util/schema";
 import { isTypedArray, TypedArraySchema } from "@workglow/util/schema";
 import type { Capability } from "../capability/Capabilities";
@@ -233,6 +238,19 @@ export class ChunkRetrievalTask extends Task<
   public static override description =
     "End-to-end retrieval: embed query (if string) and search the knowledge base. Supports similarity and hybrid methods.";
   public static override cacheable = true;
+
+  /** Declared so a host can ask what this reaches before running it. */
+  public static override entitlements(): TaskEntitlements {
+    return {
+      entitlements: [
+        { id: Entitlements.STORAGE_READ, reason: "Searches chunks in a knowledge base" },
+        {
+          id: Entitlements.AI_INFERENCE,
+          reason: "Embeds the query through an owned embedding task",
+        },
+      ],
+    };
+  }
 
   public static override inputSchema(): DataPortSchema {
     return ChunkRetrievalInputSchema as DataPortSchema;

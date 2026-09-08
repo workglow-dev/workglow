@@ -8,6 +8,7 @@ import { describe } from "vitest";
 import { countMatchesQueryBlock } from "./assertions/countMatchesQuery";
 import { guardParityBlock } from "./assertions/guardParity";
 import { inListCriterionBlock } from "./assertions/inListCriterion";
+import { joinPushdownBlock } from "./assertions/joinPushdown";
 import { notInListCriterionBlock } from "./assertions/notInListCriterion";
 import { subscribeToChangesBlock } from "./assertions/subscribeToChanges";
 import { vectorColumnFormatBlock } from "./assertions/vectorColumnFormat";
@@ -24,6 +25,7 @@ export function runTabularStorageContract(opts: TabularStorageContractOpts): voi
     countMatchesQueryBlock(opts);
     inListCriterionBlock(opts);
     notInListCriterionBlock(opts);
+    joinPushdownBlock(opts);
     guardParityBlock(opts);
   });
 }

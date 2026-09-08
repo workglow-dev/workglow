@@ -10,10 +10,17 @@ import type {
   CachePolicy,
   IExecuteContext,
   StreamEvent,
+  TaskEntitlements,
   TaskInput,
   Usage,
 } from "@workglow/task-graph";
-import { mergeUsage, TaskConfigSchema, USAGE_OUTPUT_KEY } from "@workglow/task-graph";
+import {
+  Entitlements,
+  TaskConfigSchema,
+  USAGE_OUTPUT_KEY,
+  mergeEntitlements,
+  mergeUsage,
+} from "@workglow/task-graph";
 import type { IHumanRequest } from "@workglow/util";
 import { DEFAULT_LIMITS, resolveHumanConnector } from "@workglow/util";
 import type { DataPortSchema } from "@workglow/util/schema";
@@ -352,6 +359,15 @@ export class AiChatWithKbTask extends StreamingAiTask<
       },
       additionalProperties: false,
     } as const satisfies DataPortSchema;
+  }
+
+  /** Reaches a knowledge base on top of the inference its base class declares. */
+  public static override entitlements(): TaskEntitlements {
+    return mergeEntitlements(super.entitlements(), {
+      entitlements: [
+        { id: Entitlements.STORAGE_READ, reason: "Reads chunks from a knowledge base for context" },
+      ],
+    });
   }
 
   public static override inputSchema(): DataPortSchema {

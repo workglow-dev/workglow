@@ -17,6 +17,7 @@ import type {
   RunTabularMigrationsOptions,
 } from "../migrations";
 import { runTabularMigrations } from "../migrations";
+import { isNullableSchema } from "./columnConstraints";
 import { CoveringIndexMissingError } from "./CoveringIndexMissingError";
 import type { CursorPayload, PageCursor } from "./Cursor";
 import type {
@@ -26,6 +27,9 @@ import type {
   DeleteSearchCriteria,
   InsertEntity,
   ITabularStorage,
+  JoinedRow,
+  JoinSpec,
+  JoinType,
   OrderBy,
   Page,
   PageRequest,
@@ -40,7 +44,9 @@ import type {
   TabularSubscribeOptions,
   ValueOptionType,
 } from "./ITabularStorage";
+import { runHashJoin } from "./hashJoin";
 import { isSearchCondition, isSearchInCondition, isSearchNotInCondition } from "./ITabularStorage";
+import { resolveJoinDelegate } from "./joinDelegate";
 import type { KeysetPageDeps } from "./keysetPage";
 import {
   applyKeysetFilter,
@@ -65,6 +71,7 @@ import {
   criteriaMatchNoRow,
   shouldRunDeleteSearch,
   validateGetAllOptions,
+  validateJoinSpec,
   validateOrderBy,
   validatePageRequest,
   validateQueryParams,
@@ -301,6 +308,63 @@ export abstract class BaseTabularStorage<
       ...options.select.map(String),
     ];
     throw new CoveringIndexMissingError(this.constructor.name, requiredColumns, []);
+  }
+
+  /**
+   * Default join: an application-side hash join over `query` and the `in`
+   * criterion (see {@link runHashJoin}). Every backend inherits it; the SQL
+   * backends override it with a single `JOIN` statement when both tables sit
+   * on one connection. The callbacks are bound to `this`, so a subclass's own
+   * `query` / `getAll` (mutex, transaction routing) still runs underneath.
+   *
+   * The right side is unwrapped through any chain of delegating wrappers
+   * ({@link resolveJoinDelegate}) before anything reads it, so a join whose
+   * left side is a plain storage and whose right side is wrapped still reads
+   * both halves from the same place. A wrapper that must stay in the path —
+   * one that scopes what the join may see — does not delegate, and survives.
+   */
+  async join<R, T extends JoinType>(
+    spec: JoinSpec<Entity, R, T>,
+    right: ITabularStorage<any, any, R, any, any>
+  ): Promise<JoinedRow<Entity, R, T>[]> {
+    const target = resolveJoinDelegate(right) as ITabularStorage<any, any, R, any, any>;
+    this.validateJoinSpec(spec, target);
+    return runHashJoin<Entity, R, T>(
+      {
+        leftQuery: (criteria, options) => this.query(criteria, options),
+        leftGetAll: (options) => this.getAll(options),
+        rightQuery: (criteria) => target.query(criteria),
+        leftColumnIsNullable: (column) => this.columnIsNullable(column),
+      },
+      spec
+    );
+  }
+
+  /**
+   * Whether `column` may hold null — either it is absent from `required` or
+   * its schema admits the null type.
+   */
+  protected columnIsNullable(column: string): boolean {
+    const typeDef = this.schema.properties[column];
+    if (typeDef === undefined) return true;
+    const required = this.schema.required;
+    if (!Array.isArray(required) || !required.includes(column)) return true;
+    return isNullableSchema(typeDef);
+  }
+
+  /**
+   * Validates a join spec against this schema and, when the right storage
+   * exposes one, against its schema too.
+   */
+  protected validateJoinSpec<R>(
+    spec: JoinSpec<Entity, R>,
+    right: ITabularStorage<any, any, R, any, any>
+  ): void {
+    const rightProperties =
+      right instanceof BaseTabularStorage
+        ? (right.schema.properties as Record<string, unknown>)
+        : undefined;
+    validateJoinSpec(this.schema.properties as Record<string, unknown>, rightProperties, spec);
   }
 
   abstract getOffsetPage(offset: number, limit: number): Promise<Entity[] | undefined>;

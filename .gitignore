@@ -25,3 +25,6 @@ models/
 .worktrees/
 scratch/
 .claude/worktrees/
+
+# Coverage output (nightly workflow; `--coverage` locally)
+coverage/

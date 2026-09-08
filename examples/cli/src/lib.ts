@@ -6,6 +6,12 @@
 
 export { runWorkglowCli, type WorkglowCliOptions } from "./bootstrap";
 export {
+  DEFAULT_MCP_HOST,
+  DEFAULT_MCP_PORT,
+  MCP_TOKEN_ENV,
+  registerMcpServeCommand,
+} from "./commands/mcpServe";
+export {
   DEFAULT_WEB_HOST,
   DEFAULT_WEB_PORT,
   registerWebCommand,
@@ -39,6 +45,7 @@ export {
   type WebCommandAnnotation,
   type WebCommandBadge,
   type WebFieldAnnotation,
+  type WebRunsMember,
   type WebTone,
 } from "./web/annotations";
 export type { WebInvocation } from "./web/argv";
@@ -48,7 +55,13 @@ export {
   type CommandSchemaProvider,
   type WebField,
 } from "./web/commandFields";
-export { buildCommandTree, findCommandNode, type WebCommandNode } from "./web/commandTree";
+export {
+  buildCommandTree,
+  findCommandNode,
+  type WebCommandNode,
+  type WebRunsMembership,
+  type WebRunsOrder,
+} from "./web/commandTree";
 export {
   registerWebFieldWidget,
   registerWebPanel,
