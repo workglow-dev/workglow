@@ -52,6 +52,7 @@ import {
   type StackedPane,
 } from "./state";
 import { CommandTree } from "./views/CommandTree";
+import { GroupView } from "./views/GroupView";
 import { HumanPrompt } from "./views/HumanPrompt";
 import { OptionsForm } from "./views/OptionsForm";
 import { RailResizer } from "./views/RailResizer";
@@ -223,6 +224,13 @@ function App(): JSX.Element {
       setPane(stackedPane("select"));
       setTab("options");
       setOpen((current) => new Set([...current, ...openPathsFor(next.path)]));
+      // A group has no action, so there is no form to ask the CLI for — and
+      // the previous command's fields must not survive behind its page.
+      if (next.children.length > 0) {
+        setFields([]);
+        setValues({});
+        return;
+      }
       void getFields(next.path, [])
         .then((result) => {
           setFields(result.fields);
@@ -231,6 +239,22 @@ function App(): JSX.Element {
         .catch((cause: Error) => setError(cause.message));
     },
     [detachRun, node]
+  );
+
+  /**
+   * Selecting from a group's page rather than the rail. Same selection, plus
+   * the rail opens the subtree it just moved into — clicked in the rail that
+   * is what the row's own caret did, and following a link should not leave the
+   * tree pointing somewhere else.
+   */
+  const selectChild = useCallback(
+    (next: WebCommandNode) => {
+      selectNode(next);
+      if (next.children.length > 0) {
+        setOpen((current) => new Set([...current, next.path.join(".")]));
+      }
+    },
+    [selectNode]
   );
 
   /**
@@ -344,7 +368,9 @@ function App(): JSX.Element {
 
   const onRun = useCallback(
     (dryRun: boolean) => {
-      if (!node) return;
+      // A group is selectable — it is a page — but it has no action behind it,
+      // and the Enter shortcut reaches it with no button to have said so.
+      if (!node || node.children.length > 0) return;
       // Guarded here as well as on the button: Run also has a keyboard path,
       // and a request to a dead CLI fails as an unexplained network error.
       if (!cli.online) return;
@@ -600,7 +626,14 @@ function App(): JSX.Element {
               }}
             />
           ) : null}
-          {tab === "options" && node ? (
+          {tab === "options" && node && node.children.length > 0 ? (
+            // Read back off the full tree, not the selected object: the rail
+            // hands over the node it drew, and while a filter is on that node
+            // is pruned to the matches — a group's page lists what is under
+            // the group, not what someone last typed in the box.
+            <GroupView node={findCommandNode(commands, node.path) ?? node} onSelect={selectChild} />
+          ) : null}
+          {tab === "options" && node && node.children.length === 0 ? (
             <OptionsForm
               binaryName={binaryName}
               path={node.path}
@@ -610,6 +643,8 @@ function App(): JSX.Element {
               errors={errors}
               badges={node.badges}
               note={node.note}
+              runsInOrder={node.runsInOrder}
+              runsIn={node.runsIn}
               onChange={onFieldChange}
               onRun={onRun}
               canRun={cli.online}

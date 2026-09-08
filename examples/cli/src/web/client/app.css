@@ -345,8 +345,10 @@ textarea {
   color: var(--accent-2);
   font-weight: 600;
 }
-/* The name is the thing being chosen: it never wraps or truncates. The
-   description is the concession — it takes what is left and ellipsizes. */
+/* The name is the whole row in the rail: it never wraps or truncates, and the
+   badges take the space after it. `.cmd-d` is the second column the same row
+   shape gets in a picker's result list, where the detail beside a label is the
+   point — it takes what is left and ellipsizes. */
 .cmd-n {
   font-family: var(--mono);
   font-size: var(--fs-12);
@@ -366,6 +368,13 @@ textarea {
   flex: none;
   margin-left: auto;
 }
+/* The `all` marker and the cost badges are two groups on one row, and two auto
+   margins split the free space between them — which staggers the marker down
+   the rail. Only the first takes the space; the rest close up behind it, so
+   every chip on every row lands in one right-hand cluster. */
+.cmd .badges ~ .badges {
+  margin-left: 0;
+}
 .grp-h {
   background: none;
   border: 0;
@@ -375,6 +384,11 @@ textarea {
 }
 .grp-h:hover {
   color: var(--ink-2);
+}
+/* A group heading is selectable too — it opens the group's own page — so it
+   says when it is the thing on screen, in the accent the rows use. */
+.grp-h[aria-current="true"] {
+  color: var(--accent-2);
 }
 .caret {
   font-family: var(--mono);
@@ -716,6 +730,21 @@ h2.sec:first-child {
    does not need the full inter-section gap on top of the lede's own. */
 .lede + h2.sec {
   margin-top: 0;
+}
+
+/* A group's page lists its commands with the descriptions the rail has no room
+   for: the pane has the width, so a line wraps here instead of ellipsizing —
+   which is the whole reason the rail gave it up. The names take a common
+   minimum so the second column starts in one place. */
+.grouplist {
+  padding: 4px;
+}
+.grouplist .cmd-n {
+  min-width: 14ch;
+}
+.grouplist .cmd-d {
+  white-space: normal;
+  overflow: visible;
 }
 
 /* ---------- form ---------- */
@@ -1611,6 +1640,61 @@ pre.json .n {
   border-color: color-mix(in srgb, var(--fail) 45%, transparent);
   background: color-mix(in srgb, var(--fail) 10%, transparent);
   font-weight: 700;
+}
+/* Membership in an `all`, not a cost: outlined rather than filled, so it reads
+   beside the cost badges without competing with them. `partial` is the one an
+   operator has to look twice at — an `all` that leaves siblings out. */
+.cb-all {
+  color: var(--ink-2);
+  border-color: var(--line-2);
+  white-space: nowrap;
+}
+.cb-all.partial {
+  color: var(--run);
+  border-color: color-mix(in srgb, var(--run) 40%, transparent);
+}
+
+/* The order behind that marker, spelled out where the Run button is. */
+.plan {
+  margin-bottom: 14px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--sunk);
+  font-size: var(--fs-12);
+  color: var(--ink-2);
+}
+/* Not the uppercase rail heading: it names commands, and a command spelled in
+   capitals is not the command anyone types. */
+.plan h3 {
+  margin: 0;
+  font-size: var(--fs-12);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.plan ol {
+  margin: 6px 0 0;
+  padding-left: 20px;
+}
+.plan li {
+  margin: 1px 0;
+}
+.plan code {
+  font-family: var(--mono);
+  font-size: var(--fs-11);
+  color: var(--ink);
+}
+.plan .when {
+  margin-left: 6px;
+  color: var(--ink-3);
+  font-size: var(--fs-11);
+}
+.plan .skipped {
+  margin: 6px 0 0;
+  color: var(--ink-3);
+}
+.plan .skipped code {
+  color: var(--ink-2);
 }
 
 .cnote {

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { WebCommandNode } from "./commandTree";
+import type { WebCommandNode, WebRunsMembership, WebRunsOrder } from "./commandTree";
 
 /**
  * What a downstream package says ABOUT a command or a field it already has.
@@ -32,6 +32,22 @@ export type WebTone = "ok" | "warn" | "fail" | "info" | "idle";
 export const COMMAND_BADGES = ["ai", "network", "slow", "writes", "destructive"] as const;
 export type WebCommandBadge = (typeof COMMAND_BADGES)[number];
 
+/**
+ * One sibling an `all`-style command runs, in the position it runs it.
+ *
+ * `name` is the sibling's own command name, as the tree shows it — not a path:
+ * an `all` runs what sits beside it, and nothing else can be named here.
+ */
+export interface WebRunsMember {
+  readonly name: string;
+  /**
+   * The condition, in one phrase, when this member does not run every time —
+   * `"only with --download-docs"`, `"unless --skip-ingest"`. Undefined means it
+   * always runs.
+   */
+  readonly when?: string;
+}
+
 export interface WebCommandAnnotation {
   /**
    * Command path to match. A `"*"` segment matches exactly one segment and a
@@ -52,6 +68,20 @@ export interface WebCommandAnnotation {
    * `ai` badge instead; a dialog on every extraction is a dialog nobody reads.
    */
   readonly confirm?: string;
+  /**
+   * The siblings this command runs, in the order it runs them.
+   *
+   * Declared on the `all` itself and stamped onto both sides by
+   * {@link annotateCommandTree}, which is what keeps the two readings of one
+   * fact from drifting: the members are told which step of which `all` they
+   * are, and the `all` is told which siblings it leaves out.
+   *
+   * That last half is the reason this exists. `all` reads as "everything
+   * listed here" and routinely is not — `sync all` skips the ad-hoc sweeper
+   * beside it — and commander carries nothing that says so, so the console
+   * offered a button whose scope could only be learned by reading the source.
+   */
+  readonly runs?: readonly WebRunsMember[];
 }
 
 export interface WebFieldAnnotation {
@@ -137,21 +167,27 @@ export function registerCommandFieldAnnotations(annotations: CommandFieldAnnotat
   else fieldAnnotations.push(annotations);
 }
 
-/** The badges, note and confirmation that apply to one command path. */
+/** The badges, note, confirmation and run order that apply to one command path. */
 export function resolveCommandAnnotation(path: readonly string[]): {
   readonly badges: readonly WebCommandBadge[];
   readonly note: string | undefined;
   readonly confirm: string | undefined;
+  readonly runs: readonly WebRunsMember[] | undefined;
 } {
   const badges = new Set<WebCommandBadge>();
   let note: string | undefined;
   let confirm: string | undefined;
+  // Not unioned the way badges are: an order is one statement about one
+  // command, and merging a group's with a leaf's would invent a sequence
+  // nothing runs. The most specific annotation wins outright.
+  let runs: readonly WebRunsMember[] | undefined;
   for (const annotation of matching(commandAnnotations, path)) {
     for (const badge of annotation.badges ?? []) badges.add(badge);
     if (annotation.note !== undefined) note = annotation.note;
     if (annotation.confirm !== undefined) confirm = annotation.confirm;
+    if (annotation.runs !== undefined) runs = annotation.runs;
   }
-  return { badges: [...badges], note, confirm };
+  return { badges: [...badges], note, confirm, runs };
 }
 
 /** The annotations for one command's fields, keyed by field key. */
@@ -168,19 +204,83 @@ export function resolveFieldAnnotations(
 }
 
 /**
+ * The siblings an `all` runs, and the ones it does not — its own half.
+ *
+ * A member naming no sibling — a command since renamed or removed — stays in
+ * the order, where it reads as a step that runs nothing rather than vanishing,
+ * and is named in `unrunMembers` for a guard test to assert is empty.
+ */
+function runOrderAmong(
+  runner: WebCommandNode,
+  siblings: readonly WebCommandNode[],
+  runs: readonly WebRunsMember[]
+): WebRunsOrder {
+  const named = new Set(runs.map((member) => member.name));
+  return {
+    members: runs,
+    skipped: siblings
+      .filter((sibling) => sibling.name !== runner.name && !named.has(sibling.name))
+      .map((sibling) => sibling.name),
+    unrunMembers: runs
+      .filter((member) => !siblings.some((sibling) => sibling.name === member.name))
+      .map((member) => member.name),
+  };
+}
+
+/**
+ * What each command in one sibling set is told about the `all` that runs it.
+ *
+ * Read off the same declaration the `all` carries, so what a member says and
+ * what the `all` counts cannot disagree — `skipped` travels with each member
+ * for that reason: whether membership is worth marking at all depends on
+ * whether anything beside it is left out, which no member can see for itself.
+ */
+function membershipsAmong(
+  siblings: readonly WebCommandNode[]
+): ReadonlyMap<string, WebRunsMembership> {
+  const memberships = new Map<string, WebRunsMembership>();
+  const names = new Set(siblings.map((sibling) => sibling.name));
+  for (const runner of siblings) {
+    const { runs } = resolveCommandAnnotation(runner.path);
+    if (runs === undefined) continue;
+    const skipped = runOrderAmong(runner, siblings, runs).skipped.length;
+    runs.forEach((member, index) => {
+      // Numbered from the declaration, so a member that names nothing still
+      // costs its position rather than renumbering the ones behind it.
+      if (!names.has(member.name) || member.name === runner.name) return;
+      memberships.set(member.name, {
+        command: runner.name,
+        step: index + 1,
+        of: runs.length,
+        skipped,
+        ...(member.when !== undefined ? { when: member.when } : {}),
+      });
+    });
+  }
+  return memberships;
+}
+
+/**
  * Decorates a command tree with its annotations, in place of the caller
  * walking it. Applied where the tree is served rather than where it is built,
  * so `buildCommandTree` stays a pure reading of the commander program.
  */
 export function annotateCommandTree(nodes: readonly WebCommandNode[]): readonly WebCommandNode[] {
+  // One sibling set at a time, because an `all` is a statement about the
+  // commands beside it: the member rows are stamped from the runner's own
+  // declaration, which no per-node walk could reach.
+  const memberships = membershipsAmong(nodes);
   return nodes.map((node) => {
-    const { badges, note, confirm } = resolveCommandAnnotation(node.path);
+    const { badges, note, confirm, runs } = resolveCommandAnnotation(node.path);
+    const membership = memberships.get(node.name);
     return {
       ...node,
       children: annotateCommandTree(node.children),
       ...(badges.length > 0 ? { badges } : {}),
       ...(note !== undefined ? { note } : {}),
       ...(confirm !== undefined ? { confirm } : {}),
+      ...(runs !== undefined ? { runsInOrder: runOrderAmong(node, nodes, runs) } : {}),
+      ...(membership !== undefined ? { runsIn: membership } : {}),
     };
   });
 }

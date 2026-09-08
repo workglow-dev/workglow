@@ -39,6 +39,7 @@ export {
   type WebCommandAnnotation,
   type WebCommandBadge,
   type WebFieldAnnotation,
+  type WebRunsMember,
   type WebTone,
 } from "./web/annotations";
 export type { WebInvocation } from "./web/argv";
@@ -48,7 +49,13 @@ export {
   type CommandSchemaProvider,
   type WebField,
 } from "./web/commandFields";
-export { buildCommandTree, findCommandNode, type WebCommandNode } from "./web/commandTree";
+export {
+  buildCommandTree,
+  findCommandNode,
+  type WebCommandNode,
+  type WebRunsMembership,
+  type WebRunsOrder,
+} from "./web/commandTree";
 export {
   registerWebFieldWidget,
   registerWebPanel,

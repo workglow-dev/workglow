@@ -290,7 +290,11 @@ terminal runs. Three load-bearing properties:
   ship, no plugin loader. Annotation patterns match a command path (`"*"` = one segment,
   trailing `"**"` = the rest); the more literal pattern wins per key. A field widget's
   `search` receives the rest of the form (`WebFieldWidgetContext`), which is what makes a
-  scoped picker possible. `PanelData` covers `table` (with per-row tones), `kv`, `stats`,
+  scoped picker possible. A command annotation also states what an `all`-style command
+  **runs** — its siblings, in order — and `annotateCommandTree` stamps both sides of that
+  from the one declaration: each member's step, and the siblings the `all` leaves out,
+  since `all` is a name that routinely covers less than the group it sits in.
+  `PanelData` covers `table` (with per-row tones), `kv`, `stats`,
   `timeline`, `markdown`, `empty` and `error`; a status widget contributes meters **or** text
   lines, since most of what an operator checks has no denominator to draw a bar against.
 
