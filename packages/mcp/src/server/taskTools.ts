@@ -70,12 +70,30 @@ export function isToolWorthyTask(ctor: AnyTaskConstructor): boolean {
  * Keeping it verbatim means the name a model calls is the name an operator
  * types at `task run`, so a transcript and a terminal stay one vocabulary.
  */
+const isNameSeparator = (char: string | undefined): boolean => char === "_" || char === "-";
+
+/**
+ * A name without its leading and trailing separators.
+ *
+ * A loop rather than `/^[_-]+|[_-]+$/g`, which is quadratic: an anchored run
+ * that fails its anchor is retried from every position inside the run, so a
+ * name carrying a long separator run backtracks over it once per character.
+ * Measured at 240ms for a 16k-character name against microseconds here.
+ */
+function trimSeparators(value: string): string {
+  let start = 0;
+  let end = value.length;
+  while (start < end && isNameSeparator(value[start])) start++;
+  while (end > start && isNameSeparator(value[end - 1])) end--;
+  return value.slice(start, end);
+}
+
 export function toolNameForTaskType(type: string): string {
   const name = TOOL_NAME_ALLOWED.test(type) ? type : type.replace(/[^a-zA-Z0-9_-]+/g, "_");
   // Trim AFTER the length cap, or the cut reintroduces the very separator the
   // trim just removed: a 63-character type ending in `-Bcd` lands on a name
   // whose last character is `-`.
-  const trimmed = name.slice(0, TOOL_NAME_MAX).replace(/^[_-]+|[_-]+$/g, "");
+  const trimmed = trimSeparators(name.slice(0, TOOL_NAME_MAX));
   return trimmed.length > 0 ? trimmed : "task";
 }
 

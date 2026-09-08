@@ -37,6 +37,21 @@ describe("readBearerToken", () => {
     expect(readBearerToken("  Bearer \t abc123  ")).toBe("abc123");
   });
 
+  it("needs a space or tab between the scheme and the credential", () => {
+    expect(readBearerToken("Bearerabc123")).toBeUndefined();
+  });
+
+  it("stays linear on a header built to make a regex backtrack", () => {
+    // `/^bearer[ \t]+(.+)$/i` re-split this at every position between the
+    // separator run and the credential: 380ms at Node's 16 KB header cap, and
+    // growing with the square. The bound is four orders of magnitude clear of
+    // the linear cost, so it fails only on a genuine reintroduction.
+    const hostile = `bearer${"\t".repeat(200_000)}\nx`;
+    const started = performance.now();
+    expect(readBearerToken(hostile)).toBeUndefined();
+    expect(performance.now() - started).toBeLessThan(2000);
+  });
+
   it("is undefined for another scheme, an empty credential or no header", () => {
     expect(readBearerToken("Basic abc123")).toBeUndefined();
     expect(readBearerToken("Bearer")).toBeUndefined();

@@ -20,17 +20,41 @@ export function generateBearerToken(): string {
   return randomBytes(TOKEN_BYTES).toString("base64url");
 }
 
+/** The only auth scheme this server answers to, lower-cased for comparison. */
+const BEARER_SCHEME = "bearer";
+
+/** A bare character class, so scanning for one cannot backtrack. */
+const LINE_TERMINATOR = /[\n\r\u2028\u2029]/;
+
 /**
  * The credential out of an `Authorization` header, or `undefined` when the
  * header is absent or names another scheme.
  *
  * The scheme is matched case-insensitively because RFC 9110 says it is; a
  * client sending `bearer` is not making a mistake worth a 401 nobody can read.
+ *
+ * Spelled out rather than as `/^bearer[ \t]+(.+)$/i`, which is quadratic on
+ * this input: the separator run and the credential can both match a tab, so a
+ * header the pattern ultimately rejects is re-split at every position between
+ * them. Measured at 380ms for a 16 KB header — which is exactly Node's default
+ * header cap — against microseconds here.
  */
 export function readBearerToken(header: string | undefined): string | undefined {
   if (!header) return undefined;
-  const match = /^bearer[ \t]+(.+)$/i.exec(header.trim());
-  return match ? match[1].trim() : undefined;
+  const value = header.trim();
+  if (value.length <= BEARER_SCHEME.length) return undefined;
+  if (value.slice(0, BEARER_SCHEME.length).toLowerCase() !== BEARER_SCHEME) return undefined;
+  // RFC 9110 puts at least one space or tab between the scheme and the
+  // credential, so `Bearerabc` names no scheme this server knows.
+  const separator = value[BEARER_SCHEME.length];
+  if (separator !== " " && separator !== "\t") return undefined;
+  const credential = value.slice(BEARER_SCHEME.length + 1);
+  // The `.` this replaced never matched a line terminator, so a header
+  // carrying one named no credential. A header value cannot legally hold one
+  // anyway; rejecting keeps the old reading rather than trimming it away.
+  if (LINE_TERMINATOR.test(credential)) return undefined;
+  const token = credential.trim();
+  return token.length > 0 ? token : undefined;
 }
 
 /** Compares two tokens without leaking their common prefix through timing. */

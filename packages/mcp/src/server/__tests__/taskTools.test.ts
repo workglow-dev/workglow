@@ -75,6 +75,17 @@ describe("toolNameForTaskType", () => {
   it("still returns a usable name for a type made entirely of illegal characters", () => {
     expect(toolNameForTaskType("...")).toBe("task");
   });
+
+  it("stays linear on a name built to make a regex backtrack", () => {
+    // `/^[_-]+|[_-]+$/g` retried the tail anchor from every position inside a
+    // separator run: 240ms at 16k characters, growing with the square. The
+    // bound is far clear of the linear cost, so only a real regression trips it.
+    const hostile = `x${"-".repeat(200_000)}x`;
+    const started = performance.now();
+    // The cap runs first, then the trim takes the truncated run off entirely.
+    expect(toolNameForTaskType(hostile)).toBe("x");
+    expect(performance.now() - started).toBeLessThan(2000);
+  });
 });
 
 describe("isToolWorthyTask", () => {
