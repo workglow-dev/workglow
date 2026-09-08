@@ -4,7 +4,6 @@
     "typescript/unbound-method": 62,
     "typescript/restrict-template-expressions": 56,
     "typescript/no-floating-promises": 56,
-    "typescript/no-redundant-type-constituents": 35,
-    "typescript/require-array-sort-compare": 7
+    "typescript/no-redundant-type-constituents": 35
   }
 }

@@ -109,7 +109,7 @@
     "typescript/restrict-template-expressions": "off", // budgeted
     "typescript/no-redundant-type-constituents": "off", // budgeted
     "typescript/await-thenable": "error",
-    "typescript/require-array-sort-compare": "off", // budgeted
+    "typescript/require-array-sort-compare": "error",
     "typescript/no-useless-default-assignment": "error",
     "typescript/no-misused-spread": "error",
     // 9 findings, all "explicit undefined is unnecessary on an optional

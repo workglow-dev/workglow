@@ -82,7 +82,9 @@ export function subscribeToChangesBlock(opts: TabularStorageContractOpts): void 
           // Polling diffs a snapshot: every write must be visible exactly once,
           // but commit order is unspecified.
           expect(writeEvents.length).toBe(3);
-          const options = writeEvents.map((e) => e.new?.option).sort();
+          const options = writeEvents
+            .map((e) => e.new?.option)
+            .sort((a, b) => String(a).localeCompare(String(b)));
           expect(options).toEqual(["v1", "v2", "v3"]);
 
           unsubscribe();
