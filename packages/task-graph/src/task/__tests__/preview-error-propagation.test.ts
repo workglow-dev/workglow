@@ -24,7 +24,13 @@ class ThrowingPreviewTask extends Task<{ a?: string }, { a?: string }, TaskConfi
   public static override outputSchema(): DataPortSchema {
     return schema;
   }
-  override async executePreview(_input: { a?: string }, _ctx: IExecutePreviewContext) {
+  // The return type is annotated rather than inferred: a body that only throws
+  // infers `Promise<void>`, which does not satisfy the base class's
+  // `Promise<Output | undefined>`.
+  override async executePreview(
+    _input: { a?: string },
+    _ctx: IExecutePreviewContext
+  ): Promise<{ a?: string } | undefined> {
     throw new Error("preview blew up");
   }
 }
