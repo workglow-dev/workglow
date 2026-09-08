@@ -88,13 +88,16 @@ Each package builds two runtime targets via `bun build --target=X`:
 re-exported by both. Types via `tsc` (composite + incremental). Conditional `exports` in
 `package.json` resolve per runtime.
 
-**No `"bun"` export condition unless the Bun code genuinely differs** — without one, Bun
-resolves `"import"` and loads the node build. Adding one means a `src/bun.ts`, a
-`--target=bun` build and the export condition: a third bundle and a third `.d.ts` to keep in
-sync for no behavior change. Exactly two entries qualify today — `@workglow/util` `"."`
-(`Worker.bun` vs `Worker.node`) and `@workglow/util` `"./worker"` (`dist/worker-bun.js` vs
-`dist/worker-node.js`). `@workglow/sqlite` `"./storage"` was a third until both runtimes
-moved onto the shared `node:sqlite` driver. The set is pinned by
+**No `"bun"` export condition** — without one, Bun resolves `"import"` and loads the node
+build. Adding one means a `src/bun.ts`, a `--target=bun` build and the export condition: a
+third bundle and a third `.d.ts` to keep in sync for no behavior change. **Nothing in the
+monorepo qualifies today.** `@workglow/util`'s `"."` and `"./worker"` were the last two,
+for a `Worker.bun.ts` that was byte-identical to `Worker.browser.ts`; Bun implements
+`node:worker_threads` over the same primitive as its web `Worker`, so a thread spawned
+either way is reachable through `parentPort` and one `Worker.node.ts` serves Node and Bun
+both. `@workglow/sqlite` `"./storage"` had gone the same way earlier, onto the shared
+`node:sqlite` driver. The browser keeps its own build for the one reason Bun never had: a
+static `node:worker_threads` import cannot be bundled for it. The empty set is pinned by
 `packages/test/src/test/util/BunExportConditions.test.ts`, which fails until the fixture
 and this paragraph are updated together.
 
@@ -429,6 +432,17 @@ that cannot reach the CDN.
 `EventEmitter`, `ServiceRegistry` (DI), `DirectedAcyclicGraph`, `DataPortSchema`/`JsonSchema`,
 `SchemaUtils`/`SchemaValidation`, `uuid4`, `sleep`, `WorkerManager`/`WorkerServer`, vector
 math, tensor types.
+
+`WorkerManager` is written against the web `Worker` interface, and `Worker.node.ts` presents
+`node:worker_threads` through it. Two mismatches there are silent rather than loud, so leave
+the adaptation in place: `worker_threads` rejects a **stringified** `file://` URL
+(`ERR_WORKER_PATH`) while every call site passes `new URL(…, import.meta.url)`, and its
+`Worker` is an `EventEmitter`, so a `message` listener gets the deserialized value where
+`WorkerManager` reads `event.data`. A Node worker thread also has no global `postMessage` —
+only `parentPort` — which is why `WorkerServerBase` takes its sender as a `post` option
+rather than reaching for the global. `lib: ["dom"]` in the root tsconfig means none of the
+three typecheck as errors; `WorkerManager.roundtrip.test.ts` covers them over a real thread,
+under both runners.
 
 ### `@workglow/tasks`
 
