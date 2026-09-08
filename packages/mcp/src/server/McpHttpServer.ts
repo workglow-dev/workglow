@@ -6,7 +6,7 @@
 
 import type { Server as McpServerInstance } from "@modelcontextprotocol/sdk/server";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { isInitializeRequest } from "@modelcontextprotocol/sdk/types";
+import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import {
   createServer as createHttpServer,
   type IncomingMessage,
@@ -63,9 +63,36 @@ export interface McpHttpServerHandle {
 interface RequestContext {
   readonly path: string;
   readonly token: string | undefined;
-  readonly allowedHosts: ReadonlySet<string>;
+  /** `undefined` when no `Host` restriction applies — see {@link resolveAllowedHosts}. */
+  readonly allowedHosts: ReadonlySet<string> | undefined;
   readonly maxBodyBytes: number;
   readonly router: McpSessionRouter<StreamableHTTPServerTransport>;
+}
+
+/** A bind address that names no reachable host, so no allow-list follows from it. */
+function isWildcardHost(host: string): boolean {
+  return host === "" || host === "0.0.0.0" || host === "::" || host === "[::]";
+}
+
+/**
+ * The `Host` values to answer to, or `undefined` for "do not check".
+ *
+ * The check exists to stop DNS rebinding pointing a page on another site at a
+ * loopback server, and a loopback bind is the case it can actually decide. A
+ * wildcard bind is reachable under every name the machine answers to — its own
+ * hostname, a LAN address, whatever a reverse proxy passes through — and none
+ * of those are derivable from `0.0.0.0`. Deriving the list from the bind
+ * address anyway refused every real client of the exposure the operator had
+ * just asked for, so a wildcard bind checks nothing unless the host names the
+ * values itself.
+ */
+export function resolveAllowedHosts(
+  host: string,
+  extra: Iterable<string> | undefined
+): ReadonlySet<string> | undefined {
+  const named = [...(extra ?? [])].map((value) => value.toLowerCase());
+  if (isWildcardHost(host.toLowerCase()) && named.length === 0) return undefined;
+  return new Set([host.toLowerCase(), "localhost", "127.0.0.1", "[::1]", "::1", ...named]);
 }
 
 /**
@@ -97,16 +124,28 @@ function sendError(
   res.end(JSON.stringify({ jsonrpc: "2.0", error: { code, message }, id: null }));
 }
 
+/** Thrown only by the size cap, so a dropped connection is not reported as one. */
+class BodyTooLargeError extends Error {
+  constructor(limit: number) {
+    super(`request body exceeds ${limit} bytes`);
+    this.name = "BodyTooLargeError";
+  }
+}
+
 async function readBody(req: IncomingMessage, limit: number): Promise<string> {
+  // A declared length over the cap is refused before a byte is buffered.
+  const declared = Number(req.headers["content-length"]);
+  if (Number.isFinite(declared) && declared > limit) throw new BodyTooLargeError(limit);
+
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of req) {
     const buffer = chunk as Buffer;
     size += buffer.length;
-    if (size > limit) throw new Error("request body too large");
+    if (size > limit) throw new BodyTooLargeError(limit);
     chunks.push(buffer);
   }
-  return Buffer.concat(chunks).toString("utf8");
+  return Buffer.concat(chunks, size).toString("utf8");
 }
 
 async function serve(
@@ -122,9 +161,11 @@ async function serve(
 
   // The Host check stops DNS rebinding turning a page on another site into a
   // local client of this server. It runs before the token check because a
-  // rebound request is refused whether or not it guessed a token.
+  // rebound request is refused whether or not it guessed a token. An absent or
+  // empty header fails it rather than skipping it: a guard that admits what it
+  // cannot identify is not a guard.
   const host = hostWithoutPort(req.headers.host);
-  if (host && !ctx.allowedHosts.has(host)) {
+  if (ctx.allowedHosts && !ctx.allowedHosts.has(host)) {
     sendError(res, 403, -32000, `refusing requests for host "${host}"`);
     return;
   }
@@ -138,13 +179,22 @@ async function serve(
   }
 
   const sessionId = req.headers["mcp-session-id"];
-  const existing = ctx.router.get(typeof sessionId === "string" ? sessionId : undefined);
+  const named = typeof sessionId === "string" ? sessionId : undefined;
+  const existing = ctx.router.get(named);
+  // A session id this server does not know gets 404, which is the status the
+  // spec makes a client recover from by initializing again; 400 is a hard
+  // protocol error and leaves a client holding a stale id stuck there. No id at
+  // all on a request that needs one stays 400.
+  const missingSession = (): void =>
+    named === undefined
+      ? sendError(res, 400, -32000, "missing session id")
+      : sendError(res, 404, -32001, `unknown session id "${named}"`);
 
   if (req.method !== "POST") {
     // GET opens the session's notification stream and DELETE ends it; both
     // address a session that initialize already created.
     if (!existing) {
-      sendError(res, 400, -32000, "missing or unknown session id");
+      missingSession();
       return;
     }
     await existing.handleRequest(req, res);
@@ -158,7 +208,14 @@ async function serve(
   try {
     body = await readBody(req, ctx.maxBodyBytes);
   } catch (error) {
-    sendError(res, 413, -32000, error instanceof Error ? error.message : "request body too large");
+    // Only the size cap is a 413. `for await` over the request also rejects when
+    // the client simply went away, and answering that with "request body too
+    // large" tells an operator the wrong thing about their own traffic.
+    if (error instanceof BodyTooLargeError) {
+      sendError(res, 413, -32000, error.message);
+    } else if (!res.headersSent) {
+      sendError(res, 400, -32000, error instanceof Error ? error.message : "malformed request");
+    }
     return;
   }
   let parsed: unknown;
@@ -174,11 +231,20 @@ async function serve(
     return;
   }
   if (!isInitializeRequest(parsed)) {
-    sendError(res, 400, -32000, "missing or unknown session id");
+    missingSession();
     return;
   }
   const transport = await ctx.router.open();
-  await transport.handleRequest(req, res, parsed);
+  try {
+    await transport.handleRequest(req, res, parsed);
+  } finally {
+    // The transport only registers a session once the SDK accepts the
+    // handshake. When it refuses one (a missing `Accept`, a bad content type)
+    // it answers the request and closes nothing, so without this every rejected
+    // initialize would strand a transport and a whole MCP server for the life
+    // of the process — invisibly, since `sessionCount()` never counted them.
+    if (transport.sessionId === undefined) await ctx.router.discard(transport);
+  }
 }
 
 /**
@@ -200,14 +266,7 @@ export async function startMcpHttpServer(
   const ctx: RequestContext = {
     path,
     token: args.token,
-    allowedHosts: new Set([
-      args.host.toLowerCase(),
-      "localhost",
-      "127.0.0.1",
-      "[::1]",
-      "::1",
-      ...[...(args.allowedHosts ?? [])].map((value) => value.toLowerCase()),
-    ]),
+    allowedHosts: resolveAllowedHosts(args.host, args.allowedHosts),
     maxBodyBytes: args.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES,
     router,
   };

@@ -12,13 +12,20 @@ import type { DataPortSchema } from "@workglow/util/schema";
 export type AnyTaskConstructor = ITaskConstructor<any, any, any>;
 
 /**
- * Tasks that only mean something as part of a graph.
+ * Tasks that only mean something as part of a graph, or that a class never
+ * meant to publish at all.
  *
  * A `MapTask` with no subgraph to map over is not a tool a caller can use, and
  * offering one is worse than offering nothing: it fills the tool list a model
  * has to read with entries whose every invocation fails.
+ *
+ * `"Hidden"` is what `Task` leaves behind when a class names no category, and
+ * it is the repo's existing "keep out of pickers" marker. Publishing it is not
+ * merely noisy: `JsonTask` takes a graph as JSON and runs it, which re-admits
+ * every task this set excludes and walks around a host's own selection, and
+ * `LambdaTask` cannot be configured over the wire at all.
  */
-const NON_TOOL_CATEGORIES: ReadonlySet<string> = new Set(["Flow Control"]);
+const NON_TOOL_CATEGORIES: ReadonlySet<string> = new Set(["Flow Control", "Hidden"]);
 
 /**
  * Characters an MCP tool name may carry.
@@ -36,12 +43,17 @@ export interface TaskToolSelection {
   /**
    * The task classes to offer. Defaults to everything in the global
    * {@link TaskRegistry}, which is what a host's own `registerTasks` filled.
+   *
+   * An array rather than an `Iterable`: the selection is re-read on every
+   * `tools/list` and every `tools/call`, so a one-shot iterator would be
+   * drained by the first list and leave every later one empty.
    */
-  readonly tasks?: Iterable<AnyTaskConstructor>;
+  readonly tasks?: readonly AnyTaskConstructor[];
   /**
-   * Narrows {@link TaskToolSelection.tasks}. Defaults to dropping the flow-control
-   * category; a host passing its own predicate replaces that judgement entirely,
-   * so re-apply {@link isToolWorthyTask} if you only meant to add a condition.
+   * Narrows {@link TaskToolSelection.tasks}. Defaults to dropping the
+   * flow-control and hidden categories; a host passing its own predicate
+   * replaces that judgement entirely, so re-apply {@link isToolWorthyTask} if
+   * you only meant to add a condition.
    */
   readonly include?: (ctor: AnyTaskConstructor) => boolean;
 }
@@ -60,7 +72,10 @@ export function isToolWorthyTask(ctor: AnyTaskConstructor): boolean {
  */
 export function toolNameForTaskType(type: string): string {
   const name = TOOL_NAME_ALLOWED.test(type) ? type : type.replace(/[^a-zA-Z0-9_-]+/g, "_");
-  const trimmed = name.replace(/^[_-]+|[_-]+$/g, "").slice(0, TOOL_NAME_MAX);
+  // Trim AFTER the length cap, or the cut reintroduces the very separator the
+  // trim just removed: a 63-character type ending in `-Bcd` lands on a name
+  // whose last character is `-`.
+  const trimmed = name.slice(0, TOOL_NAME_MAX).replace(/^[_-]+|[_-]+$/g, "");
   return trimmed.length > 0 ? trimmed : "task";
 }
 
@@ -148,27 +163,39 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * JSON a tool result can carry.
+ * JSON a tool result can carry, and whether the value survived the trip.
  *
  * A task may legitimately output a value `JSON.stringify` refuses — a cyclic
  * structure, a `BigInt`. Failing to render the result is not a reason to fail
  * the call, which by then has already done its work and possibly spent money.
  */
-function renderOutput(output: unknown): string {
+function renderOutput(output: unknown): { readonly text: string; readonly serializable: boolean } {
   try {
-    return JSON.stringify(output, null, 2) ?? String(output);
+    return { text: JSON.stringify(output, null, 2) ?? String(output), serializable: true };
   } catch (error) {
-    return `<output could not be serialized as JSON: ${
-      error instanceof Error ? error.message : String(error)
-    }>`;
+    return {
+      text: `<output could not be serialized as JSON: ${
+        error instanceof Error ? error.message : String(error)
+      }>`,
+      serializable: false,
+    };
   }
 }
 
-/** A completed task run as an MCP tool result. */
+/**
+ * A completed task run as an MCP tool result.
+ *
+ * `structuredContent` is attached only for an output that actually serializes.
+ * The whole response is `JSON.stringify`d again by the transport, so echoing an
+ * unserializable value there would throw where nothing can answer the client:
+ * the SDK routes that failure to `onerror` and never sends a response, and the
+ * call hangs until the client's own timeout — undoing the guard above it.
+ */
 export function toolResultForOutput(output: TaskOutput | undefined): CallToolResult {
+  const rendered = renderOutput(output);
   return {
-    content: [{ type: "text", text: renderOutput(output) }],
-    ...(isPlainObject(output) ? { structuredContent: output } : {}),
+    content: [{ type: "text", text: rendered.text }],
+    ...(rendered.serializable && isPlainObject(output) ? { structuredContent: output } : {}),
   };
 }
 

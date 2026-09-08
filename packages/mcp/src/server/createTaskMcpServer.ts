@@ -11,7 +11,7 @@ import {
   ErrorCode,
   ListToolsRequestSchema,
   McpError,
-} from "@modelcontextprotocol/sdk/types";
+} from "@modelcontextprotocol/sdk/types.js";
 import type { IRunConfig, ITask, TaskInput } from "@workglow/task-graph";
 import { globalServiceRegistry, HUMAN_CONNECTOR, ServiceRegistry } from "@workglow/util";
 import { McpElicitationConnector } from "../tasks/McpElicitationConnector";
@@ -157,17 +157,22 @@ export function createTaskMcpServer(options: TaskMcpServerOptions): Server {
         throw new McpError(ErrorCode.InvalidParams, `unknown tool "${request.params.name}"`);
       }
 
-      const task = new ctor({}) as ITask;
-      const progressToken = extra._meta?.progressToken;
-      const stopProgress =
-        progressToken === undefined
-          ? undefined
-          : forwardProgress(task, progressToken, (params) =>
-              extra.sendNotification({ method: "notifications/progress", params })
-            );
-
       const parentRegistry = options.runConfig?.registry ?? globalServiceRegistry;
+      // Construction is inside the try because a task class is free to reject a
+      // config in its constructor, and a tool that cannot be built has still
+      // failed as a tool: reported in a result a model can read, not as a
+      // JSON-RPC error that reads to the client as a broken server.
+      let stopProgress: (() => void) | undefined;
       try {
+        const task = new ctor({}) as ITask;
+        const progressToken = extra._meta?.progressToken;
+        stopProgress =
+          progressToken === undefined
+            ? undefined
+            : forwardProgress(task, progressToken, (params) =>
+                extra.sendNotification({ method: "notifications/progress", params })
+              );
+
         const output = await task.run((request.params.arguments ?? {}) as Partial<TaskInput>, {
           ...options.runConfig,
           ...(elicitation

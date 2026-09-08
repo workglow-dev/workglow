@@ -469,7 +469,7 @@ const categories = new Set<string>();
 for (const [, ctor] of TaskRegistry.all) {
   if (ctor.category) categories.add(ctor.category);
 }
-// Set { "Flow Control", "Utility", "AI", "String", "Scalar", "Vector", "MCP", ... }
+// Set { "Flow Control", "Human", "Utility", "AI", "String", "Scalar", "Vector", "MCP", ... }
 ```
 
 ### Inspecting schemas

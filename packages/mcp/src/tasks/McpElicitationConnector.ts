@@ -64,10 +64,12 @@ export interface McpElicitationConnectorOptions {
  * - "elicit": Delegates to Server.elicitInput() for structured form input.
  *
  * The two one-way kinds go out as logging notifications, which the server must
- * have declared the `logging` capability to send at all — without it
- * `sendLoggingMessage` is a silent no-op. They ride the session's standalone
- * stream, since a notification has no request to relate to, so a client that
- * never opened one does not see them. Neither kind blocks the task either way.
+ * have declared the `logging` capability to send at all — without it the
+ * notification is a silent no-op. Like the elicitation, they are related to the
+ * request being handled where there is one, so they travel on that call's own
+ * stream: sent unrelated they ride the session's standalone stream, which the
+ * spec leaves optional, and the transport drops them without a word for a
+ * client that never opened the GET. Neither kind blocks the task either way.
  *
  * Usage:
  * ```ts
@@ -85,6 +87,31 @@ export class McpElicitationConnector implements IHumanConnector {
     private readonly server: Server,
     private readonly options: McpElicitationConnectorOptions = {}
   ) {}
+
+  /**
+   * One `notifications/message`, related to the call being handled where there
+   * is one.
+   *
+   * `Server.sendLoggingMessage` takes no notification options, so it can only
+   * send unrelated — onto the standalone stream a client need never open. This
+   * goes through `notification`, which carries the relation; the `logging`
+   * capability is still enforced there, so a server that declared none throws
+   * rather than pretending it sent something.
+   */
+  private async sendLog(data: unknown, logger: string | undefined): Promise<void> {
+    const { relatedRequestId } = this.options;
+    const params = { level: "info" as const, data, logger };
+    if (relatedRequestId === undefined) {
+      await this.server.sendLoggingMessage(params);
+      return;
+    }
+    await this.server.notification(
+      { method: "notifications/message", params },
+      {
+        relatedRequestId,
+      }
+    );
+  }
 
   async send(request: IHumanRequest, signal: AbortSignal): Promise<IHumanResponse> {
     switch (request.kind) {
@@ -111,11 +138,7 @@ export class McpElicitationConnector implements IHumanConnector {
       throw signal.reason ?? defaultAbortError();
     }
 
-    await this.server.sendLoggingMessage({
-      level: "info",
-      data: request.contentData ?? request.message,
-      logger: request.targetHumanId,
-    });
+    await this.sendLog(request.contentData ?? request.message, request.targetHumanId);
 
     if (signal.aborted) {
       throw signal.reason ?? defaultAbortError();
@@ -141,15 +164,14 @@ export class McpElicitationConnector implements IHumanConnector {
     if (signal.aborted) {
       throw signal.reason ?? defaultAbortError();
     }
-    await this.server.sendLoggingMessage({
-      level: "info",
-      data: {
+    await this.sendLog(
+      {
         message: request.message,
         content: request.contentData,
         schema: request.contentSchema,
       },
-      logger: request.targetHumanId,
-    });
+      request.targetHumanId
+    );
 
     if (signal.aborted) {
       throw signal.reason ?? defaultAbortError();

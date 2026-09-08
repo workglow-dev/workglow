@@ -32,7 +32,7 @@ class AskTask extends Task<Record<string, never>, { answer: string; action: stri
     } as const satisfies DataPortSchema;
   }
 
-  async execute(
+  override async execute(
     _input: Record<string, never>,
     context: IExecuteContext
   ): Promise<{ answer: string; action: string }> {
@@ -61,7 +61,42 @@ class AskTask extends Task<Record<string, never>, { answer: string; action: stri
   }
 }
 
-const TASKS = [AskTask] as unknown as AnyTaskConstructor[];
+/** Tells a person something, expecting no answer. */
+class TellTask extends Task<Record<string, never>, { sent: boolean }> {
+  public static override type = "TellTask";
+  public static override category = "Utility";
+
+  public static override outputSchema(): DataPortSchema {
+    return {
+      type: "object",
+      properties: { sent: { type: "boolean" } },
+      additionalProperties: false,
+    } as const satisfies DataPortSchema;
+  }
+
+  override async execute(
+    _input: Record<string, never>,
+    context: IExecuteContext
+  ): Promise<{ sent: boolean }> {
+    await resolveHumanConnector(context).send(
+      {
+        requestId: uuid4(),
+        targetHumanId: "default",
+        kind: "notify",
+        message: "the-notice",
+        contentSchema: undefined,
+        contentData: undefined,
+        expectsResponse: false,
+        mode: "single",
+        metadata: undefined,
+      } as never,
+      context.signal
+    );
+    return { sent: true };
+  }
+}
+
+const TASKS = [AskTask, TellTask] as unknown as AnyTaskConstructor[];
 
 const open = async (elicitation?: boolean): Promise<McpHttpServerHandle> =>
   startMcpHttpServer({
@@ -113,7 +148,11 @@ describe("human-in-the-loop over MCP", () => {
     })) as CallToolResult;
 
     expect(asked?.params.message).toBe("What is your name?");
-    expect(asked?.params.requestedSchema).toEqual({
+    // `ElicitRequest["params"]` is a union: the form ask carries a schema, the
+    // other arm carries a URL. This connector only ever sends the form.
+    const params = asked?.params;
+    if (!params || !("requestedSchema" in params)) throw new Error("expected a form elicitation");
+    expect(params.requestedSchema).toEqual({
       type: "object",
       properties: { name: { type: "string" } },
       required: ["name"],
@@ -193,5 +232,19 @@ describe("human-in-the-loop over MCP", () => {
     })) as CallToolResult;
     expect(result.isError).toBe(true);
     expect(JSON.stringify(result.content)).toContain("HUMAN_CONNECTOR");
+  });
+
+  it("puts a one-way notice on the call's own stream too", async () => {
+    // `notify` and `display` answer nobody, but they are still part of the call
+    // that asked for them. Sent unrelated they ride the standalone GET stream,
+    // which this client never opens and the spec never required it to — and the
+    // transport then drops them silently while the task reports success.
+    const handle = track(await open());
+    const client = new RawStreamableClient(handle.url);
+    await client.initialize({ elicitation: {} });
+
+    const result = await client.callTool("TellTask", {});
+    expect(result.result?.structuredContent).toEqual({ sent: true });
+    expect(client.seenNotifications.join(" ")).toContain("the-notice");
   });
 });

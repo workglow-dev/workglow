@@ -200,6 +200,11 @@ describe("toolResultForOutput", () => {
     const result = toolResultForOutput(cyclic);
     expect(result.isError).toBeUndefined();
     expect(result.content[0]).toMatchObject({ type: "text" });
+    // And it must not smuggle the same value back through the structured
+    // channel: the transport stringifies the whole result, so echoing it there
+    // throws where nothing can answer, and the call hangs to the client's
+    // timeout instead of returning the text above.
+    expect(result.structuredContent).toBeUndefined();
   });
 });
 

@@ -40,7 +40,10 @@ class GreetTask extends Task<{ name: string }, { greeting: string }> {
     } as const satisfies DataPortSchema;
   }
 
-  async execute(input: { name: string }, _context: IExecuteContext): Promise<{ greeting: string }> {
+  override async execute(
+    input: { name: string },
+    _context: IExecuteContext
+  ): Promise<{ greeting: string }> {
     if (input.name === "boom") throw new Error("refused to greet");
     return { greeting: `hello ${input.name}` };
   }
@@ -51,7 +54,7 @@ class StepTask extends Task<Record<string, never>, { done: boolean }> {
   public static override type = "StepTask";
   public static override category = "Utility";
 
-  async execute(
+  override async execute(
     _input: Record<string, never>,
     context: IExecuteContext
   ): Promise<{ done: boolean }> {
@@ -286,6 +289,46 @@ describe("startMcpHttpServer, authenticated", () => {
     expect(handle.sessionCount()).toBe(1);
     track(await connect(handle, TOKEN));
     expect(handle.sessionCount()).toBe(2);
+  });
+});
+
+describe("startMcpHttpServer, bound to a wildcard", () => {
+  it("does not refuse the clients the wildcard exists to admit", async () => {
+    // Nothing about `0.0.0.0` names the addresses this machine answers on, so
+    // deriving an allow-list from it refused every client of the exposure the
+    // operator asked for — including the one the startup banner points at.
+    const handle = track(
+      await startMcpHttpServer({
+        port: 0,
+        host: "0.0.0.0",
+        token: undefined,
+        createServer: () => createTaskMcpServer({ name: "test", version: "1.0.0", tasks: TASKS }),
+      })
+    );
+    const response = await rawPost(
+      `http://127.0.0.1:${new URL(handle.url).port}${new URL(handle.url).pathname}`,
+      { Host: "192.168.1.10", "content-type": "application/json" },
+      "{}"
+    );
+    expect(response.status).not.toBe(403);
+  });
+
+  it("still checks the Host when one is named explicitly", async () => {
+    const handle = track(
+      await startMcpHttpServer({
+        port: 0,
+        host: "0.0.0.0",
+        token: undefined,
+        allowedHosts: ["mcp.internal"],
+        createServer: () => createTaskMcpServer({ name: "test", version: "1.0.0", tasks: TASKS }),
+      })
+    );
+    const response = await rawPost(
+      `http://127.0.0.1:${new URL(handle.url).port}${new URL(handle.url).pathname}`,
+      { Host: "192.168.1.10", "content-type": "application/json" },
+      "{}"
+    );
+    expect(response.status).toBe(403);
   });
 });
 

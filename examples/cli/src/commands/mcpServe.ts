@@ -6,10 +6,10 @@
 
 import type { AnyTaskConstructor } from "@workglow/mcp/server";
 import {
+  buildTaskToolIndex,
   createTaskMcpServer,
   DEFAULT_MCP_PATH,
   generateBearerToken,
-  listTaskTools,
   startMcpHttpServer,
 } from "@workglow/mcp/server";
 import type { Command } from "commander";
@@ -142,7 +142,7 @@ export function registerMcpServeCommand(mcp: Command): void {
           }),
       });
 
-      const served = listTaskTools(selection).length;
+      const served = buildTaskToolIndex(selection).size;
       console.log(`mcp server listening on ${handle.url} — ${served} tasks offered as tools`);
       if (token) {
         console.log(`bearer token: ${token}`);

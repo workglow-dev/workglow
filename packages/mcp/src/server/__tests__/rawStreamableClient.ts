@@ -20,6 +20,16 @@ export class RawStreamableClient {
   private sessionId: string | undefined;
   private nextId = 1;
 
+  /**
+   * Every server notification that arrived on a call's own stream, raw.
+   *
+   * A notification carries a method and no id, so it is not a request to answer
+   * and not the result to return — without somewhere to put it, a client like
+   * this one cannot tell "delivered here" from "sent to the GET stream nobody
+   * opened", which is exactly the distinction these tests exist to make.
+   */
+  readonly seenNotifications: string[] = [];
+
   constructor(private readonly url: string) {}
 
   /** Initializes the session, declaring whatever capabilities were asked for. */
@@ -64,6 +74,10 @@ export class RawStreamableClient {
     if (!response.body) throw new Error(`tool call returned no body (status ${response.status})`);
 
     for await (const message of readSseMessages(response.body)) {
+      if (message.method !== undefined && message.id === undefined) {
+        this.seenNotifications.push(JSON.stringify(message));
+        continue;
+      }
       if (message.method !== undefined && message.id !== undefined) {
         if (!answer) throw new Error(`unanswered server request: ${message.method}`);
         // Replies go out as their own POST, the way a client must answer a

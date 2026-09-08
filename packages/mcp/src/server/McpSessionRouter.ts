@@ -9,7 +9,9 @@ import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { randomUUID } from "node:crypto";
 
 /** A transport that carries an MCP session id once a client has initialized. */
-export type McpSessionTransport = Transport & { readonly sessionId?: string | undefined };
+export interface McpSessionTransport extends Transport {
+  readonly sessionId?: string | undefined;
+}
 
 /**
  * The session bookkeeping a transport must be constructed with.
@@ -76,19 +78,43 @@ export class McpSessionRouter<T extends McpSessionTransport> {
     });
     this.live.add(transport);
 
-    const server = this.options.createServer();
-    // The server's own close is the one signal that fires for every way a
-    // session can end — a DELETE, a dropped connection, the transport erroring
-    // out. `transport.onclose` is not available to hook: `connect` claims it.
-    server.onclose = () => {
-      this.live.delete(transport);
-      const sessionId = transport.sessionId;
-      if (sessionId !== undefined && this.sessions.get(sessionId) === transport) {
-        this.sessions.delete(sessionId);
-      }
-    };
-    await server.connect(transport);
+    try {
+      const server = this.options.createServer();
+      // The server's own close is the one signal that fires for every way a
+      // session can end — a DELETE, or the transport erroring out.
+      // `transport.onclose` is not available to hook: `connect` claims it.
+      server.onclose = () => {
+        this.live.delete(transport);
+        const sessionId = transport.sessionId;
+        if (sessionId !== undefined && this.sessions.get(sessionId) === transport) {
+          this.sessions.delete(sessionId);
+        }
+      };
+      await server.connect(transport);
+    } catch (error) {
+      // Nothing else can retire it: it never reached a server whose `onclose`
+      // would, and it carries no session id to be found under.
+      await this.discard(transport);
+      throw error;
+    }
     return transport;
+  }
+
+  /**
+   * Retires a transport the caller is done with — the one path for a transport
+   * that never became a session, which nothing else can clean up.
+   */
+  async discard(transport: T): Promise<void> {
+    this.live.delete(transport);
+    const sessionId = transport.sessionId;
+    if (sessionId !== undefined && this.sessions.get(sessionId) === transport) {
+      this.sessions.delete(sessionId);
+    }
+    try {
+      await transport.close();
+    } catch {
+      // Already gone, which is the state this wanted.
+    }
   }
 
   /** Closes every open session. Safe to call twice. */

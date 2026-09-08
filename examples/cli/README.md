@@ -231,9 +231,10 @@ registerCommandSchemaProvider({
 ## MCP server
 
 `workglow mcp serve` offers this CLI's registered tasks to MCP clients as
-tools, over Streamable HTTP. One tool per task type, named as `task list`
-names it, with the task's own input schema as the tool's arguments and its
-output as the result. Nothing is duplicated: a task registered through
+tools, over Streamable HTTP. One tool per task type, named for the registered
+type itself — `TextGenerationTask`, which is what `task list` prints with the
+`Task` suffix trimmed — with the task's own input schema as the tool's
+arguments and its output as the result. Nothing is duplicated: a task registered through
 `registerTasks` is a tool for the same reason it is a `task run` argument.
 
 ```sh
@@ -258,9 +259,12 @@ entirely, which anything that can reach the port can then walk through;
 exposing the server with `--host` warns for the same reason the web console
 does.
 
-Flow-control tasks are left out — a `MapTask` with no subgraph around it is
-not a tool anyone can call — and `--task` narrows the list to exactly what you
-name, that filter included.
+Flow-control and hidden tasks are left out — a `MapTask` with no subgraph
+around it is not a tool anyone can call, and `"Hidden"` is what a class that
+named no category gets, which covers `JsonTask` (it runs a graph handed to it,
+so publishing it would put every excluded task back within reach) and
+`LambdaTask` (its config is a function, which no client can send). `--task`
+narrows the list to exactly what you name, that filter included.
 
 A task that asks a person asks the client driving the call, through **MCP
 elicitation**, rather than the terminal nobody is sitting at: each tool call

@@ -295,7 +295,8 @@ terminal runs. Three load-bearing properties:
   lines, since most of what an operator checks has no denominator to draw a bar against.
 
 `workglow mcp serve` is the second server the CLI hosts: the registered tasks offered to
-MCP clients as tools, one per task type, named as `task list` names it and carrying the
+MCP clients as tools, one per task type, named for the registered type itself (`task list`
+prints the same types with the `Task` suffix trimmed) and carrying the
 task's own input schema. It **requires a bearer token by default** — generated per process
 and printed with a ready-made client config, pinnable through `WORKGLOW_MCP_TOKEN` or
 `--token` for a config that must survive a restart, and droppable only by saying `--no-auth`
