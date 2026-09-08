@@ -268,14 +268,6 @@ runs against its own registry carrying an `McpElicitationConnector` bound to
 that call. A client that did not advertise `elicitation` gets a tool error
 saying so instead of a call that never returns.
 
-The two stock ones are categorized `Flow Control`, so the filter above leaves
-them out — the same reason `task list` does not show them. Name them to offer
-them:
-
-```sh
-workglow mcp serve --task HumanInputTask --task HumanApprovalTask
-```
-
 ### Serving MCP from your own host
 
 The parts worth sharing live in `@workglow/mcp/server`, not here:
