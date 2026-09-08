@@ -1,5 +1,42 @@
 # Changelog
 
+## 0.5.0
+
+### Breaking Changes
+
+- **features(storage)**: add join() to ITabularStorage with SQL pushdown (#893)
+
+### Features
+
+#### storage
+
+- add join() to ITabularStorage with SQL pushdown (#893)
+
+#### web-search
+
+- add OpenAI, OpenRouter and Gemini grounded providers
+
+### Bug Fixes
+
+#### web-search
+
+- address code review across the package and its adapters
+- honour or refuse a named credential, stop registering providers on import, and keep two ports honest
+- name a credential for a provider, fill Brave's open date bound, and thread abort
+- make maxResults mean the same thing for every provider
+
+#### pricing
+
+- various fixes for pricing on models
+
+#### openrouter,openai
+
+- resolve the search API key explicitly and lazily
+
+### Chores
+
+- revert version change not made by bunset
+
 ## 0.4.9
 
 ## 0.4.8

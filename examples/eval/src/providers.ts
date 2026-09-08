@@ -12,7 +12,7 @@ import { registerHuggingFaceTransformers } from "@workglow/huggingface-transform
 import { registerLlamaCpp } from "@workglow/node-llama-cpp/ai";
 import { registerOpenAiInline } from "@workglow/openai/ai-runtime";
 import { registerBaseTasks, registerBuiltInTransforms } from "@workglow/task-graph";
-import { EnvCredentialStore, setGlobalCredentialStore } from "@workglow/util";
+import { EnvCredentialStore, setGlobalCredentialStore, Worker } from "@workglow/util";
 import { registerXaiInline } from "@workglow/xai/ai-runtime";
 import type { EvalConfig } from "./config";
 

@@ -60,7 +60,6 @@ build order and caching behavior.
         "dist/**/*.js",
         "dist/**/*.js.map",
         "dist/**/*.d.ts",
-        "dist/**/*.d.ts.map",
         "tsconfig.tsbuildinfo"
       ]
     },
@@ -75,7 +74,6 @@ build order and caching behavior.
       "dependsOn": ["build-clean", "^build-types"],
       "outputs": [
         "dist/**/*.d.ts",
-        "dist/**/*.d.ts.map",
         "tsconfig.tsbuildinfo"
       ]
     },
@@ -136,7 +134,7 @@ to a task have not changed since the last run, Turbo replays the cached outputs 
 re-executing the build. The `outputs` array tells Turbo which files to save and restore:
 
 - `dist/**/*.js` and `dist/**/*.js.map` — compiled JavaScript and source maps
-- `dist/**/*.d.ts` and `dist/**/*.d.ts.map` — TypeScript declaration files and declaration maps
+- `dist/**/*.d.ts` — TypeScript declaration files
 - `tsconfig.tsbuildinfo` — TypeScript incremental build info
 
 The `build-clean` and `watch*` tasks set `"cache": false` because clean operations should always
@@ -229,16 +227,18 @@ src/browser.ts  →  dist/browser.js   (--target=browser)
 src/node.ts     →  dist/node.js      (--target=node)
 ```
 
-Bun is not a third target by default. A package's `exports` carries no `"bun"` condition, so Bun
-resolves the default `"import"` and loads `dist/node.js` — which is exactly what a `src/bun.ts`
-identical to `src/node.ts` would have produced. Add a `src/bun.ts`, a `--target=bun` build, and a
-`"bun"` export condition only when the Bun code genuinely differs; a duplicate is a third bundle
-and a third `.d.ts` to keep in sync for no behavior change. Two entries qualify today, both in
-`@workglow/util`: `"."` (`Worker.bun` vs `Worker.node`) and `"./worker"` (`dist/worker-bun.js`
-vs `dist/worker-node.js`). `@workglow/sqlite`'s `./storage` used to, but both runtimes now share
-the `node:sqlite` driver. That set is pinned by
+Bun is not a third target. A package's `exports` carries no `"bun"` condition, so Bun resolves
+the default `"import"` and loads `dist/node.js` — which is exactly what a `src/bun.ts` identical
+to `src/node.ts` would have produced. Add a `src/bun.ts`, a `--target=bun` build, and a `"bun"`
+export condition only when the Bun code genuinely differs; a duplicate is a third bundle and a
+third `.d.ts` to keep in sync for no behavior change. **Nothing qualifies today.** The last two
+were `@workglow/util`'s `"."` and `"./worker"`, for a `Worker.bun.ts` byte-identical to
+`Worker.browser.ts`: Bun implements `node:worker_threads` over the same primitive as its web
+`Worker`, so a thread spawned either way is reachable through `parentPort` and one
+`Worker.node.ts` serves both. `@workglow/sqlite`'s `./storage` had gone the same way earlier,
+onto the shared `node:sqlite` driver. That empty set is pinned by
 `packages/test/src/test/util/BunExportConditions.test.ts`, which fails in both directions — on a
-redundant `"bun"` condition added back, and on one of the two being deleted.
+`"bun"` condition added back, and on either util entry being pointed away from the node build.
 
 Each build command follows the same template:
 
@@ -261,9 +261,8 @@ tree-shaking impossible for downstream consumers.
 
 ### Extended Pattern (util)
 
-`@workglow/util` has additional entry points beyond the standard two, and is the only package that
-still earns a `--target=bun` build — twice (`bun.ts` and `worker-bun.ts`). Each sub-path export
-gets its own build:
+`@workglow/util` has additional entry points beyond the standard two. Each sub-path export gets
+its own build:
 
 ```
 src/schema-entry.ts    →  dist/schema-entry.js    (--target=browser)
@@ -273,8 +272,7 @@ src/media-node.ts      →  dist/media-node.js      (--target=node)
 src/compress-browser.ts → dist/compress-browser.js (--target=browser)
 src/compress-node.ts   →  dist/compress-node.js    (--target=node)
 src/worker-browser.ts  →  dist/worker-browser.js   (--target=browser)
-src/worker-node.ts     →  dist/worker-node.js      (--target=node)
-src/worker-bun.ts      →  dist/worker-bun.js       (--target=bun)
+src/worker-node.ts     →  dist/worker-node.js      (--target=node, also serves Bun)
 ```
 
 Platform-agnostic sub-paths (schema, graph) are built with `--target=browser` since browser-safe
@@ -361,7 +359,7 @@ The root `tsconfig.json` establishes the base configuration inherited by all pac
     "strict": true,
     "declaration": true,
     "emitDeclarationOnly": true,
-    "declarationMap": true,
+    "declarationMap": false,
     "incremental": true
   }
 }
@@ -370,7 +368,7 @@ The root `tsconfig.json` establishes the base configuration inherited by all pac
 Key settings:
 
 - `emitDeclarationOnly: true` — only `.d.ts` files are emitted (JavaScript is handled by `bun build`)
-- `declarationMap: true` — generates `.d.ts.map` files so IDEs can navigate from declaration to source
+- `declarationMap: false` — skip `.d.ts.map` files; published `.d.ts` is the navigation target
 - `composite: true` + `incremental: true` — enables project references and build caching
 - `moduleResolution: "bundler"` — resolves imports the way modern bundlers do (supports conditional exports)
 

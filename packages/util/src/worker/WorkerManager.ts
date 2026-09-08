@@ -51,7 +51,12 @@ export class WorkerManager {
     this.clearIdleTimer(name);
     this.workers.set(name, worker);
     worker.addEventListener("error", (event) => {
-      console.error("Worker Error:", event.message, "at", event.filename, "line:", event.lineno);
+      // `filename`/`lineno` come from the browser's `ErrorEvent`; a
+      // `worker_threads` error carries neither, so they are reported only when
+      // the platform actually supplied them rather than as "at undefined".
+      const location =
+        event.filename !== undefined ? ` at ${event.filename} line: ${event.lineno}` : "";
+      console.error(`Worker Error: ${event.message ?? "unknown error"}${location}`);
     });
     worker.addEventListener("messageerror", (event) => {
       console.error("Worker message error:", event);

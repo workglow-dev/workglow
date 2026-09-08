@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.5.0
+
+### Breaking Changes
+
+- **features(storage)**: add join() to ITabularStorage with SQL pushdown (#893)
+
+### Features
+
+#### storage
+
+- add join() to ITabularStorage with SQL pushdown (#893)
+
+### Bug Fixes
+
+#### storage
+
+- stop connection transactions hanging and leaking uncommitted rows
+
+### Refactors
+
+#### storage
+
+- route the tx handle through the public methods
+
+### Chores
+
+- revert version change not made by bunset
+
 ## 0.4.9
 
 ### Bug Fixes

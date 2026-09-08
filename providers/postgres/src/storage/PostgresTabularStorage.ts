@@ -245,6 +245,11 @@ export class PostgresTabularStorage<
    * can call it conditionally on a fresh DB.
    */
   private async createTableAndIndexes(): Promise<void> {
+    // Before the DDL, not after it: `CREATE TABLE ... vector(N)` fails with
+    // `type "vector" does not exist` unless the extension is already there.
+    if (this.getVectorColumns().length > 0) {
+      await this.ensureVectorExtension();
+    }
     const sql = `
       CREATE TABLE IF NOT EXISTS "${this.table}" (
         ${this.constructPrimaryKeyColumns('"')} ${this.constructValueColumns('"')},
@@ -355,9 +360,11 @@ export class PostgresTabularStorage<
   protected mapTypeToSQL(typeDef: JsonSchema): string {
     return mapPostgresType(typeDef, {
       getNonNullType: (t) => this.getNonNullType(t),
-      // pgvector column for vector-format strings with a known dimension.
+      // pgvector column for a TypedArray property with a known dimension.
+      // Only a subclass that knows its width (PostgresVectorStorage) returns
+      // one; the base class has no dimension, so the column stays JSONB.
       vectorTypeFor: (actualType) => {
-        if (this.isVectorFormat(actualType.format)) {
+        if (this.pgvectorAvailable && this.isVectorFormat(actualType.format)) {
           const dimension = this.getVectorDimensions(actualType);
           if (typeof dimension === "number") {
             return `vector(${dimension})`;
@@ -440,6 +447,38 @@ export class PostgresTabularStorage<
    * serialization before binding.
    */
   private jsonbColumns: Set<string> | undefined;
+
+  /**
+   * Whether `CREATE EXTENSION vector` succeeded on this connection, or
+   * `undefined` before {@link ensureVectorExtension} has asked. Unasked reads
+   * as unavailable, so a storage that never probes declares JSONB columns
+   * rather than DDL naming a type the database may not have.
+   */
+  private pgvectorAvailable: boolean | undefined;
+
+  /**
+   * Enables pgvector, once per instance, and reports whether it is usable.
+   *
+   * The answer decides the column type {@link mapTypeToSQL} emits, so it has
+   * to be settled before any DDL is generated — hence the cached
+   * {@link jsonbColumns} set is dropped here rather than left holding the
+   * pre-probe answer.
+   */
+  private async ensureVectorExtension(): Promise<boolean> {
+    if (this.pgvectorAvailable !== undefined) return this.pgvectorAvailable;
+    try {
+      await this.db.query("CREATE EXTENSION IF NOT EXISTS vector");
+      this.pgvectorAvailable = true;
+    } catch (error) {
+      console.warn(
+        "pgvector extension not available, vector columns will use the JSONB fallback:",
+        error
+      );
+      this.pgvectorAvailable = false;
+    }
+    this.jsonbColumns = undefined;
+    return this.pgvectorAvailable;
+  }
 
   private isJsonbColumn(column: string): boolean {
     if (!this.jsonbColumns) {
@@ -568,10 +607,19 @@ export class PostgresTabularStorage<
   }
 
   /**
+   * Memo for {@link getVectorColumns}. The schema is fixed at construction and
+   * both the CREATE TABLE and the index pass ask, so without this the warning
+   * below repeats once per caller for the same column.
+   */
+  private vectorColumnsCache: Array<{ column: string; dimension: number }> | undefined;
+
+  /**
    * Gets information about vector columns in the schema
    * @returns Array of objects with column name and dimension
    */
   protected getVectorColumns(): Array<{ column: string; dimension: number }> {
+    if (this.vectorColumnsCache) return this.vectorColumnsCache;
+
     const vectorColumns: Array<{ column: string; dimension: number }> = [];
 
     // Check all properties in the schema
@@ -587,6 +635,7 @@ export class PostgresTabularStorage<
       }
     }
 
+    this.vectorColumnsCache = vectorColumns;
     return vectorColumns;
   }
 
@@ -629,16 +678,10 @@ export class PostgresTabularStorage<
     assertPositiveInt(opts.ivfflat?.lists, "ivfflat.lists");
     assertPositiveInt(opts.ivfflat?.probes, "ivfflat.probes");
 
-    // Try to enable pgvector extension
-    try {
-      await this.db.query("CREATE EXTENSION IF NOT EXISTS vector");
-    } catch (error) {
-      console.warn(
-        "pgvector extension not available, vector columns will use TEXT fallback:",
-        error
-      );
-      return;
-    }
+    // Memoized, and the table DDL above already asked — so this normally
+    // issues no SQL, and only reports what that answer was: without pgvector
+    // the columns are JSONB and no `vector_*_ops` index applies to them.
+    if (!(await this.ensureVectorExtension())) return;
 
     const distance = opts.distance ?? "cosine";
     const opClass =

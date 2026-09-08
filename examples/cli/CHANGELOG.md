@@ -1,5 +1,47 @@
 # @workglow/cli
 
+## 0.5.0
+
+### Breaking Changes
+
+- **features(storage)**: add join() to ITabularStorage with SQL pushdown (#893)
+
+### Features
+
+- route human-in-the-loop tasks to the MCP client
+- serve registered tasks over MCP, behind a bearer token
+
+#### storage
+
+- add join() to ITabularStorage with SQL pushdown (#893)
+
+#### cli
+
+- mark what an `all` command actually runs, and give a command group its own page in the web console
+
+### Bug Fixes
+
+- close the gaps a review of the MCP server turned up
+- file the human-in-the-loop tasks under "Human", not "Flow Control"
+
+#### util
+
+- repair the Node worker path and drop the Bun worker fork
+
+#### pricing
+
+- various fixes for pricing on models
+- merge a declared rate card over the provider's field by field
+- resolve rates from the live table and at the request's instant
+
+#### cli/web
+
+- share one status-rail read instead of tearing down under it
+
+### Chores
+
+- revert version change not made by bunset
+
 ## 0.4.9
 
 ## 0.4.8

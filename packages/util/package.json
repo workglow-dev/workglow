@@ -1,7 +1,7 @@
 {
   "name": "@workglow/util",
   "type": "module",
-  "version": "0.4.9",
+  "version": "0.5.0",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -15,10 +15,9 @@
   "homepage": "https://workglow.dev",
   "scripts": {
     "watch": "concurrently -c 'auto' 'bun:watch-*'",
-    "watch-js": "concurrently -c 'auto' -n 'browser,node,bun,worker,schema,graph,media-b,media-n,compress-b,compress-n,test-b,test-n' 'bun run watch-browser' 'bun run watch-node' 'bun run watch-bun' 'bun run watch-worker' 'bun run watch-schema' 'bun run watch-graph' 'bun run watch-media-browser' 'bun run watch-media-node' 'bun run watch-compress-browser' 'bun run watch-compress-node' 'bun run watch-test-browser' 'bun run watch-test-node'",
+    "watch-js": "concurrently -c 'auto' -n 'browser,node,worker,schema,graph,media-b,media-n,compress-b,compress-n,test-b,test-n' 'bun run watch-browser' 'bun run watch-node' 'bun run watch-worker' 'bun run watch-schema' 'bun run watch-graph' 'bun run watch-media-browser' 'bun run watch-media-node' 'bun run watch-compress-browser' 'bun run watch-compress-node' 'bun run watch-test-browser' 'bun run watch-test-node'",
     "watch-browser": "bun build --watch --no-clear-screen --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/browser.ts",
     "watch-node": "bun build --watch --no-clear-screen --target=node --sourcemap=external --packages=external --outdir ./dist ./src/node.ts",
-    "watch-bun": "bun build --watch --no-clear-screen --target=bun --sourcemap=external --packages=external --outdir ./dist ./src/bun.ts",
     "watch-worker": "bun build --watch --no-clear-screen --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/worker-browser.ts",
     "watch-schema": "bun build --watch --no-clear-screen --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/schema-entry.ts",
     "watch-graph": "bun build --watch --no-clear-screen --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/graph-entry.ts",
@@ -28,15 +27,13 @@
     "watch-compress-node": "bun build --watch --no-clear-screen --target=node --sourcemap=external --packages=external --outdir ./dist ./src/compress-node.ts",
     "watch-types": "tsc --watch --preserveWatchOutput",
     "build-package": "bun run build-js && bun run build-types",
-    "build-js": "concurrently -m 12 --timings -c 'auto' -n 'browser,node,bun,worker,schema,graph,media,compress,test' 'bun run build-browser' 'bun run build-node' 'bun run build-bun' 'bun run build-worker' 'bun run build-schema' 'bun run build-graph' 'bun run build-media' 'bun run build-compress' 'bun run build-test'",
+    "build-js": "concurrently -m 12 --timings -c 'auto' -n 'browser,node,worker,schema,graph,media,compress,test' 'bun run build-browser' 'bun run build-node' 'bun run build-worker' 'bun run build-schema' 'bun run build-graph' 'bun run build-media' 'bun run build-compress' 'bun run build-test'",
     "build-clean": "rm -fr dist/* tsconfig.tsbuildinfo",
     "build-browser": "bun build --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/browser.ts",
     "build-node": "bun build --target=node --sourcemap=external --packages=external --outdir ./dist ./src/node.ts",
-    "build-bun": "bun build --target=bun --sourcemap=external --packages=external --outdir ./dist ./src/bun.ts",
-    "build-worker": "concurrently -c 'auto' -n 'w-browser,w-node,w-bun' 'bun run build-worker-browser' 'bun run build-worker-node' 'bun run build-worker-bun'",
+    "build-worker": "concurrently -c 'auto' -n 'w-browser,w-node' 'bun run build-worker-browser' 'bun run build-worker-node'",
     "build-worker-browser": "bun build --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/worker-browser.ts",
     "build-worker-node": "bun build --target=node --sourcemap=external --packages=external --outdir ./dist ./src/worker-node.ts",
-    "build-worker-bun": "bun build --target=bun --sourcemap=external --packages=external --outdir ./dist ./src/worker-bun.ts",
     "build-schema": "bun build --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/schema-entry.ts",
     "build-graph": "bun build --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/graph-entry.ts",
     "build-media": "concurrently -c 'auto' -n 'media-browser,media-node' 'bun run build-media-browser' 'bun run build-media-node'",
@@ -62,10 +59,6 @@
       "browser": {
         "types": "./dist/browser.d.ts",
         "import": "./dist/browser.js"
-      },
-      "bun": {
-        "types": "./dist/bun.d.ts",
-        "import": "./dist/bun.js"
       },
       "types": "./dist/node.d.ts",
       "import": "./dist/node.js"
@@ -122,10 +115,6 @@
       "browser": {
         "types": "./dist/worker-browser.d.ts",
         "import": "./dist/worker-browser.js"
-      },
-      "bun": {
-        "types": "./dist/worker-bun.d.ts",
-        "import": "./dist/worker-bun.js"
       },
       "types": "./dist/worker-node.d.ts",
       "import": "./dist/worker-node.js"

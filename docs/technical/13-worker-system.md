@@ -329,11 +329,17 @@ duplicates are removed before the `postMessage` call.
 
 ## Platform Implementations
 
+There are two, not three. Bun implements `node:worker_threads` over the same
+primitive as its web `Worker`, so a thread spawned either way is reachable
+through `parentPort` and the Node file serves Bun as well. The browser needs its
+own only because a static `node:worker_threads` import cannot be bundled for it.
+
 ### Browser (`Worker.browser.ts`)
 
 Uses the standard Web Worker API. `WorkerServer` attaches a `message` event
-listener on `self` (the worker global scope) and delegates to
-`WorkerServerBase.handleMessage()`.
+listener on `self` (the worker global scope), delegates to
+`WorkerServerBase.handleMessage()`, and sends replies with the worker scope's
+own `postMessage`.
 
 ```ts
 // Browser worker entry
@@ -341,24 +347,37 @@ import { WorkerServer } from "@workglow/util/worker";
 // WorkerServer automatically listens on `self`
 ```
 
-### Node.js (`Worker.node.ts`)
+### Node and Bun (`Worker.node.ts`)
 
 Wraps `worker_threads.Worker` in a `WorkerPolyfill` class that normalizes the
-API to match the browser `Worker` interface:
+API to match the browser `Worker` interface. Both mismatches it bridges fail
+silently rather than loudly, which is why the wrapper is not optional:
 
-- Constructor converts file paths to `file://` URLs via `pathToFileURL()`
-- `addEventListener` / `removeEventListener` are mapped to Node's `on` / `off`
+- **Script reference.** `worker_threads` accepts a `URL` object or a path but
+  rejects a stringified `file://` URL with `ERR_WORKER_PATH`. Call sites pass
+  `new URL("./worker.js", import.meta.url)`, so a URL goes through untouched and
+  only a plain path is converted via `pathToFileURL()`.
+- **Event shape.** Node's `Worker` is an `EventEmitter`, not an `EventTarget`,
+  so `on("message")` hands the listener the deserialized value directly.
+  `WorkerManager` reads `event.data`. `addEventListener` /
+  `removeEventListener` therefore map onto `on` / `off` with the listener
+  wrapped to arrive in the `MessageEvent` / `ErrorEvent` shape the web API
+  delivers. (`filename` and `lineno` have no `worker_threads` equivalent and
+  stay undefined rather than being faked.)
 
-The `WorkerServer` subclass listens on the `parentPort` from `worker_threads`.
+The `WorkerServer` subclass listens on the `parentPort` from `worker_threads`
+and sends through it too: a Node worker thread has **no global `postMessage`**,
+so the server passes `parentPort.postMessage` to `WorkerServerBase` as its
+`post` option rather than letting the base reach for a global that is not there.
+It refuses to construct when `parentPort` is null, since that means the main
+thread.
 
-### Bun (`Worker.bun.ts`)
-
-Bun natively supports the Web Worker API, so the implementation is identical to
-the browser version: `globalThis.Worker` is used directly, and `WorkerServer`
-listens on `self`.
-
-All three platform implementations register themselves via a side-effect import
+Both platform implementations register themselves via a side-effect import
 into the `globalServiceRegistry` under the `WORKER_SERVER` service token.
+
+`WorkerManager.roundtrip.test.ts` drives all of this over a real worker thread
+under both runners; the rest of the worker suites substitute the thread with a
+`FakeWorker` or a stubbed `postMessage`.
 
 ## Worker Isolation Model
 

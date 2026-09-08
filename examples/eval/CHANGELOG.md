@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.5.0
+
+### Breaking Changes
+
+- **features(storage)**: add join() to ITabularStorage with SQL pushdown (#893)
+
+### Features
+
+#### storage
+
+- add join() to ITabularStorage with SQL pushdown (#893)
+
+### Bug Fixes
+
+#### util
+
+- repair the Node worker path and drop the Bun worker fork
+
+#### pricing
+
+- resolve rates from the live table and at the request's instant
+
+### Chores
+
+- revert version change not made by bunset
+- update bunset and its configuration and dependencies
+
+### Updated Dependencies
+
+- `hyparquet`: ^1.30.0
+
 ## 0.4.9
 
 ## 0.4.8

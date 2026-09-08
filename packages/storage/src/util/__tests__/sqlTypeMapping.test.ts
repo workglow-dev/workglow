@@ -51,6 +51,36 @@ describe("mapPostgresType integer range selection", () => {
   });
 });
 
+describe("mapPostgresType pgvector hook", () => {
+  // What a backend that knows the width supplies; `undefined` is the base
+  // class, which has no dimension to declare.
+  const withVector = {
+    ...options,
+    vectorTypeFor: (t: Exclude<JsonSchema, boolean>) =>
+      t.format === "TypedArray" ? "vector(4)" : undefined,
+  };
+
+  it("maps a TypedArray property to a vector column", () => {
+    // The embedding schema every vector storage here is built on is an
+    // *array*, not a string. While the hook was only consulted for
+    // `type: "string"` these columns became `JSONB /* generic array */`, no
+    // `vector_*_ops` index could be built over them, and every similarity
+    // search fell back to scanning the table in memory.
+    expect(mapPostgresType({ type: "array", format: "TypedArray" }, withVector)).toBe("vector(4)");
+  });
+
+  it("leaves the column JSONB when the backend declares no width", () => {
+    expect(mapPostgresType({ type: "array", format: "TypedArray" }, options)).toBe(
+      "JSONB /* generic array */"
+    );
+  });
+
+  it("does not divert a column the hook declines", () => {
+    expect(mapPostgresType({ type: "string" }, withVector)).toBe("TEXT");
+    expect(mapPostgresType({ type: "object" }, withVector)).toBe("JSONB /* object */");
+  });
+});
+
 describe("TYPED_ARRAY_CTORS", () => {
   it("includes Float16Array so documented quantized vectors decode", () => {
     // The util schema layer polyfills globalThis.Float16Array on older runtimes,

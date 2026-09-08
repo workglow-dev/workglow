@@ -13,31 +13,32 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../../.
 const workspaceRoots = ["packages", "providers"] as const;
 
 /**
- * The complete set of `exports` entries that still carry a `"bun"` condition,
- * as `"<package name> <subpath>"`. Every one is a genuine runtime divergence:
+ * No `exports` entry anywhere in the monorepo carries a `"bun"` condition, so
+ * Bun resolves the default `"import"` everywhere and loads the node build.
  *
- * - `@workglow/util .`        — `Worker.bun` vs `Worker.node`
- * - `@workglow/util ./worker` — `dist/worker-bun.js` vs `dist/worker-node.js`
+ * Nothing was given up to get here. Both of the entries that used to qualify —
+ * `@workglow/util`'s `"."` and `"./worker"` — existed for `Worker.bun.ts`,
+ * which was byte-identical to `Worker.browser.ts`: Bun ran the web `Worker`
+ * API while Node ran `node:worker_threads`. Bun implements worker threads over
+ * the same primitive as its web `Worker`, so a thread spawned either way is
+ * reachable through `parentPort`, and one `Worker.node.ts` now serves both.
+ * `@workglow/sqlite`'s `./storage` had gone the same way earlier, when both
+ * runtimes moved onto the shared `node:sqlite` driver.
  *
- * `@workglow/sqlite ./storage` was a third until both runtimes moved onto the
- * shared `node:sqlite` driver: with no `bun:sqlite` build left to select, the
- * condition named the same bundle the default `"import"` already resolves.
+ * The browser keeps its own build for the one reason Bun never had: a static
+ * `node:worker_threads` import cannot be bundled for it.
  *
- * Everywhere else Bun resolves the default `"import"` and loads the node build,
- * which is byte-identical to what a duplicated `src/bun.ts` would have produced.
+ * This fixture is deliberately exact, so it fails in both directions: on any
+ * `"bun"` condition added back, and — via the resolution test below — on
+ * either util entry being pointed somewhere other than the node build.
  *
- * This fixture is deliberately exact, so it fails in both directions: on a
- * redundant `"bun"` condition added back, and on either of the two being
- * deleted (deleting `@workglow/util`'s `"./worker"` would silently swap every
- * Bun consumer onto `Worker.node` and `node:worker_threads`).
- *
- * Changing it means changing prose too — the same list is stated in
- * `.claude/CLAUDE.md` ("No `bun` entry unless it differs") and twice in
+ * Changing it means changing prose too — the same rule is stated in
+ * `.claude/CLAUDE.md` ("No `bun` export condition") and twice in
  * `docs/technical/19-build-system.md` (the "Standard Two-Target Pattern" rule
- * and the "Extended Pattern (util)" build table). `docs/technical/18-multi-runtime-abstraction.md`
- * also describes `@workglow/util`'s `./worker` condition as the exception.
+ * and the "Extended Pattern (util)" build table).
+ * `docs/technical/18-multi-runtime-abstraction.md` describes the same split.
  */
-const EXPECTED_BUN_CONDITIONS = ["@workglow/util .", "@workglow/util ./worker"] as const;
+const EXPECTED_BUN_CONDITIONS: readonly string[] = [];
 
 interface ExportsNode {
   readonly [condition: string]: string | ExportsNode | undefined;
@@ -91,7 +92,7 @@ describe("bun export conditions", () => {
     expect(manifestCount).toBeGreaterThan(20);
   });
 
-  it("keeps each surviving condition pointed at a bun-specific target", () => {
+  it("routes Bun to the node build on the entries that used to fork", () => {
     const utilExports = JSON.parse(
       readFileSync(join(repoRoot, "packages/util/package.json"), "utf8")
     ).exports;
@@ -99,18 +100,27 @@ describe("bun export conditions", () => {
       readFileSync(join(repoRoot, "providers/sqlite/package.json"), "utf8")
     ).exports;
 
-    expect(utilExports["."].bun.import).toBe("./dist/bun.js");
+    // The inverse of the old assertions, kept rather than deleted: each entry
+    // must carry NO `bun` condition and still resolve to the node build, which
+    // is what makes Bun and Node share one worker implementation and one
+    // `node:sqlite` driver. Dropping these with the conditions would leave the
+    // whole point unpinned — a reintroduced bun branch would then only trip the
+    // exact-set test above, with nothing saying which bundle Bun actually loads.
+    expect(utilExports["."].bun).toBeUndefined();
     expect(utilExports["."].import).toBe("./dist/node.js");
-    expect(utilExports["./worker"].bun.import).toBe("./dist/worker-bun.js");
+    expect(utilExports["./worker"].bun).toBeUndefined();
     expect(utilExports["./worker"].import).toBe("./dist/worker-node.js");
 
-    // The inverse, kept rather than deleted: `./storage` must carry NO `bun`
-    // condition and still route to the node build, which is what makes Bun and
-    // Node share the one `node:sqlite` driver. Dropping the assertion with the
-    // condition would leave the migration's whole point unpinned — a
-    // reintroduced `bun:sqlite` branch would then only trip the exact-set test
-    // above, with nothing saying which driver Bun actually loads.
     expect(sqliteExports["./storage"].bun).toBeUndefined();
     expect(sqliteExports["./storage"].import).toBe("./dist/storage/node.js");
+  });
+
+  it("keeps the browser build separate, which is the split that remains", () => {
+    const utilExports = JSON.parse(
+      readFileSync(join(repoRoot, "packages/util/package.json"), "utf8")
+    ).exports;
+
+    expect(utilExports["."].browser.import).toBe("./dist/browser.js");
+    expect(utilExports["./worker"].browser.import).toBe("./dist/worker-browser.js");
   });
 });

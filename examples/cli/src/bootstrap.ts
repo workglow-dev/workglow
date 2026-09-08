@@ -12,6 +12,7 @@ import {
   globalServiceRegistry,
   HUMAN_CONNECTOR,
   setGlobalCredentialStore,
+  Worker,
 } from "@workglow/util";
 import type { Command } from "commander";
 import { program as defaultProgram } from "commander";
@@ -104,6 +105,8 @@ export async function runWorkglowCli(options: WorkglowCliOptions = {}): Promise<
   process.env.WORKGLOW_MODEL_CACHE = path.join(config.directories.cache, "onnx");
 
   await registerHuggingFaceTransformers({
+    // `Worker` comes from @workglow/util rather than the global: Node exposes no
+    // global `Worker`, so the global spelling only ran under Bun.
     // ".js" resolves in both modes: bun maps it to worker_hft.ts when running
     // from source, and the built dist contains worker_hft.js (a ".ts" specifier
     // would fail in dist — bun build does not rewrite worker URLs).

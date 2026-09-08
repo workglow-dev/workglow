@@ -36,7 +36,6 @@
       ],
       "outputs": [
         "dist/**/*.d.ts",
-        "dist/**/*.d.ts.map",
         "tsconfig.tsbuildinfo"
       ]
     },

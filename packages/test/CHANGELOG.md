@@ -1,5 +1,64 @@
 # @workglow/test
 
+## 0.5.0
+
+### Breaking Changes
+
+- **features(storage)**: add join() to ITabularStorage with SQL pushdown (#893)
+
+### Features
+
+#### storage
+
+- add join() to ITabularStorage with SQL pushdown (#893)
+
+### Bug Fixes
+
+- file the human-in-the-loop tasks under "Human", not "Flow Control"
+
+#### util
+
+- repair the Node worker path and drop the Bun worker fork
+
+#### postgres
+
+- give a vector storage a real pgvector column
+
+#### release
+
+- gate publish-all on tests again (#916)
+
+#### pricing
+
+- various fixes for pricing on models
+- resolve rates from the live table and at the request's instant
+
+#### storage
+
+- stop connection transactions hanging and leaking uncommitted rows
+- guard updateWhere's primary key on the transaction path
+
+### Refactors
+
+#### storage
+
+- route the tx handle through the public methods
+
+### Tests
+
+#### pricing
+
+- assert the billing unit in the contract suite, off the same fixtures
+
+### Chores
+
+- revert version change not made by bunset
+- update bunset and its configuration and dependencies
+
+### Updated Dependencies
+
+- `miniflare`: ^5.20260908.0-alpha
+
 ## 0.4.9
 
 ### Features

@@ -9,7 +9,8 @@
 ## Overview
 
 Workglow is designed to run identically across three JavaScript runtimes: **browsers**,
-**Node.js**, and **Bun**. Rather than relying on runtime detection at import time or bundling
+**Node.js**, and **Bun** — served by two builds, since Bun implements the Node APIs the
+packages here rely on. Rather than relying on runtime detection at import time or bundling
 platform polyfills into a single artifact, the framework uses a **compile-time entry point pattern**
 combined with Node.js **conditional exports** to deliver the correct platform-specific code to each
 runtime. The result is zero unnecessary polyfill code in any target environment, smaller bundle
@@ -28,8 +29,7 @@ Source files referenced in this document:
 | ------------------------------ | ------------------------------------------------- |
 | `packages/util/src/common.ts`  | Shared exports used by all three runtimes         |
 | `packages/util/src/browser.ts` | Browser entry point                               |
-| `packages/util/src/node.ts`    | Node.js entry point                               |
-| `packages/util/src/bun.ts`     | Bun entry point                                   |
+| `packages/util/src/node.ts`    | Node.js entry point (also serves Bun)             |
 | `packages/util/package.json`   | Conditional exports and build scripts             |
 | `packages/util/tsconfig.json`  | TypeScript configuration listing all entry points |
 
@@ -37,23 +37,25 @@ Source files referenced in this document:
 
 ## Entry Point Pattern
 
-Every package in the Workglow monorepo follows a two-file entry point convention, plus a third
-Bun entry only where Bun genuinely needs different code:
+Every package in the Workglow monorepo follows a two-file entry point convention:
 
 ```
 src/
   browser.ts    # Browser entry point
-  node.ts       # Node.js entry point (also serves Bun by default)
-  bun.ts        # Bun entry point — ONLY when it differs from node.ts
+  node.ts       # Node.js entry point (also serves Bun)
   common.ts     # Shared logic re-exported by the entry points
 ```
 
 Bun supports every Node.js API the packages here rely on, so a `bun.ts` that is a byte-for-byte
 copy of `node.ts` buys nothing but a third build target and a third `.d.ts` to keep in sync. With
 no `"bun"` condition in `exports`, Bun falls through to the `"import"`/`"types"` default and gets
-the Node entry — the same code the duplicated file would have given it. Only two entries in the
-monorepo earn a Bun build, both in `@workglow/util`: its `"."` (`Worker.bun` vs `Worker.node`)
-and its `"./worker"` sub-path (`dist/worker-bun.js` vs `dist/worker-node.js`).
+the Node entry — the same code the duplicated file would have given it. **No entry in the
+monorepo earns a Bun build.** The last two were `@workglow/util`'s `"."` and `"./worker"`, for a
+`Worker.bun.ts` byte-identical to `Worker.browser.ts`; see [Workers](#workers) for why one Node
+file now covers both.
+
+A `src/bun.ts` is still the escape hatch if a genuine divergence ever appears — it needs the
+file, a `--target=bun` build, and a `"bun"` condition ahead of the `"import"` default.
 
 Each platform entry point re-exports everything from `common.ts` and then layers on
 platform-specific modules. For `@workglow/util`, the entry points look like this:
@@ -65,18 +67,11 @@ export * from "./common";
 export * from "./worker/Worker.browser";
 ```
 
-**`node.ts`:**
+**`node.ts`** (also what Bun resolves):
 
 ```typescript
 export * from "./common";
 export * from "./worker/Worker.node";
-```
-
-**`bun.ts`:**
-
-```typescript
-export * from "./common";
-export * from "./worker/Worker.bun";
 ```
 
 This pattern guarantees that the common API surface is identical across all three runtimes — the
@@ -105,10 +100,6 @@ bundlers and runtimes match the **first** condition they support.
       "types": "./dist/browser.d.ts",
       "import": "./dist/browser.js"
     },
-    "bun": {
-      "types": "./dist/bun.d.ts",
-      "import": "./dist/bun.js"
-    },
     "types": "./dist/node.d.ts",
     "import": "./dist/node.js"
   }
@@ -119,8 +110,8 @@ Resolution rules:
 
 1. **React Native** and **browser** bundlers (Vite, webpack, esbuild with `browser` condition)
    resolve to `dist/browser.js`.
-2. **Bun** resolves to `dist/bun.js`.
-3. Everything else (Node.js, fallback) resolves to `dist/node.js`.
+2. Everything else — **Node.js**, **Bun**, and any other fallback — resolves to `dist/node.js`.
+   Bun matches no earlier condition because there is none to match.
 
 Each condition block includes a `"types"` field so that TypeScript resolves the correct `.d.ts`
 file for the platform. This is critical because the type declarations differ per platform — for
@@ -165,16 +156,15 @@ Sub-paths that **are** platform-specific use the same condition structure as the
 
 Note the absence of a `"bun"` condition: Bun shares the Node.js media implementation
 (`media-node.js`) because both runtimes have access to the same server-side image APIs, and the
-default `"import"` already points there. This is the common case — Bun and Node share an
-implementation while the browser diverges, so only the browser needs a condition of its own.
-`./worker` is the exception that proves it: Bun's `Worker` differs enough to warrant a
-`"bun"` condition pointing at `worker-bun.js`.
+default `"import"` already points there. This is not the common case, it is every case — Bun and
+Node share an implementation while the browser diverges, so only the browser needs a condition of
+its own. `./worker` was the last holdout, and is no longer one.
 
 ---
 
 ## Common Module
 
-`common.ts` is the shared core that all three entry points re-export. It contains everything that
+`common.ts` is the shared core that both entry points re-export. It contains everything that
 does not depend on platform-specific APIs:
 
 ```typescript
@@ -207,8 +197,9 @@ part is **which Worker class** is used, and that is resolved by the platform ent
 
 ### Workers
 
-The worker abstraction is the most prominent example of platform divergence. Each platform needs
-a different `Worker` class and a corresponding `WorkerServer` that listens for messages on the
+The worker abstraction is the most prominent example of platform divergence — and the sharpest
+illustration of why the split is browser-vs-rest rather than three-way. Each side needs a
+different `Worker` class and a corresponding `WorkerServer` that listens for messages on the
 worker side.
 
 **Browser (`Worker.browser.ts`):**
@@ -222,53 +213,54 @@ const parentPort = self;
 export { Worker, parentPort };
 
 export class WorkerServer extends WorkerServerBase {
-  constructor() {
+  constructor(options?: WorkerServerBaseOptions) {
+    super({ ...options, post: (message, transfer) => self.postMessage(message, transfer) });
     parentPort?.addEventListener("message", async (event) => {
       await this.handleMessage({ type: event.type, data: event.data });
     });
-    super();
   }
 }
 ```
 
-**Node.js (`Worker.node.ts`):**
+**Node.js and Bun (`Worker.node.ts`):**
 
 Wraps `worker_threads.Worker` in a `WorkerPolyfill` that normalizes the API to match the browser
-`Worker` interface (adding `addEventListener`/`removeEventListener` methods and converting file
-paths to `file://` URLs):
+`Worker` interface. Both gaps it closes are silent when left open, so neither is cosmetic:
+`worker_threads` rejects a **stringified** `file://` URL with `ERR_WORKER_PATH` (call sites pass
+`new URL(..., import.meta.url)`, so a URL is passed through and only a path is converted), and
+Node's `Worker` is an `EventEmitter` rather than an `EventTarget`, so listeners are wrapped to
+arrive in the `MessageEvent` / `ErrorEvent` shape `WorkerManager` reads `event.data` off.
 
 ```typescript
-import { Worker as NodeWorker, isMainThread, parentPort } from "worker_threads";
-import { pathToFileURL } from "url";
+import { Worker as NodeWorker, parentPort } from "node:worker_threads";
+import { pathToFileURL } from "node:url";
 
 class WorkerPolyfill extends NodeWorker {
   constructor(scriptUrl: string | URL, options?: WorkerOptions) {
-    const resolved =
-      scriptUrl instanceof URL ? scriptUrl.toString() : pathToFileURL(scriptUrl).toString();
-    super(resolved, options);
+    super(typeof scriptUrl === "string" ? pathToFileURL(scriptUrl) : scriptUrl, options);
   }
 
-  addEventListener(event: "message" | "error", listener: (...args: any[]) => void) {
-    if (event === "message") this.on("message", listener);
-    if (event === "error") this.on("error", listener);
+  addEventListener(type: WorkerEventType, listener: WorkerEventListener) {
+    this.on(type, this.#adapt(type, listener)); // wraps the value as { type, data }
   }
-
-  removeEventListener(event: "message" | "error", listener: (...args: any[]) => void) {
-    if (event === "message") this.off("message", listener);
-    if (event === "error") this.off("error", listener);
-  }
+  // removeEventListener takes the same wrapped function back off.
 }
 
-const Worker = isMainThread ? WorkerPolyfill : parentPort;
+const Worker = WorkerPolyfill;
 export { Worker, parentPort };
 ```
 
-**Bun (`Worker.bun.ts`):**
+Its `WorkerServer` hands `parentPort.postMessage` to `WorkerServerBase` as the `post` option: a
+Node worker thread has **no global `postMessage`**, so a server that reached for the global could
+receive messages but never reply. It refuses to construct when `parentPort` is null — the main
+thread.
 
-Bun natively supports `globalThis.Worker` with the same API as the browser, so the Bun worker
-implementation is identical to the browser one.
+**Bun** needs no third file. It implements `node:worker_threads` over the same primitive as its
+web `Worker`, so a thread spawned either way is reachable through `parentPort`, and Bun resolves
+the `"import"` default to this build. The browser keeps its own file for the one reason Bun never
+had: a static `node:worker_threads` import cannot be bundled for it.
 
-All three implementations register a `WorkerServer` singleton into `globalServiceRegistry` under
+Both implementations register a `WorkerServer` singleton into `globalServiceRegistry` under
 the `WORKER_SERVER` service token, ensuring the correct server is available in worker contexts
 regardless of platform.
 
@@ -415,7 +407,6 @@ bun run build-js
 concurrently \
   'bun build --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/browser.ts' \
   'bun build --target=node    --sourcemap=external --packages=external --outdir ./dist ./src/node.ts' \
-  'bun build --target=bun     --sourcemap=external --packages=external --outdir ./dist ./src/bun.ts' \
   'bun build --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/schema-entry.ts' \
   'bun build --target=browser --sourcemap=external --packages=external --outdir ./dist ./src/graph-entry.ts' \
   # ... media, compress, worker targets
@@ -433,7 +424,6 @@ Type declarations are generated separately via `tsc` (TypeScript 7, which is the
   "files": [
     "./src/node.ts",
     "./src/browser.ts",
-    "./src/bun.ts",
     "./src/worker-entry.ts",
     "./src/schema-entry.ts",
     "./src/graph-entry.ts",
@@ -612,8 +602,7 @@ The complete conditional exports map for `@workglow/util`:
         "import": "./dist/worker-browser.js"
       },
       "browser": { "types": "./dist/worker-browser.d.ts", "import": "./dist/worker-browser.js" },
-      "bun": { "types": "./dist/worker-bun.d.ts", "import": "./dist/worker-bun.js" },
-      "types": "./dist/worker-entry.d.ts",
+      "types": "./dist/worker-node.d.ts",
       "import": "./dist/worker-node.js"
     }
   }
