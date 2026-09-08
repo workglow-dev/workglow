@@ -8,10 +8,11 @@
 /**
  * Refuses to continue unless `Build & Test` is green for the commit at HEAD.
  *
- * `publish-all` runs a local test slice too, but that proves the publisher's
- * working tree — which is not what consumers install. This proves the commit,
- * and it is the half a `--no-verify`-style shortcut cannot walk around: the
- * answer comes from GitHub rather than from the machine doing the publishing.
+ * This is the whole test gate. Re-running a slice locally would repeat, on the
+ * publisher's machine, work the checked run already did on this exact commit —
+ * and the commit is what consumers install, not the working tree. It is also
+ * the half a `--no-verify`-style shortcut cannot walk around: the answer comes
+ * from GitHub rather than from the machine doing the publishing.
  *
  * It runs BEFORE `bunset`, deliberately. `bunset` writes the release commit, so
  * afterwards HEAD names something no workflow has ever seen and the check would

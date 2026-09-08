@@ -23,32 +23,26 @@ const scripts = (
  * were then cut through it before anyone noticed.
  *
  * A gate that can be deleted with nothing failing will be deleted again, so the
- * gate is asserted here rather than described in prose. These tests are
- * themselves in the `unit` slice, which is the slice `publish-all` runs — so
- * removing the step also removes what would have caught its removal only if you
- * also delete this file, which is a different kind of commit to write.
+ * gate is asserted here rather than described in prose.
+ *
+ * The gate is `require-green-ci` alone. Running a test slice locally as well
+ * would re-run, on the publisher's machine, work the checked CI run already did
+ * on that exact commit — minutes bought nothing, since the answer is the same
+ * one and it is the commit, not the working tree, that consumers install.
  */
 describe("the release gate on publish-all", () => {
   const publishAll = scripts["publish-all"] ?? "";
 
-  it("runs a test slice before it publishes", () => {
-    expect(publishAll).toContain("test:vitest:unit");
-  });
-
   it("checks the commit's CI run before it publishes", () => {
-    // The local slice proves the publisher's checkout; this proves the commit
-    // everyone else will get. A `--no-verify`-style shortcut cannot walk around
-    // a check that reads GitHub.
+    // The commit is what everyone else gets, and a check that reads GitHub is
+    // the half a `--no-verify`-style shortcut cannot walk around.
     expect(publishAll).toContain("require-green-ci");
   });
 
   it("gates before it bumps, not after", () => {
     // `bunset` writes the release commit. A CI check after it would ask about a
     // commit no workflow has ever seen, and would pass for that reason.
-    const gate = Math.max(
-      publishAll.indexOf("test:vitest:unit"),
-      publishAll.indexOf("require-green-ci")
-    );
+    const gate = publishAll.indexOf("require-green-ci");
     expect(gate).toBeGreaterThan(-1);
     expect(gate).toBeLessThan(publishAll.indexOf("bunset"));
   });
@@ -60,11 +54,10 @@ describe("the release gate on publish-all", () => {
     expect(publishAll).toContain("publish-workspaces");
   });
 
-  it("still names the slice it runs", () => {
-    // The gate is only as good as the script it calls: a `test:vitest:unit`
-    // that no longer exists would fail `publish-all` loudly, but one silently
-    // renamed would not be caught by the string check above.
-    expect(scripts["test:vitest:unit"]).toBeDefined();
+  it("still names a script that exists", () => {
+    // The gate is only as good as the script it calls: one that no longer
+    // exists fails `publish-all` loudly, but one silently renamed would not be
+    // caught by the string check above.
     expect(scripts["require-green-ci"]).toBeDefined();
   });
 });
