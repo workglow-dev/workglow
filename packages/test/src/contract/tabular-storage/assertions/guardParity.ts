@@ -118,6 +118,14 @@ const CASES: readonly GuardParityCase[] = [
     label: "a patch that rewrites a primary-key column",
     run: (t) => t.updateWhere({ name: "guard", type: "parity" }, { name: "moved" } as never),
   },
+  {
+    // Joined to itself, so the case needs no second storage and the guard is
+    // reached on whichever path the planner picks: the pushdown validates in
+    // `runSqlJoin`, the hash fallback in `BaseTabularStorage.join`.
+    method: "join",
+    label: "a join column that is not in the schema",
+    run: (t) => t.join({ type: "inner", on: [{ left: "nope", right: "name" }] } as never, t),
+  },
 ];
 
 /**

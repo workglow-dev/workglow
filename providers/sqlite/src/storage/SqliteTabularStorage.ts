@@ -41,6 +41,7 @@ import {
   SqlTabularMigrationApplier,
   TYPED_ARRAY_CTORS,
 } from "@workglow/storage";
+import type { SqlJoinDialect } from "@workglow/storage";
 import { createServiceToken, uuid4 } from "@workglow/util";
 import type {
   DataPortSchemaObject,
@@ -112,7 +113,7 @@ export class SqliteTabularStorage<
    * uses. A connection transaction holds the chain, not the mutex, so a read
    * taking only the mutex read uncommitted rows off the shared session.
    */
-  protected guardedRead<T>(fn: () => Promise<T>): Promise<T> {
+  protected override guardedRead<T>(fn: () => Promise<T>): Promise<T> {
     const handle = this.connectionHandle();
     if (handle !== null) {
       return runReadOnConnection(handle, this, () => this.mutex(fn));
@@ -1290,6 +1291,14 @@ export class SqliteTabularStorage<
         return `ON CONFLICT(${pkList}) DO UPDATE SET ${assignments}`;
       },
       mintUuidClientSide: true,
+    };
+  }
+
+  protected override sqlJoinDialect(): SqlJoinDialect {
+    return {
+      dialect: SqliteDialect,
+      executeRaw: async (sql, params) =>
+        this.db.prepare(sql).all(...params) as Record<string, unknown>[],
     };
   }
 

@@ -13,6 +13,13 @@ import {
   VectorItemPrimaryKeyNames,
   VectorItemSchema,
 } from "../../contract/tabular-storage/runTabularStorageContract";
+import {
+  AuthorPrimaryKeyNames,
+  AuthorSchema,
+  PostPrimaryKeyNames,
+  PostSchema,
+  runGenericTabularJoinTests,
+} from "./genericTabularJoinTests";
 import { runGenericTabularStorageSubscriptionTests } from "./genericTabularStorageSubscriptionTests";
 import {
   CompoundPrimaryKeyNames,
@@ -743,4 +750,103 @@ runTabularStorageContract({
       VectorItemPrimaryKeyNames
     );
   },
+});
+
+describe("CachedTabularStorage join", () => {
+  runGenericTabularJoinTests(
+    async () =>
+      new CachedTabularStorage<typeof PostSchema, typeof PostPrimaryKeyNames>(
+        new InMemoryTabularStorage<typeof PostSchema, typeof PostPrimaryKeyNames>(
+          PostSchema,
+          PostPrimaryKeyNames
+        ),
+        undefined,
+        PostSchema,
+        PostPrimaryKeyNames
+      ),
+    async () =>
+      new CachedTabularStorage<typeof AuthorSchema, typeof AuthorPrimaryKeyNames>(
+        new InMemoryTabularStorage<typeof AuthorSchema, typeof AuthorPrimaryKeyNames>(
+          AuthorSchema,
+          AuthorPrimaryKeyNames
+        ),
+        undefined,
+        AuthorSchema,
+        AuthorPrimaryKeyNames
+      )
+  );
+
+  it("reads the durable side, not the cache, and unwraps a cached right side", async () => {
+    const durablePosts = new InMemoryTabularStorage<typeof PostSchema, typeof PostPrimaryKeyNames>(
+      PostSchema,
+      PostPrimaryKeyNames
+    );
+    const durableAuthors = new InMemoryTabularStorage<
+      typeof AuthorSchema,
+      typeof AuthorPrimaryKeyNames
+    >(AuthorSchema, AuthorPrimaryKeyNames);
+    const posts = new CachedTabularStorage<typeof PostSchema, typeof PostPrimaryKeyNames>(
+      durablePosts,
+      undefined,
+      PostSchema,
+      PostPrimaryKeyNames
+    );
+    const authors = new CachedTabularStorage<typeof AuthorSchema, typeof AuthorPrimaryKeyNames>(
+      durableAuthors,
+      undefined,
+      AuthorSchema,
+      AuthorPrimaryKeyNames
+    );
+    await authors.put({ id: "a1", tenant: "t", name: "Ann", country: null });
+    await posts.put({ id: "p1", tenant: "t", author_id: "a1", title: "cached", views: 1 });
+    // Written behind the cache's back: only a read of the durable side sees it.
+    await durablePosts.put({ id: "p2", tenant: "t", author_id: "a1", title: "direct", views: 2 });
+    const durableJoin = spyOn(durablePosts, "join");
+
+    const rows = await posts.join(
+      { type: "inner", on: [{ left: "author_id", right: "id" }] },
+      authors
+    );
+
+    expect(rows.map((r) => r.left.id).sort()).toEqual(["p1", "p2"]);
+    expect(durableJoin).toHaveBeenCalledWith(expect.anything(), durableAuthors);
+  });
+  it("unwraps a cached right side even when the left side is a plain storage", async () => {
+    // The left side here delegates nothing, so nothing in the call chain is a
+    // wrapper that could unwrap the right one on its own behalf.
+    const posts = new InMemoryTabularStorage<typeof PostSchema, typeof PostPrimaryKeyNames>(
+      PostSchema,
+      PostPrimaryKeyNames
+    );
+    const durableAuthors = new InMemoryTabularStorage<
+      typeof AuthorSchema,
+      typeof AuthorPrimaryKeyNames
+    >(AuthorSchema, AuthorPrimaryKeyNames);
+    const authors = new CachedTabularStorage<typeof AuthorSchema, typeof AuthorPrimaryKeyNames>(
+      durableAuthors,
+      undefined,
+      AuthorSchema,
+      AuthorPrimaryKeyNames
+    );
+    await authors.put({ id: "a1", tenant: "t", name: "Ann", country: null });
+    // Warm the cache, then add an author behind its back: `authors.query` no
+    // longer reports a9, but the durable side does.
+    expect(await authors.getAll()).toHaveLength(1);
+    await durableAuthors.put({ id: "a9", tenant: "t", name: "Nine", country: null });
+    expect((await authors.query({ id: "a9" })) ?? []).toEqual([]);
+
+    await posts.putBulk([
+      { id: "p1", tenant: "t", author_id: "a1", title: "one", views: 1 },
+      { id: "p9", tenant: "t", author_id: "a9", title: "nine", views: 2 },
+    ]);
+
+    // A join served by the cache would drop p9 — one half reading the cache
+    // while the other reads durable is exactly the disagreement that costs
+    // rows under an inner join.
+    const rows = await posts.join(
+      { type: "inner", on: [{ left: "author_id", right: "id" }] },
+      authors
+    );
+    expect(rows.map((r) => `${r.left.id}:${r.right.id}`).sort()).toEqual(["p1:a1", "p9:a9"]);
+  });
 });

@@ -50,6 +50,7 @@ import {
   TYPED_ARRAY_CTORS,
   type VectorIndexOptions,
 } from "@workglow/storage";
+import type { SqlJoinDialect } from "@workglow/storage";
 import { createServiceToken } from "@workglow/util";
 import type {
   DataPortSchemaObject,
@@ -932,7 +933,7 @@ export class PostgresTabularStorage<
    * its own client and sees only committed rows, which is also why this skips
    * the `assertNotForeignConnectionTx` guard `guardedWrite` needs.
    */
-  protected guardedRead<T>(fn: () => Promise<T>): Promise<T> {
+  protected override guardedRead<T>(fn: () => Promise<T>): Promise<T> {
     const handle = this.connectionHandle();
     if (handle !== null) {
       return runReadOnConnection(handle, this, () => this.mutex(fn));
@@ -1646,6 +1647,18 @@ export class PostgresTabularStorage<
         return `ON CONFLICT (${pkList}) DO UPDATE SET ${assignments}`;
       },
       mintUuidClientSide: false,
+    };
+  }
+
+  protected override sqlJoinDialect(): SqlJoinDialect {
+    return {
+      dialect: PostgresDialect,
+      // `db` is read through whatever receiver this was called on: the pool for
+      // the instance, and the transaction-bound client when the call arrived
+      // through the `withTransaction` proxy. Holding onto the returned bag past
+      // the call that made it would pin whichever of the two came first.
+      executeRaw: async (sql, params) =>
+        ((await this.db.query(sql, params as unknown[])).rows ?? []) as Record<string, unknown>[],
     };
   }
 
