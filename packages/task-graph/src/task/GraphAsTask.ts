@@ -65,6 +65,13 @@ export class GraphAsTask<
   /** Entitlements are always dynamic — they depend on child tasks in the subgraph */
   public static override hasDynamicEntitlements: boolean = true;
 
+  /**
+   * The subgraph is where the reach lives, so this class declares none of it.
+   * Every composed task inherits this, which is what stops a caller reading the
+   * empty static declaration as "reaches nothing".
+   */
+  public static override entitlementsFromChildren: boolean = true;
+
   // ========================================================================
   // Constructor
   // ========================================================================

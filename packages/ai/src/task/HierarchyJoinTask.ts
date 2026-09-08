@@ -7,8 +7,14 @@
 import { ChunkRecordArraySchema, TypeKnowledgeBase } from "@workglow/knowledge-base";
 
 import type { ChunkRecord, KnowledgeBase } from "@workglow/knowledge-base";
-import type { CachePolicy, IExecuteContext, IRunConfig, TaskConfig } from "@workglow/task-graph";
-import { CreateWorkflow, Task, Workflow } from "@workglow/task-graph";
+import type {
+  CachePolicy,
+  IExecuteContext,
+  IRunConfig,
+  TaskConfig,
+  TaskEntitlements,
+} from "@workglow/task-graph";
+import { CreateWorkflow, Entitlements, Task, Workflow } from "@workglow/task-graph";
 import type { DataPortSchema } from "@workglow/util/schema";
 import type { Capability } from "../capability/Capabilities";
 
@@ -151,6 +157,15 @@ export class HierarchyJoinTask extends Task<
   public static override title = "Hierarchy Join";
   public static override description = "Enrich retrieval metadata with document hierarchy context";
   public static override cachePolicy: CachePolicy = { kind: "none" }; // Has external dependency
+
+  /** Declared so a host can ask what this reaches before running it. */
+  public static override entitlements(): TaskEntitlements {
+    return {
+      entitlements: [
+        { id: Entitlements.STORAGE_READ, reason: "Reads ancestor chunks from a knowledge base" },
+      ],
+    };
+  }
 
   public static override inputSchema(): DataPortSchema {
     return inputSchema as DataPortSchema;
