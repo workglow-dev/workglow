@@ -50,7 +50,7 @@ export async function registerCliBrowserDeps(config: CliConfig): Promise<void> {
     });
   } else {
     throw new Error(
-      `Unknown browser backend "${backend}". Valid options: "bun-webview", "playwright".`
+      `Unknown browser backend "${String(backend)}". Valid options: "bun-webview", "playwright".`
     );
   }
 }

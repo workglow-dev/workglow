@@ -334,7 +334,7 @@ export function registerModelCommand(program: Command): void {
       await repo.setupDatabase();
 
       await repo.addModel(withDefaults as unknown as ModelRecord);
-      console.log(`Model "${withDefaults.model_id}" added.`);
+      console.log(`Model "${String(withDefaults.model_id)}" added.`);
     });
 
   model
@@ -494,6 +494,6 @@ export function registerModelCommand(program: Command): void {
       await repo.setupDatabase();
 
       await repo.addModel(withDefaults as unknown as ModelRecord);
-      console.log(`Model "${withDefaults.model_id}" added.`);
+      console.log(`Model "${String(withDefaults.model_id)}" added.`);
     });
 }

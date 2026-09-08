@@ -349,7 +349,7 @@ export class ContextBuilderTask extends Task<
       }
       if (metadata) {
         for (const [key, value] of Object.entries(metadata)) {
-          result += `- ${key}: ${value}\n`;
+          result += `- ${key}: ${String(value)}\n`;
         }
       }
       result += "\n";
@@ -387,7 +387,7 @@ export class ContextBuilderTask extends Task<
     }
     if (metadata) {
       for (const [key, value] of Object.entries(metadata)) {
-        parts.push(`${key}=${value}`);
+        parts.push(`${key}=${String(value)}`);
       }
     }
     return parts.length > 0 ? `(${parts.join(", ")})` : "";

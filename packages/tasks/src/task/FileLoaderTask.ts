@@ -217,7 +217,9 @@ export class FileLoaderTask<Config extends TaskConfig = TaskConfig> extends Task
       if (error instanceof Error && error.message.includes("optional 'papaparse'")) {
         throw error;
       }
-      throw new Error(`Failed to parse CSV: ${error}`);
+      throw new Error(
+        `Failed to parse CSV: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 

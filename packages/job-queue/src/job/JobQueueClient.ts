@@ -451,7 +451,7 @@ export class JobQueueClient<Input, Output> {
     const job = await this.getJob(jobId);
     if (!job) {
       this.removePromise(jobId, resolve, reject);
-      throw new JobNotFoundError(`Job ${jobId} not found`);
+      throw new JobNotFoundError(`Job ${String(jobId)} not found`);
     }
     if (job.status === JobStatus.COMPLETED) {
       this.removePromise(jobId, resolve, reject);
@@ -459,7 +459,7 @@ export class JobQueueClient<Input, Output> {
     }
     if (job.status === JobStatus.DISABLED) {
       this.removePromise(jobId, resolve, reject);
-      throw new JobDisabledError(`Job ${jobId} was disabled`);
+      throw new JobDisabledError(`Job ${String(jobId)} was disabled`);
     }
     if (job.status === JobStatus.FAILED) {
       this.removePromise(jobId, resolve, reject);

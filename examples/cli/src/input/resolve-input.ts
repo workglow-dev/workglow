@@ -183,14 +183,16 @@ export function validateInput(
 
     if (expectedType === "integer" || expectedType === "number") {
       if (typeof value !== "number") {
-        errors.push(`Property "${key}" expected ${expectedType}, got ${actualType}`);
+        errors.push(
+          `Property "${key}" expected ${String(expectedType)}, got ${String(actualType)}`
+        );
       }
     } else if (expectedType === "array") {
       if (!Array.isArray(value)) {
         errors.push(`Property "${key}" expected array, got ${actualType}`);
       }
     } else if (actualType !== expectedType) {
-      errors.push(`Property "${key}" expected ${expectedType}, got ${actualType}`);
+      errors.push(`Property "${key}" expected ${String(expectedType)}, got ${String(actualType)}`);
     }
   }
 

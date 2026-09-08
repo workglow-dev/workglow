@@ -83,7 +83,7 @@ export function formatError(err: unknown): string {
   // Include error code if present (e.g. ERR_INVALID_URL, HTTP status codes)
   const code = "code" in err ? err.code : undefined;
   if (code !== undefined && code !== -1) {
-    message = `${message} (${code})`;
+    message = `${message} (${String(code)})`;
   }
 
   return message;

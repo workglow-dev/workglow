@@ -139,7 +139,7 @@ export class WorkflowBuilder implements IWorkflowBuilderHandle {
           taskSchema.additionalProperties !== true) ||
         (taskSchema === true && dataflow.targetTaskPortId !== DATAFLOW_ALL_PORTS)
       ) {
-        this._error = `Input ${dataflow.targetTaskPortId} not found on task ${task.id}`;
+        this._error = `Input ${dataflow.targetTaskPortId} not found on task ${String(task.id)}`;
         getLogger().error(this._error);
         return;
       }
@@ -416,14 +416,14 @@ export class WorkflowBuilder implements IWorkflowBuilderHandle {
     // Handle boolean schemas
     if (typeof outputSchema === "boolean") {
       if (outputSchema === false && source !== DATAFLOW_ALL_PORTS) {
-        const errorMsg = `Task ${lastNode.id} has schema 'false' and outputs nothing`;
+        const errorMsg = `Task ${String(lastNode.id)} has schema 'false' and outputs nothing`;
         this._error = errorMsg;
         getLogger().error(this._error);
         throw new WorkflowError(errorMsg);
       }
       // If outputSchema is true, we skip validation as it outputs everything
     } else if (!(outputSchema.properties as any)?.[source] && source !== DATAFLOW_ALL_PORTS) {
-      const errorMsg = `Output ${source} not found on task ${lastNode.id}`;
+      const errorMsg = `Output ${String(source)} not found on task ${String(lastNode.id)}`;
       this._error = errorMsg;
       getLogger().error(this._error);
       throw new WorkflowError(errorMsg);

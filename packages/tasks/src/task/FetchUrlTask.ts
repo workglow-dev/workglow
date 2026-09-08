@@ -559,7 +559,7 @@ function materializeDerivedPort(
   }
   throw createFetchUrlJobError(
     FetchUrlErrorCode.INVALID_RESPONSE_TYPE,
-    `Invalid response type: ${responseType}`,
+    `Invalid response type: ${String(responseType)}`,
     { url }
   );
 }

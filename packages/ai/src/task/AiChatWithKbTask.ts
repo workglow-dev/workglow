@@ -439,7 +439,7 @@ export class AiChatWithKbTask extends StreamingAiTask<
     if (context.resourceScope && this._sessionId) {
       const sessionId = this._sessionId;
       setCheckpointUsageSink(sessionId, (usage, modelId) => this.chargeLateUsage(usage, modelId));
-      context.resourceScope.register(`ai:session:${sessionId}`, async () => {
+      context.resourceScope.register(`ai:session:${String(sessionId)}`, async () => {
         await disposeCheckpoint(sessionId, model.provider);
       });
     }

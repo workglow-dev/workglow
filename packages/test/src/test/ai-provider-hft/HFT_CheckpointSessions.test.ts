@@ -83,7 +83,7 @@ function renderTemplate(
     out += `[TOOLS ${options.tools.map((t) => t.function.name).join(",")}]\n`;
   }
   for (const m of messages) {
-    out += `<${m.role}>${String(m.content)}</${m.role}>\n`;
+    out += `<${String(m.role)}>${String(m.content)}</${String(m.role)}>\n`;
   }
   if (options.add_generation_prompt) {
     out += "<assistant>";

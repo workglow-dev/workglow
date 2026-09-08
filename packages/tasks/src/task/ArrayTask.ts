@@ -133,7 +133,7 @@ export abstract class ArrayTask<
       const task = new (this.constructor as any)(
         {
           ...rest,
-          id: `${id}_${uuid4()}`,
+          id: `${String(id)}_${uuid4()}`,
           defaults: { ...this.defaults, ...this.runInputData, ...combination },
         },
         this.runConfig

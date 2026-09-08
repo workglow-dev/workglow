@@ -85,7 +85,7 @@ export function toOpenAIMessages(input: ToolCallingTaskInput): OpenAICompatMessa
           } else if (b.type === "image") {
             parts.push({
               type: "image_url",
-              image_url: { url: `data:${b.mimeType};base64,${b.data}` },
+              image_url: { url: `data:${String(b.mimeType)};base64,${String(b.data)}` },
             });
           } else if (b.type === "audio") {
             const format = (b.mimeType as string).replace(/^audio\//, "");

@@ -443,7 +443,7 @@ export class SupabaseQueueStorage<Input, Output> implements IQueueStorage<Input,
     const escapedWorkerId = this.escapeSqlString(validatedWorkerId);
     const numericId = Number(id);
     if (!Number.isFinite(numericId)) {
-      throw new Error(`Invalid job id: ${id}`);
+      throw new Error(`Invalid job id: ${String(id)}`);
     }
 
     const prefixConditions = this.buildPrefixWhereSql();
@@ -952,7 +952,7 @@ export class SupabaseQueueStorage<Input, Output> implements IQueueStorage<Input,
     // raw SQL via exec_sql to preserve existing values when opts fields are absent.
     const numericId = Number(id);
     if (!Number.isFinite(numericId)) {
-      throw new Error(`Invalid job id: ${id}`);
+      throw new Error(`Invalid job id: ${String(id)}`);
     }
     const prefixConditions = this.buildPrefixWhereSql();
     const validatedQueueName = this.validateSqlValue(this.queueName, "queueName");
@@ -1002,7 +1002,7 @@ export class SupabaseQueueStorage<Input, Output> implements IQueueStorage<Input,
   public async markDisabled(id: unknown): Promise<void> {
     const numericId = Number(id);
     if (!Number.isFinite(numericId)) {
-      throw new Error(`Invalid job id: ${id}`);
+      throw new Error(`Invalid job id: ${String(id)}`);
     }
     const prefixConditions = this.buildPrefixWhereSql();
     const validatedQueueName = this.validateSqlValue(this.queueName, "queueName");

@@ -484,9 +484,9 @@ class DataflowConsoleFormatter extends ConsoleFormatter {
     if (obj instanceof Dataflow) {
       const header = new JsonMLElement("div");
       header.highlightText("Dataflow ");
-      header.inputText(`${obj.sourceTaskId}.${obj.sourceTaskPortId}`);
+      header.inputText(`${String(obj.sourceTaskId)}.${obj.sourceTaskPortId}`);
       header.createTextChild(" -> ");
-      header.outputText(`${obj.targetTaskId}.${obj.targetTaskPortId}`);
+      header.outputText(`${String(obj.targetTaskId)}.${obj.targetTaskPortId}`);
       if (obj.status === TaskStatus.COMPLETED) {
         header.greyText(" = ");
         header.createValueObject(obj.value);

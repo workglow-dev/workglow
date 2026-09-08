@@ -180,7 +180,7 @@ export function registerMcpCommand(program: Command): void {
       await storage.setupDirectory();
 
       await storage.put(input as Record<string, unknown>);
-      console.log(`MCP server "${input.name}" added.`);
+      console.log(`MCP server "${String(input.name)}" added.`);
     });
 
   mcp
@@ -336,7 +336,7 @@ export function registerMcpCommand(program: Command): void {
       await storage.setupDirectory();
 
       await storage.put(input as Record<string, unknown>);
-      console.log(`MCP server "${input.name}" added.`);
+      console.log(`MCP server "${String(input.name)}" added.`);
     });
 
   registerMcpServeCommand(mcp);

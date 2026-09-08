@@ -242,7 +242,7 @@ async function performDestructiveMigration(
     options.onMigrationProgress?.(`Read ${existingData.length} records`, 0.3);
   } catch (err) {
     options.onMigrationWarning?.(
-      `Failed to read existing data during migration: ${err}`,
+      `Failed to read existing data during migration: ${err instanceof Error ? err.message : String(err)}`,
       err as Error
     );
   }
@@ -270,7 +270,7 @@ async function performDestructiveMigration(
       options.onMigrationProgress?.(`Transformation complete: ${existingData.length} records`, 0.7);
     } catch (err) {
       options.onMigrationWarning?.(
-        `Data transformation failed: ${err}. Some data may be lost.`,
+        `Data transformation failed: ${err instanceof Error ? err.message : String(err)}. Some data may be lost.`,
         err as Error
       );
       existingData = [];
@@ -299,7 +299,10 @@ async function performDestructiveMigration(
         try {
           store.put(record);
         } catch (err) {
-          options.onMigrationWarning?.(`Failed to restore record: ${err}`, err as Error);
+          options.onMigrationWarning?.(
+            `Failed to restore record: ${err instanceof Error ? err.message : String(err)}`,
+            err as Error
+          );
         }
       }
     }
@@ -518,7 +521,10 @@ export async function ensureIndexedDbTable(
 
     return db;
   } catch (err) {
-    options.onMigrationWarning?.(`Migration failed for ${tableName}: ${err}`, err as Error);
+    options.onMigrationWarning?.(
+      `Migration failed for ${tableName}: ${err instanceof Error ? err.message : String(err)}`,
+      err as Error
+    );
     throw err;
   }
 }

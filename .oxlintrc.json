@@ -106,7 +106,7 @@
     "typescript/no-base-to-string": "off", // budgeted
     "typescript/unbound-method": "off", // budgeted
     "typescript/no-floating-promises": "error",
-    "typescript/restrict-template-expressions": "off", // budgeted
+    "typescript/restrict-template-expressions": "error",
     "typescript/no-redundant-type-constituents": "error",
     "typescript/await-thenable": "error",
     "typescript/require-array-sort-compare": "error",

@@ -155,7 +155,7 @@ export class GraphAsTask<
         // If compilation fails, fall back to accepting any object structure.
         // This is a safety net for schemas that json-schema-library can't compile.
         getLogger().warn(
-          `GraphAsTask "${this.type}" (${this.id}): Failed to compile input schema, ` +
+          `GraphAsTask "${this.type}" (${String(this.id)}): Failed to compile input schema, ` +
             `falling back to permissive validation. Inputs will NOT be validated.`,
           { error, taskType: this.type, taskId: this.id }
         );
@@ -359,7 +359,7 @@ export class GraphAsTask<
     if (!this.hasChildren()) return;
     if (!this.subGraph.isAcyclic()) {
       throw new CycleError(
-        `${this.type} (${this.id}): subgraph contains a cycle — loop tasks must wrap an acyclic subgraph.`
+        `${this.type} (${String(this.id)}): subgraph contains a cycle — loop tasks must wrap an acyclic subgraph.`
       );
     }
     for (const child of this.subGraph.getTasks()) {

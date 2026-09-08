@@ -241,7 +241,7 @@ export function generateConfigHelpText(
     const shorthand = !inputKeys.has(name) ? ` (or -${name})` : "";
 
     lines.push(
-      `  -config-${name}  <${type}>${reqLabel}  ${description}${enumVal}${defaultVal}${shorthand}`
+      `  -config-${name}  <${String(type)}>${reqLabel}  ${description}${enumVal}${defaultVal}${shorthand}`
     );
   }
 
@@ -286,7 +286,9 @@ function generatePropertyLines(
     const enumVal = "enum" in prop && Array.isArray(prop.enum) ? ` [${prop.enum.join(", ")}]` : "";
     const reqLabel = isRequired ? " (required)" : "";
 
-    lines.push(`  -${fullName}  <${type}>${reqLabel}  ${description}${enumVal}${defaultVal}`);
+    lines.push(
+      `  -${fullName}  <${String(type)}>${reqLabel}  ${description}${enumVal}${defaultVal}`
+    );
 
     // Recurse into nested objects
     if (type === "object" && "properties" in prop && prop.properties) {

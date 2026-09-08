@@ -862,7 +862,7 @@ export class JobQueueWorker<
       if (error instanceof RetryableJobError) {
         const currentJob = await this.getJob(job.id);
         if (!currentJob) {
-          throw new JobNotFoundError(`Job ${job.id} not found`);
+          throw new JobNotFoundError(`Job ${String(job.id)} not found`);
         }
 
         if (currentJob.attempts + 1 >= currentJob.maxAttempts) {
@@ -1328,19 +1328,19 @@ export class JobQueueWorker<
    */
   protected async validateJobState(job: Job<Input, Output>): Promise<void> {
     if (job.status === JobStatus.COMPLETED) {
-      throw new PermanentJobError(`Job ${job.id} is already completed`);
+      throw new PermanentJobError(`Job ${String(job.id)} is already completed`);
     }
     if (job.status === JobStatus.FAILED) {
-      throw new PermanentJobError(`Job ${job.id} has failed`);
+      throw new PermanentJobError(`Job ${String(job.id)} has failed`);
     }
     if (this.activeJobAbortControllers.get(job.id)?.signal.aborted) {
-      throw new AbortSignalJobError(`Job ${job.id} is being aborted`);
+      throw new AbortSignalJobError(`Job ${String(job.id)} is being aborted`);
     }
     if (job.deadlineAt && job.deadlineAt < new Date()) {
-      throw new PermanentJobError(`Job ${job.id} has exceeded its deadline`);
+      throw new PermanentJobError(`Job ${String(job.id)} has exceeded its deadline`);
     }
     if (job.status === JobStatus.DISABLED) {
-      throw new JobDisabledError(`Job ${job.id} has been disabled`);
+      throw new JobDisabledError(`Job ${String(job.id)} has been disabled`);
     }
   }
 

@@ -281,7 +281,7 @@ export class AiTask<
           (model as ModelConfig & { model?: string }).model ??
           (model.provider_config as Record<string, unknown> | undefined)?.["model_path"] ??
           model.model_id;
-        const resourceKey = `ai:${model.provider}:${modelPath}`;
+        const resourceKey = `ai:${model.provider}:${String(modelPath)}`;
         executeContext.resourceScope.register(resourceKey, async () => {
           await disposeFn({ model } as TaskInput, model, AbortSignal.timeout(30_000), noopEmit);
         });
