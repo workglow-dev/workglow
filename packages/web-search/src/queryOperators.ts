@@ -7,6 +7,20 @@
 import { trimTrailingSlashes } from "./urlText";
 
 /**
+ * Characters that would let a value change the STRUCTURE of the query it is
+ * spliced into rather than restrict it: whitespace separates one operator from
+ * the next, and the parentheses and quotes are the grouping syntax
+ * {@link applyDomainOperators} itself emits.
+ *
+ * A domain reaches here as caller-supplied text — the same untrusted input
+ * {@link trimTrailingSlashes} is hardened for — and none of these can appear in
+ * a host or a path prefix, so a value carrying one is dropped rather than
+ * quoted. Passing it through would let `"example.com) OR (site:elsewhere.com"`
+ * widen the very restriction the caller asked to narrow.
+ */
+const UNSAFE_IN_QUERY_OPERATOR = /[\s()"']/;
+
+/**
  * Reduces a caller-supplied domain to the bare host (plus any path prefix) that
  * a `site:` operator accepts. A scheme, a `www.` prefix, or a trailing slash
  * would each make the operator match nothing.
@@ -20,7 +34,9 @@ function normalizeDomain(domain: string): string {
 }
 
 function normalizeAll(domains: readonly string[] | undefined): string[] {
-  return (domains ?? []).map(normalizeDomain).filter((d) => d.length > 0);
+  return (domains ?? [])
+    .map(normalizeDomain)
+    .filter((d) => d.length > 0 && !UNSAFE_IN_QUERY_OPERATOR.test(d));
 }
 
 /**

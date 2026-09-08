@@ -109,6 +109,10 @@ export class AnthropicWebSearchProvider implements IWebSearchProvider {
 
     const results: SearchResult[] = [];
     const answerParts: string[] = [];
+    // Scoped to the whole search, not to one block: `max_uses` lets one turn
+    // run several searches, and a resumed turn runs more, so overlapping
+    // sources are the normal case rather than the exception.
+    const seen = new Set<string>();
     let inputTokens = 0;
     let outputTokens = 0;
 
@@ -136,7 +140,7 @@ export class AnthropicWebSearchProvider implements IWebSearchProvider {
 
       inputTokens += message.usage?.input_tokens ?? 0;
       outputTokens += message.usage?.output_tokens ?? 0;
-      this.collect(message.content, results, answerParts);
+      this.collect(message.content, results, answerParts, seen);
 
       if (message.stop_reason !== "pause_turn") {
         return {
@@ -170,7 +174,8 @@ export class AnthropicWebSearchProvider implements IWebSearchProvider {
   private collect(
     content: readonly unknown[],
     results: SearchResult[],
-    answerParts: string[]
+    answerParts: string[],
+    seen: Set<string>
   ): void {
     for (const raw of content) {
       const block = raw as { type?: string; text?: string; content?: unknown };
@@ -188,6 +193,13 @@ export class AnthropicWebSearchProvider implements IWebSearchProvider {
       }
       for (const entry of inner as readonly AnthropicSearchResultBlock[]) {
         if (entry.type !== "web_search_result") continue;
+        // Results are a source list: one URL returned by two of the turn's
+        // searches is one source, and keeping both spends the caller's
+        // `maxResults` budget on a repeat.
+        if (entry.url !== undefined) {
+          if (seen.has(entry.url)) continue;
+          seen.add(entry.url);
+        }
         results.push({
           title: entry.title ?? entry.url ?? "",
           url: entry.url ?? "",

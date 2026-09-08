@@ -84,7 +84,7 @@ describe("SearxngWebSearchProvider", () => {
       url: "https://en.wikipedia.org/wiki/Cat",
       snippet: "The cat is a domestic species.",
       content: undefined,
-      publishedDate: "2026-01-02T00:00:00Z",
+      publishedDate: "2026-01-02T00:00:00.000Z",
       score: 1.5,
       favicon: undefined,
     });

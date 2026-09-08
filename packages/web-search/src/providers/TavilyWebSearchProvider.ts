@@ -13,6 +13,7 @@ import type {
   WebSearchResponse,
 } from "../IWebSearchProvider";
 import { limitResults } from "../limitResults";
+import { toIsoPublishedDate } from "../publishedDate";
 import { fetchSearchJson } from "./httpSearch";
 
 const TAVILY_ENDPOINT = "https://api.tavily.com/search";
@@ -68,7 +69,9 @@ export class TavilyWebSearchProvider implements IWebSearchProvider {
       // Only surfaced when asked: Tavily returns raw_content only if requested,
       // and reporting it otherwise would claim content the caller never paid for.
       content: request.includeContent === true ? r.raw_content : undefined,
-      publishedDate: r.published_date,
+      // Tavily reports RFC-1123 ("Mon, 14 Oct 2024 07:00:00 GMT") on news results
+      // and a bare day elsewhere; the port promises ISO-8601 whichever provider ran.
+      publishedDate: toIsoPublishedDate(r.published_date),
       score: r.score,
       favicon: undefined,
     }));

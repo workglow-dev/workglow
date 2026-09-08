@@ -305,25 +305,41 @@ export class WebSearchTask extends Task<WebSearchTaskInput, WebSearchTaskOutput>
 
   /**
    * Clamps `maxResults` and moves a domain restriction into the query for an
-   * engine that expresses it with operators — dropping the lists afterwards, so
-   * an adapter cannot apply the same restriction twice.
+   * engine that expresses it with operators — dropping the translated list
+   * afterwards, so an adapter cannot apply the same restriction twice.
+   *
+   * The two directions are decided separately, from the same fields
+   * {@link unhonorableOptions} reads: `excludeDomainFilter` is a public part of
+   * the provider interface and may differ from `domainFilter`. Keying the whole
+   * translation on `domainFilter` alone let a provider declaring native
+   * includes and `"query-operator"` excludes pass routing and then receive an
+   * `excludeDomains` list it has no native way to send — a restriction silently
+   * dropped on a request the task reported as honored.
    */
   private adaptRequest(provider: IWebSearchProvider, request: WebSearchRequest): WebSearchRequest {
-    const cap = provider.capabilities.maxResultsCap;
+    const capabilities = provider.capabilities;
+    const cap = capabilities.maxResultsCap;
     const maxResults =
       cap !== undefined && request.maxResults !== undefined
         ? Math.min(request.maxResults, cap)
         : request.maxResults;
 
-    if (provider.capabilities.domainFilter !== "query-operator") {
+    const excludeSupport = capabilities.excludeDomainFilter ?? capabilities.domainFilter;
+    const translateIncludes = capabilities.domainFilter === "query-operator";
+    const translateExcludes = excludeSupport === "query-operator";
+    if (!translateIncludes && !translateExcludes) {
       return { ...request, maxResults };
     }
     return {
       ...request,
       maxResults,
-      query: applyDomainOperators(request.query, request.includeDomains, request.excludeDomains),
-      includeDomains: undefined,
-      excludeDomains: undefined,
+      query: applyDomainOperators(
+        request.query,
+        translateIncludes ? request.includeDomains : undefined,
+        translateExcludes ? request.excludeDomains : undefined
+      ),
+      includeDomains: translateIncludes ? undefined : request.includeDomains,
+      excludeDomains: translateExcludes ? undefined : request.excludeDomains,
     };
   }
 }

@@ -204,6 +204,37 @@ describe("AnthropicWebSearchProvider", () => {
     expect(out.results.map((r) => r.title)).toEqual(["A", "B"]);
   });
 
+  it("reports a source cited by two searches once", async () => {
+    // `max_uses` lets one turn run several searches, and a resumed turn runs
+    // more; overlapping sources are normal. Kept twice, the repeat spends the
+    // caller's maxResults budget and the count reads as two sources.
+    const { client } = clientReturning(
+      messageWith(
+        [
+          {
+            type: "web_search_tool_result",
+            content: [{ type: "web_search_result", title: "A", url: "https://e/a" }],
+          },
+        ],
+        "pause_turn"
+      ),
+      messageWith([
+        {
+          type: "web_search_tool_result",
+          content: [
+            { type: "web_search_result", title: "A again", url: "https://e/a" },
+            { type: "web_search_result", title: "B", url: "https://e/b" },
+          ],
+        },
+      ])
+    );
+    const out = await new AnthropicWebSearchProvider({ client: client as never }).search(
+      { query: "cats" },
+      context
+    );
+    expect(out.results.map((r) => r.url)).toEqual(["https://e/a", "https://e/b"]);
+  });
+
   it("passes includeDomains as allowed_domains", async () => {
     const { create, client } = clientReturning(messageWith([{ type: "text", text: "x" }]));
     await new AnthropicWebSearchProvider({ client: client as never }).search(

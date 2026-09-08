@@ -107,13 +107,15 @@ describe("TavilyWebSearchProvider", () => {
     expect(without.results[0].content).toBeUndefined();
   });
 
-  it("carries score and published_date through", async () => {
+  it("carries score through and normalizes published_date to ISO-8601", async () => {
     const out = await new TavilyWebSearchProvider().search(
       { query: "t" },
       contextWithResponse(TAVILY_PAYLOAD)
     );
     expect(out.results[0].score).toBe(0.98);
-    expect(out.results[0].publishedDate).toBe("2017-06-12");
+    // Same shape Brave's adapter produces for the same day — the port promises
+    // ISO-8601 whichever provider served the request.
+    expect(out.results[0].publishedDate).toBe("2017-06-12T00:00:00.000Z");
   });
 
   it("returns an empty list when Tavily returns no results key", async () => {

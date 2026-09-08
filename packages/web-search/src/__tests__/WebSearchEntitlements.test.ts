@@ -14,6 +14,7 @@ function provider(name: string, endpoint: string | undefined): IWebSearchProvide
   return {
     name,
     endpoint,
+    acceptsCredentialKey: false,
     capabilities: {
       answer: false,
       content: false,

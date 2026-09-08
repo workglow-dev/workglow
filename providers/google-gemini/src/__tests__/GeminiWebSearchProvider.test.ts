@@ -97,7 +97,13 @@ describe("GeminiWebSearchProvider", () => {
       context
     );
     const tool = (
-      seen.mock.calls[0][0] as { config: { tools: Array<{ googleSearch: Record<string, never> }> } }
+      seen.mock.calls[0][0] as {
+        config: {
+          tools: Array<{
+            googleSearch: { timeRangeFilter: { startTime: string; endTime: string } };
+          }>;
+        };
+      }
     ).config.tools[0].googleSearch;
     // The API rejects a one-sided interval, so the open end is filled in.
     expect(tool.timeRangeFilter.startTime).toBe("2026-01-01T00:00:00.000Z");

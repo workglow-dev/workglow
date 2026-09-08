@@ -64,4 +64,13 @@ describe("applyDomainOperators", () => {
   it("trims surrounding whitespace on the query", () => {
     expect(applyDomainOperators("  cats  ", ["a.com"], undefined)).toBe("cats site:a.com");
   });
+
+  it("drops a domain that would restructure the query rather than restrict it", () => {
+    // Splicing this through unquoted turns an AND-restriction into an OR that
+    // widens the search to a domain the caller never named.
+    expect(applyDomainOperators("cats", ["arxiv.org", "evil.com) OR (site:x.com"], undefined)).toBe(
+      "cats site:arxiv.org"
+    );
+    expect(applyDomainOperators("cats", undefined, ["evil.com -site:arxiv.org"])).toBe("cats");
+  });
 });

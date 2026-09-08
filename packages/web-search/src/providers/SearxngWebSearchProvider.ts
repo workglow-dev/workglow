@@ -14,6 +14,7 @@ import type {
   WebSearchResponse,
 } from "../IWebSearchProvider";
 import { limitResults } from "../limitResults";
+import { toIsoPublishedDate } from "../publishedDate";
 import { trimTrailingSlashes } from "../urlText";
 import { fetchSearchJson } from "./httpSearch";
 
@@ -91,7 +92,9 @@ export class SearxngWebSearchProvider implements IWebSearchProvider {
       url: r.url ?? "",
       snippet: r.content,
       content: undefined,
-      publishedDate: r.publishedDate,
+      // A SearXNG engine serializes a Python datetime ("2013-11-25 00:00:00+00:00"),
+      // which is not the ISO-8601 this port promises.
+      publishedDate: toIsoPublishedDate(r.publishedDate),
       score: r.score,
       favicon: undefined,
     }));

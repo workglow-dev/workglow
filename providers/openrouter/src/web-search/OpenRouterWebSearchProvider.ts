@@ -118,10 +118,16 @@ export class OpenRouterWebSearchProvider implements IWebSearchProvider {
     }
 
     const results: SearchResult[] = [];
+    const seen = new Set<string>();
     for (const annotation of message.annotations ?? []) {
       if (annotation.type !== "url_citation") continue;
       const citation = annotation.url_citation;
       if (citation?.url === undefined) continue;
+      // One source is cited at every span it supports, so the annotation list
+      // repeats it. Results are a source list, not a citation list, and a
+      // repeat would otherwise spend the caller's `maxResults` budget twice.
+      if (seen.has(citation.url)) continue;
+      seen.add(citation.url);
       results.push({
         title: citation.title ?? citation.url,
         url: citation.url,

@@ -255,8 +255,13 @@ value schema, which is what still unlocks the store for the run.
 
 Seven providers ship: `brave`, `tavily`, `searxng` here; `anthropic`, `openai`, `openrouter`,
 `gemini` as a `./web-search` subpath on their vendor package, registered explicitly
-(`registerAnthropicWebSearchProvider()` and friends) rather than on import. Only the three
-built-ins auto-register, from this package's own `node.ts`.
+(`registerAnthropicWebSearchProvider()` and friends) rather than on import. **No provider
+auto-registers, the three built-ins included**: `node.ts` registers the task class and
+nothing else, and the host states which providers exist by calling
+`registerBuiltInWebSearchProviders()` or `registerWebSearchProvider()`. Registering on
+import would put Brave in front of `"auto"` routing in an app that only imported
+`@workglow/anthropic/web-search`, and stand a SearXNG instance up from an environment
+variable nobody read.
 
 HTTP adapters (Brave, Tavily, SearXNG) execute by **owning a `FetchUrlTask`**, inheriting
 credential resolution via `credential_key`, SafeFetch's redirect/SSRF checks, retry/backoff,

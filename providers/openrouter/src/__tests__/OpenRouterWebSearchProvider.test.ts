@@ -124,6 +124,28 @@ describe("OpenRouterWebSearchProvider", () => {
     expect(plugins[0].engine).toBe("exa");
   });
 
+  it("reports a source cited at several spans once", async () => {
+    // The annotation list is one entry per cited span, so a source supporting
+    // three sentences appears three times. Results are a source list, and a
+    // repeat would spend the caller's maxResults budget on it.
+    const { client } = clientReturning({
+      choices: [
+        {
+          message: {
+            content: "x",
+            annotations: [
+              { type: "url_citation", url_citation: { url: "https://e/a", title: "A" } },
+              { type: "url_citation", url_citation: { url: "https://e/a", title: "A" } },
+              { type: "url_citation", url_citation: { url: "https://e/b", title: "B" } },
+            ],
+          },
+        },
+      ],
+    });
+    const out = await new OpenRouterWebSearchProvider({ client }).search({ query: "q" }, context);
+    expect(out.results.map((r) => r.url)).toEqual(["https://e/a", "https://e/b"]);
+  });
+
   it("ignores annotations that are not url citations", async () => {
     const { client } = clientReturning({
       choices: [{ message: { content: "x", annotations: [{ type: "file_citation" }] } }],

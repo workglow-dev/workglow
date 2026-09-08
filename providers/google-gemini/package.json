@@ -65,6 +65,9 @@
     },
     "@workglow/util": {
       "optional": false
+    },
+    "@workglow/web-search": {
+      "optional": true
     }
   },
   "devDependencies": {

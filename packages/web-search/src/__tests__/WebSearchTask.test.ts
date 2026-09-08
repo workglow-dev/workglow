@@ -96,6 +96,26 @@ describe("WebSearchTask", () => {
     expect(request.includeDomains).toBeUndefined();
   });
 
+  it("translates only the direction the provider expresses with operators", async () => {
+    const seen = vi.fn();
+    // A provider that filters includes natively but has no blocked-domain
+    // parameter, and whose engine reads `-site:`. Keying the whole translation
+    // on domainFilter left the exclusion in a list this adapter cannot send.
+    WebSearchProviderRegistry.register(
+      fake("split", { domainFilter: "native", excludeDomainFilter: "query-operator" }, seen)
+    );
+    await new WebSearchTask().run({
+      query: "cats",
+      provider: "split",
+      includeDomains: ["arxiv.org"],
+      excludeDomains: ["spam.example"],
+    });
+    const request = seen.mock.calls[0][0] as WebSearchRequest;
+    expect(request.query).toBe("cats -site:spam.example");
+    expect(request.includeDomains).toEqual(["arxiv.org"]);
+    expect(request.excludeDomains).toBeUndefined();
+  });
+
   it("passes domain lists through untouched to a native provider", async () => {
     const seen = vi.fn();
     WebSearchProviderRegistry.register(fake("tavily", { domainFilter: "native" }, seen));

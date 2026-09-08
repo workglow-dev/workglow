@@ -5,6 +5,7 @@
  */
 
 import { GoogleGenAI } from "@google/genai";
+import { resolveApiKey } from "@workglow/ai/provider-utils";
 import type { IExecuteContext } from "@workglow/task-graph";
 import { TaskFailedError } from "@workglow/task-graph";
 import type {
@@ -74,16 +75,37 @@ export class GeminiWebSearchProvider implements IWebSearchProvider {
     maxResultsCap: undefined,
   };
 
-  private readonly client: GoogleGenAI;
+  private client: GoogleGenAI | undefined;
+  private readonly apiKey: string | undefined;
   private readonly model: string;
 
   constructor(options: GeminiWebSearchOptions = {}) {
-    this.client = options.client ?? new GoogleGenAI({ apiKey: options.apiKey });
+    this.client = options.client;
+    this.apiKey = options.apiKey;
     this.model = options.model ?? DEFAULT_MODEL;
+  }
+
+  /**
+   * Built on first search, not in the constructor, so registering the provider
+   * cannot warn or throw out of the vendor SDK on a machine that has no key
+   * yet, and a missing key reports through this repo's named error rather than
+   * as a header failure inside the SDK. The env vars are the pair the AI path
+   * already reads, in the same order.
+   */
+  private getClient(): GoogleGenAI {
+    this.client ??= new GoogleGenAI({
+      apiKey: resolveApiKey({
+        config: { api_key: this.apiKey },
+        envVar: ["GOOGLE_API_KEY", "GEMINI_API_KEY"],
+        providerLabel: "Google",
+      }),
+    });
+    return this.client;
   }
 
   async search(request: WebSearchRequest, context: IExecuteContext): Promise<WebSearchResponse> {
     context.signal.throwIfAborted();
+    const client = this.getClient();
 
     const googleSearch: Record<string, unknown> = {};
     if (request.dateRange) {
@@ -91,7 +113,7 @@ export class GeminiWebSearchProvider implements IWebSearchProvider {
       if (range) googleSearch.timeRangeFilter = range;
     }
 
-    const response = (await this.client.models.generateContent({
+    const response = (await client.models.generateContent({
       model: this.model,
       contents: request.query,
       config: { tools: [{ googleSearch }], abortSignal: context.signal },
