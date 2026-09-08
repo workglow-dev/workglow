@@ -20,7 +20,7 @@ import {
   type FormValues,
   type WidgetScope,
 } from "../formModel";
-import { CommandBadges } from "./CommandTree";
+import { CommandNote } from "./CommandTree";
 
 type FieldWithWidget = WebField & { widget?: string };
 
@@ -315,17 +315,10 @@ export function OptionsForm({
   // the button exists only where `--dry-run` is real.
   const hasDryRun = fields.some((field) => field.key === "dry-run" && field.source === "option");
 
-  const hasBadges = badges !== undefined && badges.length > 0;
-
   return (
     <div className="wrap">
       {description ? <p className="lede">{description}</p> : null}
-      {hasBadges || note ? (
-        <div className={`cnote${badges?.includes("destructive") ? " danger" : ""}`}>
-          <CommandBadges badges={badges} />
-          {note ? <span>{note}</span> : null}
-        </div>
-      ) : null}
+      <CommandNote badges={badges} note={note} />
       <RunPlan path={path} order={runsInOrder} membership={runsIn} />
       {args.length > 0 ? (
         <>

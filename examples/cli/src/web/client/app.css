@@ -385,6 +385,11 @@ textarea {
 .grp-h:hover {
   color: var(--ink-2);
 }
+/* A group heading is selectable too — it opens the group's own page — so it
+   says when it is the thing on screen, in the accent the rows use. */
+.grp-h[aria-current="true"] {
+  color: var(--accent-2);
+}
 .caret {
   font-family: var(--mono);
   font-size: 9px;
@@ -725,6 +730,21 @@ h2.sec:first-child {
    does not need the full inter-section gap on top of the lede's own. */
 .lede + h2.sec {
   margin-top: 0;
+}
+
+/* A group's page lists its commands with the descriptions the rail has no room
+   for: the pane has the width, so a line wraps here instead of ellipsizing —
+   which is the whole reason the rail gave it up. The names take a common
+   minimum so the second column starts in one place. */
+.grouplist {
+  padding: 4px;
+}
+.grouplist .cmd-n {
+  min-width: 14ch;
+}
+.grouplist .cmd-d {
+  white-space: normal;
+  overflow: visible;
 }
 
 /* ---------- form ---------- */

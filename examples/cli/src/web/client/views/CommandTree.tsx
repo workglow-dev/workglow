@@ -105,6 +105,29 @@ export function CommandBadges({
  * whatever is left; the full line reads in the options pane, and on the row's
  * tooltip.
  */
+/**
+ * The badges-and-note strip a command carries above whatever it is about to do.
+ *
+ * Shared by the form and the group page rather than written twice: both are
+ * the same claim — what this costs, and what to know before pressing Run — and
+ * two copies would have drifted the first time either grew a field.
+ */
+export function CommandNote({
+  badges,
+  note,
+}: {
+  badges: readonly WebCommandBadge[] | undefined;
+  note: string | undefined;
+}): JSX.Element | null {
+  if ((badges === undefined || badges.length === 0) && note === undefined) return null;
+  return (
+    <div className={`cnote${badges?.includes("destructive") ? " danger" : ""}`}>
+      <CommandBadges badges={badges} />
+      {note ? <span>{note}</span> : null}
+    </div>
+  );
+}
+
 function NodeRow({
   node,
   depth,
@@ -161,7 +184,15 @@ function NodeRow({
   return (
     <>
       {depth === 0 ? (
-        <button className="grp-h" onClick={() => onToggle(key)}>
+        <button
+          className="grp-h"
+          aria-current={selectedPath.join(".") === key}
+          title={node.description}
+          onClick={() => {
+            onToggle(key);
+            onSelect(node);
+          }}
+        >
           <span className="caret">{isOpen ? "▾" : "▸"}</span>
           <span>{node.name}</span>
         </button>
@@ -169,8 +200,15 @@ function NodeRow({
         <button
           className="cmd sub"
           aria-expanded={isOpen}
+          aria-current={selectedPath.join(".") === key}
           title={node.description}
-          onClick={() => onToggle(key)}
+          // Opens the subtree AND selects the group, because a group is a page
+          // now: it has no action to run, but it is where its own description
+          // and its children's read at a width that fits them.
+          onClick={() => {
+            onToggle(key);
+            onSelect(node);
+          }}
         >
           <span className="caret">{isOpen ? "▾" : "▸"}</span>
           <span className="cmd-n">{node.name}</span>
