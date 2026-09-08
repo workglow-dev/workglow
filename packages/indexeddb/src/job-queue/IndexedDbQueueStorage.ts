@@ -939,7 +939,7 @@ export class IndexedDbQueueStorage<Input, Output> implements IQueueStorage<Input
     };
 
     const intervalId = setInterval(poll, intervalMs);
-    poll();
+    void poll();
 
     return () => {
       cancelled = true;

@@ -34,7 +34,9 @@ export function QueueStatus({ queueType }: { queueType: string }) {
     client.on("job_error", listen);
     client.on("job_aborting", listen);
     client.on("job_disabled", listen);
-    listen();
+    listen().catch((error: unknown) => {
+      console.error("Failed to read queue sizes:", error);
+    });
 
     return () => {
       client.off("job_start", listen);
@@ -47,7 +49,9 @@ export function QueueStatus({ queueType }: { queueType: string }) {
 
   const clear = useCallback(() => {
     if (!registeredQueue) return;
-    registeredQueue.storage.deleteAll();
+    registeredQueue.storage.deleteAll().catch((error: unknown) => {
+      console.error("Failed to clear the queue:", error);
+    });
     setPending(0);
     setProcessing(0);
     setCompleted(0);

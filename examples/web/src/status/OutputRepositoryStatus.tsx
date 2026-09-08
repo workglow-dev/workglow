@@ -18,7 +18,9 @@ export function OutputRepositoryStatus({
 }) {
   const [size, setSize] = useState<number>(0);
   const clear = useCallback(() => {
-    repository.clear();
+    repository.clear().catch((error: unknown) => {
+      console.error("Failed to clear the output repository:", error);
+    });
     setSize(0);
   }, [repository]);
   useEffect(() => {
@@ -29,7 +31,9 @@ export function OutputRepositoryStatus({
     repository.on("output_saved", listen);
     repository.on("output_cleared", listen);
 
-    listen();
+    listen().catch((error: unknown) => {
+      console.error("Failed to read the output repository size:", error);
+    });
 
     return () => {
       repository.off("output_saved", listen);

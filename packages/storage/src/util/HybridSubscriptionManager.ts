@@ -86,7 +86,9 @@ export class HybridSubscriptionManager<Item, Key, ChangePayload> {
     try {
       this.channel = new BroadcastChannel(this.options.broadcastChannelName);
       this.channel.onmessage = (event: MessageEvent<BroadcastMessage>) => {
-        this.handleBroadcastMessage(event.data);
+        this.handleBroadcastMessage(event.data).catch((error: unknown) => {
+          getLogger().error("Failed to handle broadcast message:", { error });
+        });
       };
     } catch (error) {
       getLogger().error("Failed to initialize BroadcastChannel:", { error });
@@ -103,7 +105,9 @@ export class HybridSubscriptionManager<Item, Key, ChangePayload> {
 
   /** Must be called after any local mutation. */
   notifyLocalChange(): void {
-    this.pollAndNotify();
+    this.pollAndNotify().catch((error: unknown) => {
+      getLogger().error("Failed to poll after a local change:", { error });
+    });
 
     if (this.channel) {
       try {

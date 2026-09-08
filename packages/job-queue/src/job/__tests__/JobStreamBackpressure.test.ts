@@ -37,7 +37,7 @@ class AwaitingEmitJob extends Job<EmitInput, { emitted: number }> {
       });
       AwaitingEmitJob.observedAwaits++;
     }
-    context.emitStreamEvent?.({ type: "finish", data: {} });
+    void context.emitStreamEvent?.({ type: "finish", data: {} });
     return { emitted: input.count };
   }
 }

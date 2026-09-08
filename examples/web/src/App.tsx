@@ -130,7 +130,9 @@ const resetGraph = () => {
     .rename("*", "embedding", { index: -3 })
     .debugLog({ log_level: "info" });
 
-  taskGraphRepo.saveTaskGraph("default", workflow.graph);
+  taskGraphRepo.saveTaskGraph("default", workflow.graph).catch((error: unknown) => {
+    console.error("Failed to save task graph:", error);
+  });
 };
 
 (window as any)["workflow"] = new Workflow();
@@ -154,7 +156,9 @@ const dependencyJsonOpts = { withBoundaryNodes: false };
 const depItems = wfForLoad.graph.toDependencyJSON(dependencyJsonOpts);
 if (dependencyJsonHasBoundaryTasks(depItems)) {
   wfForLoad.graph = graphFromDependencyJsonItems(stripBoundaryTasksFromDependencyJson(depItems));
-  taskGraphRepo.saveTaskGraph("default", wfForLoad.graph);
+  taskGraphRepo.saveTaskGraph("default", wfForLoad.graph).catch((error: unknown) => {
+    console.error("Failed to save task graph:", error);
+  });
 }
 
 // console access. what happens there will be reflected in the UI
@@ -183,16 +187,20 @@ const setupWorkflow = async () => {
   };
 
   workflow.on("changed", () => {
-    taskGraphRepo.saveTaskGraph("default", workflow.graph);
+    taskGraphRepo.saveTaskGraph("default", workflow.graph).catch((error: unknown) => {
+      console.error("Failed to save task graph:", error);
+    });
   });
   workflow.on("reset", () => {
-    taskGraphRepo.saveTaskGraph("default", workflow.graph);
+    taskGraphRepo.saveTaskGraph("default", workflow.graph).catch((error: unknown) => {
+      console.error("Failed to save task graph:", error);
+    });
   });
   taskGraphRepo.on("graph_cleared", () => {
     resetGraph();
   });
 };
-setupWorkflow();
+void setupWorkflow();
 let workflow: Workflow = (window as any)["workflow"] as Workflow;
 
 const initialJsonObj: JsonTaskItem[] = workflow.toDependencyJSON(dependencyJsonOpts);
@@ -222,7 +230,7 @@ export const App = () => {
       ) {
         workflow = (window as any)["workflow"] as Workflow;
         setWorkflow(workflow);
-        setupWorkflow();
+        void setupWorkflow();
       }
     }, 10);
 
@@ -298,7 +306,9 @@ export const App = () => {
                 json={jsonData}
                 onJsonChange={setNewJson}
                 run={() => {
-                  workflow.run();
+                  workflow.run().catch(() => {
+                    // Already logged by the run wrapper installed in setupWorkflow.
+                  });
                 }}
                 stop={() => workflow.abort()}
                 running={isRunning}

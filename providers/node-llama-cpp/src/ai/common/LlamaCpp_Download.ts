@@ -30,19 +30,19 @@ export const LlamaCpp_Download: AiProviderRunFn<
   const downloadPromise = downloader.download();
   let modelPath: string | undefined;
   let downloadError: unknown;
-  downloadPromise.then(
-    (p) => {
-      modelPath = p;
-    },
-    (e) => {
-      downloadError = e;
-    }
-  );
-
   let settled = false;
-  downloadPromise.finally(() => {
-    settled = true;
-  });
+  void downloadPromise
+    .then(
+      (p) => {
+        modelPath = p;
+      },
+      (e) => {
+        downloadError = e;
+      }
+    )
+    .finally(() => {
+      settled = true;
+    });
 
   while (!settled) {
     await new Promise<void>((resolve) => setTimeout(resolve, 500));

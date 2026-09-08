@@ -101,7 +101,7 @@ describe("MockHumanConnector — deferred + abort", () => {
     const ac = new AbortController();
     const promise = c.send(elicitReq("r1"), ac.signal);
     let resolved = false;
-    promise.then(() => {
+    void promise.then(() => {
       resolved = true;
     });
     await Promise.resolve();

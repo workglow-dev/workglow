@@ -9,7 +9,9 @@ import { useCallback } from "react";
 
 export function GraphStoreStatus({ repository }: { repository: TaskGraphRepository }) {
   const clear = useCallback(() => {
-    repository.clear();
+    repository.clear().catch((error: unknown) => {
+      console.error("Failed to clear the graph store:", error);
+    });
   }, [repository]);
 
   return (

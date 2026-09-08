@@ -162,7 +162,7 @@ describe("LlamaCpp Chat Wrapper Inspection", () => {
         console.log(`${"=".repeat(70)}\n`);
 
         llamaChat.dispose({ disposeSequence: false });
-        sequence.dispose();
+        await sequence.dispose();
       },
       timeout
     );

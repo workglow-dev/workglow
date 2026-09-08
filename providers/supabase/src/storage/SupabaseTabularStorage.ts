@@ -33,7 +33,7 @@ import {
   safeEmit,
   StorageValidationError,
 } from "@workglow/storage";
-import { createServiceToken, uuid4 } from "@workglow/util";
+import { createServiceToken, getLogger, uuid4 } from "@workglow/util";
 import type {
   DataPortSchemaObject,
   FromSchema,
@@ -1281,7 +1281,12 @@ export class SupabaseTabularStorage<
 
     return () => {
       if (this.realtimeChannel) {
-        this.client.removeChannel(this.realtimeChannel);
+        // Normalized rather than chained directly: the client type says this
+        // returns a promise, but not every client implementation does, and a
+        // teardown must not throw on the way out.
+        Promise.resolve(this.client.removeChannel(this.realtimeChannel)).catch((error: unknown) => {
+          getLogger().warn("Failed to remove Supabase realtime channel", { error });
+        });
         this.realtimeChannel = null;
       }
     };
@@ -1305,7 +1310,12 @@ export class SupabaseTabularStorage<
    */
   public override destroy(): void {
     if (this.realtimeChannel) {
-      this.client.removeChannel(this.realtimeChannel);
+      // Normalized rather than chained directly: the client type says this
+      // returns a promise, but not every client implementation does, and a
+      // teardown must not throw on the way out.
+      Promise.resolve(this.client.removeChannel(this.realtimeChannel)).catch((error: unknown) => {
+        getLogger().warn("Failed to remove Supabase realtime channel", { error });
+      });
       this.realtimeChannel = null;
     }
   }

@@ -29,6 +29,7 @@ import {
   TaskInvalidInputError,
   Workflow,
 } from "@workglow/task-graph";
+import { getLogger } from "@workglow/util";
 import type { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { safeFetch } from "../util/SafeFetch";
 import { classifyUrl, urlMatchesScope, urlResourcePattern } from "../util/UrlClassifier";
@@ -1284,7 +1285,9 @@ export class FetchUrlTask<
 
       cleanup = handle.onProgress(
         (progress: number, message: string | undefined, details: Record<string, any> | null) => {
-          executeContext.updateProgress(progress, message, details);
+          executeContext.updateProgress(progress, message, details).catch((error: unknown) => {
+            getLogger().warn("Failed to report fetch progress", { error });
+          });
         }
       );
 

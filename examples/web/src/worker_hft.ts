@@ -15,4 +15,6 @@ async function initHftWorkerEnv(): Promise<void> {
 }
 
 await initHftWorkerEnv();
-registerHuggingFaceTransformersWorker();
+registerHuggingFaceTransformersWorker().catch((error: unknown) => {
+  console.error("Failed to register the HuggingFace worker:", error);
+});

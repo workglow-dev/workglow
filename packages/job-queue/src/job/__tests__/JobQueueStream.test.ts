@@ -31,17 +31,17 @@ interface SOutput {
  */
 class StreamEmittingJob extends Job<SInput, SOutput> {
   public override async execute(_input: SInput, context: IJobExecuteContext): Promise<SOutput> {
-    context.emitStreamEvent?.({
+    void context.emitStreamEvent?.({
       type: "binary-delta",
       port: "bytes",
       binaryDelta: new Uint8Array([1, 2]),
     });
-    context.emitStreamEvent?.({
+    void context.emitStreamEvent?.({
       type: "binary-delta",
       port: "bytes",
       binaryDelta: new Uint8Array([3]),
     });
-    context.emitStreamEvent?.({ type: "finish", data: {} });
+    void context.emitStreamEvent?.({ type: "finish", data: {} });
     return { ok: true };
   }
 }

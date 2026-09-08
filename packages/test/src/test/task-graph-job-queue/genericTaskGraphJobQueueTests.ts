@@ -86,7 +86,7 @@ export class TestJobTask extends Task<
         const job = new TestJob({ input });
         cleanup = job.onJobProgress(
           (progress: number, message: string, details: Record<string, any> | null) => {
-            executeContext.updateProgress(progress, message, details);
+            void executeContext.updateProgress(progress, message, details);
           }
         );
         return (await job.execute(input, {
@@ -112,7 +112,7 @@ export class TestJobTask extends Task<
 
       cleanup = handle.onProgress(
         (progress: number, message: string | undefined, details: Record<string, any> | null) => {
-          executeContext.updateProgress(progress, message, details);
+          void executeContext.updateProgress(progress, message, details);
         }
       );
 

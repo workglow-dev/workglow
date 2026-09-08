@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { getLogger } from "@workglow/util";
+
 export interface PollingManagerOptions {
   readonly defaultIntervalMs?: number;
 }
@@ -84,7 +86,9 @@ export class PollingSubscriptionManager<Item, Key, ChangePayload> {
       if (!this.initialized) {
         this.initialized = true;
         this.initializing = true;
-        this.initAndPoll(subscription);
+        this.initAndPoll(subscription).catch((error: unknown) => {
+          getLogger().error("Initial poll failed", { error });
+        });
       } else {
         this.pollForNewSubscriber(subscription);
       }

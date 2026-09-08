@@ -332,7 +332,7 @@ describe("SingleTask", () => {
         const originalExecute = task.execute;
         task.execute = async (input, config) => {
           // Use the updateProgress callback from config instead of directly calling handleProgress
-          config.updateProgress(0.5);
+          void config.updateProgress(0.5);
           return await originalExecute.call(task, input, config);
         };
 

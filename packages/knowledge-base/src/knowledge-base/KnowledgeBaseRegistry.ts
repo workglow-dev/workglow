@@ -76,7 +76,10 @@ function withIdLock(id: string, fn: () => Promise<void>): Promise<void> {
       pendingOps.delete(id);
     }
   };
-  next.finally(cleanup);
+  next.finally(cleanup).catch(() => {
+    // Reported to whoever awaits the returned `next`; swallowed here so the
+    // cleanup chain does not become a second, unhandled rejection.
+  });
   return next;
 }
 

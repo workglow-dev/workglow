@@ -257,7 +257,7 @@ export class EventTestTask extends Task<TestIOTaskInput, TestIOTaskOutput> {
     }
 
     if (this.shouldEmitProgress) {
-      updateProgress(this.progressValue);
+      void updateProgress(this.progressValue);
     }
 
     if (this.delayMs > 0) {
