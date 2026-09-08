@@ -22,7 +22,7 @@ export interface MigrationContext {
 }
 
 export interface DataTransformer {
-  (oldData: any): any | Promise<any>;
+  (oldData: any): any;
 }
 
 export interface MigrationOptions {

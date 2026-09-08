@@ -5,7 +5,7 @@
  */
 
 import { createServiceToken } from "@workglow/util";
-import type { ILimiter, LimiterScope, RateLimiterOptions } from "./ILimiter";
+import type { ILimiter, LimiterScope, LimiterToken, RateLimiterOptions } from "./ILimiter";
 
 export const EVENLY_SPACED_JOB_RATE_LIMITER = createServiceToken<ILimiter>(
   "jobqueue.limiter.rate.evenlyspaced"
@@ -46,7 +46,7 @@ export class EvenlySpacedRateLimiter implements ILimiter {
    * Returns a token capturing the prior `nextAvailableTime` so {@link release}
    * can roll back to the exact state before this acquire.
    */
-  async tryAcquire(): Promise<unknown | null> {
+  async tryAcquire(): Promise<LimiterToken | null> {
     const previous = this.acquireChain;
     let release!: (v: unknown) => void;
     const next = new Promise((r) => {

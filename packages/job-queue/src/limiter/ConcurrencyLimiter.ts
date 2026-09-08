@@ -5,7 +5,7 @@
  */
 
 import { createServiceToken } from "@workglow/util";
-import type { ILimiter, LimiterScope } from "./ILimiter";
+import type { ILimiter, LimiterScope, LimiterToken } from "./ILimiter";
 
 export const CONCURRENT_JOB_LIMITER = createServiceToken<ILimiter>("jobqueue.limiter.concurrent");
 
@@ -30,7 +30,7 @@ export class ConcurrencyLimiter implements ILimiter {
    * Atomic in JS's single-threaded sense: the read-then-increment runs without
    * an `await` between them, so no other task can interleave.
    */
-  async tryAcquire(): Promise<unknown | null> {
+  async tryAcquire(): Promise<LimiterToken | null> {
     if (
       this.currentRunningJobs >= this.maxConcurrentJobs ||
       Date.now() < this.nextAllowedStartTime.getTime()

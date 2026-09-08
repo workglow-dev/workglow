@@ -506,7 +506,7 @@ export class PostgresTabularStorage<
         if (typeof value === "string") {
           try {
             // Parse the vector string format [1.0, 2.0, ...] to TypedArray
-            const parsed = JSON.parse(value) as number[] | unknown;
+            const parsed = JSON.parse(value) as unknown;
             const nums: number[] = Array.isArray(parsed)
               ? (parsed as number[])
               : Object.values(parsed as Record<string, number>);

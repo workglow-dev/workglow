@@ -6,6 +6,7 @@
 
 import type {
   IRateLimiterStorage,
+  LimiterToken,
   PrefixColumn,
   RateLimiterStorageOptions,
   RateLimiterStorageScope,
@@ -93,7 +94,7 @@ export class PostgresRateLimiterStorage implements IRateLimiterStorage {
     queueName: string,
     maxExecutions: number,
     windowMs: number
-  ): Promise<unknown | null> {
+  ): Promise<LimiterToken | null> {
     const prefixColumnNames = getPrefixColumnNames(this.prefixes);
     const prefixParamValues = this.getPrefixParamValues();
     const prefixCount = prefixColumnNames.length;

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ILimiter, LimiterScope } from "./ILimiter";
+import type { ILimiter, LimiterScope, LimiterToken } from "./ILimiter";
 
 export class DelayLimiter implements ILimiter {
   /** In-memory state — not shared across processes. */
@@ -20,7 +20,7 @@ export class DelayLimiter implements ILimiter {
    * exactly the state before this acquire — even if other acquires (or
    * setNextAvailableTime calls) ran in between.
    */
-  async tryAcquire(): Promise<unknown | null> {
+  async tryAcquire(): Promise<LimiterToken | null> {
     const now = Date.now();
     if (now < this.nextAvailableTime.getTime()) {
       return null;

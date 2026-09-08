@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ILimiter, LimiterScope } from "./ILimiter";
+import type { ILimiter, LimiterScope, LimiterToken } from "./ILimiter";
 
 export class CompositeLimiter implements ILimiter {
   private limiters: ILimiter[] = [];
@@ -36,7 +36,7 @@ export class CompositeLimiter implements ILimiter {
    * `this.limiters`) so {@link release} can free each child's specific slot
    * — never "the most recent", which would race other acquirers.
    */
-  async tryAcquire(): Promise<unknown | null> {
+  async tryAcquire(): Promise<LimiterToken | null> {
     const tokens: unknown[] = [];
     for (const limiter of this.limiters) {
       const t = await limiter.tryAcquire();

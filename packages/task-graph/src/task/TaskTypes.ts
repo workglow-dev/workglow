@@ -61,7 +61,7 @@ export type CompoundTaskOutput =
       outputs: TaskOutput[];
     }
   | {
-      [key: string]: unknown | unknown[] | undefined;
+      [key: string]: unknown;
     };
 
 /** Type for task type names */

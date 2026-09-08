@@ -3,7 +3,6 @@
     "typescript/no-base-to-string": 79,
     "typescript/unbound-method": 62,
     "typescript/restrict-template-expressions": 56,
-    "typescript/no-floating-promises": 56,
-    "typescript/no-redundant-type-constituents": 35
+    "typescript/no-floating-promises": 56
   }
 }

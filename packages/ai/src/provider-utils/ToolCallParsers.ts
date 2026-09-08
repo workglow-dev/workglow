@@ -93,7 +93,7 @@ export function makeToolCall(
   return { name, arguments: args, id };
 }
 
-export function tryParseJson(text: string): unknown | undefined {
+export function tryParseJson(text: string): unknown {
   try {
     return JSON.parse(text);
   } catch (e) {

@@ -27,11 +27,11 @@ import type {
 
 type AnyLocator = any;
 
-type AnyPage = any;
+type AnyPage = Record<string, any>;
 
-type AnyBrowserContext = any;
+type AnyBrowserContext = Record<string, any>;
 
-type AnyBrowser = any;
+type AnyBrowser = Record<string, any>;
 
 let playwrightModule: typeof import("playwright");
 
@@ -264,6 +264,12 @@ export class PlaywrightBackend implements IBrowserContext {
   async connect(options: BrowserConnectOptions = {}): Promise<void> {
     const pw = await getPlaywright();
     const { headless = true, cdpUrl, backend = "local" } = options;
+    // Each handle is stored on its field as soon as it exists, so a failure
+    // partway still leaves `disconnect()` something to close -- but every
+    // dereference goes through the local, since re-reading a field after an
+    // `await` reopens it to a concurrent `disconnect()` nulling it. That is
+    // what the nullable handle types now say out loud.
+    let page: AnyPage;
 
     if (backend === "cloud" || cdpUrl) {
       if (this.sharedLocalBrowser) {
@@ -275,28 +281,34 @@ export class PlaywrightBackend implements IBrowserContext {
       if (!cdpUrl) {
         throw new Error("PlaywrightBackend: cdpUrl is required for cloud backend");
       }
-      this._browser = await pw.chromium.connectOverCDP(cdpUrl);
-      const contexts: AnyBrowserContext[] = this._browser.contexts();
-      this._context = contexts.length > 0 ? contexts[0] : await this._browser.newContext();
-      const pages: AnyPage[] = this._context.pages();
-      this._page = pages.length > 0 ? pages[0] : await this._context.newPage();
+      const browser: AnyBrowser = await pw.chromium.connectOverCDP(cdpUrl);
+      this._browser = browser;
+      const contexts: AnyBrowserContext[] = browser.contexts();
+      const context: AnyBrowserContext = contexts[0] ?? (await browser.newContext());
+      this._context = context;
+      const pages: AnyPage[] = context.pages();
+      page = pages[0] ?? (await context.newPage());
     } else {
+      let browser: AnyBrowser;
       if (this.sharedLocalBrowser) {
-        this._browser = this.sharedLocalBrowser;
+        browser = this.sharedLocalBrowser;
         this._launchedLocalChromium = false;
       } else {
         this._launchedLocalChromium = true;
-        this._browser = await pw.chromium.launch({
+        browser = await pw.chromium.launch({
           headless,
           // Reduces hangs / crashes when /dev/shm is small (common in containers).
           args: ["--disable-dev-shm-usage"],
         });
       }
-      this._context = await this._browser.newContext();
-      this._page = await this._context.newPage();
+      this._browser = browser;
+      const context: AnyBrowserContext = await browser.newContext();
+      this._context = context;
+      page = await context.newPage();
     }
+    this._page = page;
 
-    this._page.on("dialog", async (dialog: AnyPage) => {
+    page.on("dialog", async (dialog: AnyPage) => {
       const info: DialogInfo = {
         type: dialog.type() as DialogInfo["type"],
         message: dialog.message(),
