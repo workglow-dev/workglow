@@ -155,7 +155,7 @@ export class HumanInputTask extends Task<
   HumanInputTaskConfig
 > {
   static override readonly type = "HumanInputTask";
-  static override readonly category = "Flow Control";
+  static override readonly category = "Human";
   public static override title = "Human Input";
   public static override description =
     "Sends an interaction (notification, display, or input request) to a human";

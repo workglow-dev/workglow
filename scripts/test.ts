@@ -30,6 +30,7 @@ import {
   matchesKind,
   ROOT,
 } from "./lib/testDiscovery";
+import { resolveTestTarget } from "./lib/workspaceSource";
 
 const KNOWN_RUNNERS = ["bun", "vitest"] as const;
 
@@ -109,6 +110,39 @@ function buildBunTestArgs(files: string[]): string[] {
   return files.length > 0 ? ["bun", "test", ...flags, ...files] : ["bun", "test", ...flags];
 }
 
+/**
+ * Whether the caller asked for coverage at all, before the target is consulted.
+ *
+ * Opt-in by name rather than "any CI run". Coverage is a whole-suite
+ * measurement: the split jobs on a pull request each see one slice, so a
+ * per-job number is only meaningful once the fragments are stitched back
+ * together, and stitching them is machinery — an artifact per job, a merge job,
+ * a cleanup job — paid for on every push. It is collected by the nightly run
+ * instead, which executes the suite in one job and needs no stitching.
+ *
+ * `0` and `false` are honored so a workflow can set the variable once and turn
+ * it off per job without deleting it.
+ */
+function coverageAskedFor(env: Record<string, string | undefined>): boolean {
+  const raw = env.WORKGLOW_COVERAGE?.trim() ?? "";
+  return raw !== "" && raw !== "0" && raw !== "false";
+}
+
+/**
+ * Whether this run should collect coverage — see {@link coverageAskedFor} for
+ * why it is opt-in by name.
+ *
+ * A `dist`-targeted run measures the bundles, not the sources the coverage
+ * denominator names, so every source file would be reported at 0%. Refuse there
+ * rather than emit a report that says nothing — and say so, since the caller
+ * asked for coverage by name and a silent drop leaves them reading an empty
+ * `coverage/` for the reason.
+ */
+function coverageRequested(env: Record<string, string | undefined>): boolean {
+  if (!coverageAskedFor(env)) return false;
+  return resolveTestTarget(env.WORKGLOW_TEST_TARGET) !== "dist";
+}
+
 function buildVitestArgs(files: string[]): string[] {
   // When no file filter: run all. Otherwise pass relative paths as name filters.
   const relFiles = files.length > 0 ? files.map((f) => relative(ROOT, f)) : [];
@@ -120,8 +154,14 @@ function buildVitestArgs(files: string[]): string[] {
     // pipelines). The job's timeout-minutes covers the longer serial wall-clock.
     args.push("--no-file-parallelism");
   }
-  if (process.env.CI) {
+  if (coverageRequested(process.env)) {
     args.push("--coverage");
+  } else if (coverageAskedFor(process.env)) {
+    console.error(
+      'WORKGLOW_COVERAGE is set but WORKGLOW_TEST_TARGET="dist": coverage measures the ' +
+        "sources, which a dist run never loads, so every file would report 0%. Running " +
+        "without --coverage."
+    );
   }
   args.push(...relFiles);
   return args;

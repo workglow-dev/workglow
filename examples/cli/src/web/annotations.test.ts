@@ -114,6 +114,128 @@ describe("command annotations", () => {
   });
 });
 
+/** A group whose `all` runs two of the three commands beside it. */
+function syncProgram(): Command {
+  const program = new Command();
+  const sync = program.command("sync");
+  sync.command("all").description("Run every leaf in order");
+  sync.command("submissions").description("EDGAR indexes");
+  sync.command("forms").description("Form sweeps");
+  sync.command("types").description("Ad-hoc form-type sweep");
+  return program;
+}
+
+describe("an `all` that runs its siblings", () => {
+  beforeEach(() => {
+    registerCommandAnnotation({
+      path: ["sync", "all"],
+      source: "sec",
+      runs: [{ name: "submissions" }, { name: "forms", when: "only with --forms" }],
+    });
+  });
+
+  it("tells each member which step of which command runs it", () => {
+    const tree = annotateCommandTree(buildCommandTree(syncProgram()));
+    expect(findCommandNode(tree, ["sync", "submissions"])?.runsIn).toEqual({
+      command: "all",
+      step: 1,
+      of: 2,
+      // One sibling — `types` — is left out, which is what makes marking the
+      // members worth the ink; the client reads this to decide.
+      skipped: 1,
+    });
+    expect(findCommandNode(tree, ["sync", "forms"])?.runsIn).toEqual({
+      command: "all",
+      step: 2,
+      of: 2,
+      skipped: 1,
+      when: "only with --forms",
+    });
+  });
+
+  /**
+   * The half the name argues against, and the reason the marker exists: a
+   * sibling nobody named is one `all` will never run, and only the tree it
+   * sits in can say which those are.
+   */
+  it("names the siblings it does not run", () => {
+    const tree = annotateCommandTree(buildCommandTree(syncProgram()));
+    const order = findCommandNode(tree, ["sync", "all"])?.runsInOrder;
+    expect(order?.members.map((member) => member.name)).toEqual(["submissions", "forms"]);
+    expect(order?.skipped).toEqual(["types"]);
+    expect(findCommandNode(tree, ["sync", "types"])?.runsIn).toBeUndefined();
+  });
+
+  /**
+   * A member is matched by name among the siblings, so a command since renamed
+   * silently marks nothing. It is kept in the order — where it reads as a step
+   * that runs nothing — and named here, which is what a downstream guard test
+   * asserts is empty rather than discovering by looking at the console.
+   */
+  it("reports a member that names no sibling instead of dropping it", () => {
+    registerCommandAnnotation({
+      path: ["sync", "all"],
+      source: "sec",
+      runs: [{ name: "submissions" }, { name: "renamed-away" }],
+    });
+    const order = annotateCommandTree(buildCommandTree(syncProgram()))
+      .flatMap((node) => node.children)
+      .find((node) => node.name === "all")?.runsInOrder;
+    expect(order?.unrunMembers).toEqual(["renamed-away"]);
+    // The position of the members behind it is what the numbering promises.
+    expect(order?.skipped).toEqual(["forms", "types"]);
+  });
+
+  it("stamps a nested order from the sibling set it belongs to", () => {
+    registerCommandAnnotation({
+      path: ["sync", "forms", "all"],
+      source: "sec",
+      runs: [{ name: "portals" }],
+    });
+    const program = syncProgram();
+    const forms = program.commands[0]!.commands.find((command) => command.name() === "forms")!;
+    forms.command("all").description("Every form domain");
+    forms.command("portals").description("CFPORTAL");
+    forms.command("types").description("Ad-hoc");
+
+    const tree = annotateCommandTree(buildCommandTree(program));
+    expect(findCommandNode(tree, ["sync", "forms", "portals"])?.runsIn?.step).toBe(1);
+    expect(findCommandNode(tree, ["sync", "forms", "portals"])?.runsIn?.skipped).toBe(1);
+    expect(findCommandNode(tree, ["sync", "forms", "all"])?.runsInOrder?.skipped).toEqual([
+      "types",
+    ]);
+    // The group is both a member of one order and the runner of another.
+    expect(findCommandNode(tree, ["sync", "forms"])?.runsIn?.command).toBe("all");
+  });
+
+  /**
+   * The other half of the same field: an `all` that runs its whole group has
+   * nothing left over, so its members carry a zero and the console can stop
+   * repeating a chip down every row under a count that already says twelve of
+   * twelve.
+   */
+  it("counts nothing skipped when the order covers the whole group", () => {
+    registerCommandAnnotation({
+      path: ["sync", "all"],
+      source: "sec",
+      runs: [{ name: "submissions" }, { name: "forms" }, { name: "types" }],
+    });
+    const tree = annotateCommandTree(buildCommandTree(syncProgram()));
+    expect(findCommandNode(tree, ["sync", "forms"])?.runsIn?.skipped).toBe(0);
+    expect(findCommandNode(tree, ["sync", "all"])?.runsInOrder?.skipped).toEqual([]);
+  });
+
+  it("leaves a group with no `all` exactly as it was", () => {
+    resetWebAnnotationsForTesting();
+    const tree = annotateCommandTree(buildCommandTree(syncProgram()));
+    for (const name of ["all", "submissions", "forms", "types"]) {
+      const node = findCommandNode(tree, ["sync", name]);
+      expect(node?.runsIn, name).toBeUndefined();
+      expect(node?.runsInOrder, name).toBeUndefined();
+    }
+  });
+});
+
 describe("field annotations", () => {
   it("gives a positional argument a picker the command could not declare", async () => {
     registerCommandFieldAnnotations({
