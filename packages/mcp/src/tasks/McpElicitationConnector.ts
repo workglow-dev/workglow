@@ -5,7 +5,11 @@
  */
 
 import type { Server } from "@modelcontextprotocol/sdk/server";
-import type { ElicitRequestFormParams, ElicitResult } from "@modelcontextprotocol/sdk/types";
+import type {
+  ElicitRequestFormParams,
+  ElicitResult,
+  RequestId,
+} from "@modelcontextprotocol/sdk/types";
 import type { IHumanConnector, IHumanRequest, IHumanResponse } from "@workglow/util";
 
 function defaultAbortError(): Error {
@@ -33,6 +37,24 @@ function toMcpRequestedSchema(
   };
 }
 
+export interface McpElicitationConnectorOptions {
+  /**
+   * The client request whose handling this elicitation belongs to — a tool
+   * call, normally.
+   *
+   * What the spec asks for, and what makes the elicitation reliable over
+   * Streamable HTTP. Unrelated, it goes out on the session's standalone SSE
+   * stream, which the spec leaves optional: a client that never opens the GET
+   * has the request dropped silently — `send` returns, and the promise this
+   * connector is waiting on never settles. Even a client that does open one
+   * (the SDK's does, best-effort, once `notifications/initialized` is accepted)
+   * is racing it against its own first call. Related to a request, the
+   * elicitation goes out on that request's own stream, which is open for as
+   * long as the call it belongs to.
+   */
+  readonly relatedRequestId?: RequestId;
+}
+
 /**
  * IHumanConnector implementation that delegates to MCP Server.elicitInput().
  *
@@ -41,6 +63,14 @@ function toMcpRequestedSchema(
  * - "display": Sends content for display, resolves immediately.
  * - "elicit": Delegates to Server.elicitInput() for structured form input.
  *
+ * The two one-way kinds go out as logging notifications, which the server must
+ * have declared the `logging` capability to send at all — without it the
+ * notification is a silent no-op. Like the elicitation, they are related to the
+ * request being handled where there is one, so they travel on that call's own
+ * stream: sent unrelated they ride the session's standalone stream, which the
+ * spec leaves optional, and the transport drops them without a word for a
+ * client that never opened the GET. Neither kind blocks the task either way.
+ *
  * Usage:
  * ```ts
  * import { Server } from "@modelcontextprotocol/sdk/server";
@@ -48,12 +78,40 @@ function toMcpRequestedSchema(
  * import { HUMAN_CONNECTOR } from "@workglow/util";
  *
  * const mcpServer: Server = ...; // your MCP server instance
- * const connector = new McpElicitationConnector(mcpServer);
+ * const connector = new McpElicitationConnector(mcpServer, { relatedRequestId });
  * registry.registerInstance(HUMAN_CONNECTOR, connector);
  * ```
  */
 export class McpElicitationConnector implements IHumanConnector {
-  constructor(private readonly server: Server) {}
+  constructor(
+    private readonly server: Server,
+    private readonly options: McpElicitationConnectorOptions = {}
+  ) {}
+
+  /**
+   * One `notifications/message`, related to the call being handled where there
+   * is one.
+   *
+   * `Server.sendLoggingMessage` takes no notification options, so it can only
+   * send unrelated — onto the standalone stream a client need never open. This
+   * goes through `notification`, which carries the relation; the `logging`
+   * capability is still enforced there, so a server that declared none throws
+   * rather than pretending it sent something.
+   */
+  private async sendLog(data: unknown, logger: string | undefined): Promise<void> {
+    const { relatedRequestId } = this.options;
+    const params = { level: "info" as const, data, logger };
+    if (relatedRequestId === undefined) {
+      await this.server.sendLoggingMessage(params);
+      return;
+    }
+    await this.server.notification(
+      { method: "notifications/message", params },
+      {
+        relatedRequestId,
+      }
+    );
+  }
 
   async send(request: IHumanRequest, signal: AbortSignal): Promise<IHumanResponse> {
     switch (request.kind) {
@@ -80,11 +138,7 @@ export class McpElicitationConnector implements IHumanConnector {
       throw signal.reason ?? defaultAbortError();
     }
 
-    await this.server.sendLoggingMessage({
-      level: "info",
-      data: request.contentData ?? request.message,
-      logger: request.targetHumanId,
-    });
+    await this.sendLog(request.contentData ?? request.message, request.targetHumanId);
 
     if (signal.aborted) {
       throw signal.reason ?? defaultAbortError();
@@ -110,15 +164,14 @@ export class McpElicitationConnector implements IHumanConnector {
     if (signal.aborted) {
       throw signal.reason ?? defaultAbortError();
     }
-    await this.server.sendLoggingMessage({
-      level: "info",
-      data: {
+    await this.sendLog(
+      {
         message: request.message,
         content: request.contentData,
         schema: request.contentSchema,
       },
-      logger: request.targetHumanId,
-    });
+      request.targetHumanId
+    );
 
     if (signal.aborted) {
       throw signal.reason ?? defaultAbortError();
@@ -142,7 +195,7 @@ export class McpElicitationConnector implements IHumanConnector {
         message: request.message,
         requestedSchema: toMcpRequestedSchema(request.contentSchema as Record<string, unknown>),
       },
-      { signal }
+      { signal, relatedRequestId: this.options.relatedRequestId }
     );
 
     return {

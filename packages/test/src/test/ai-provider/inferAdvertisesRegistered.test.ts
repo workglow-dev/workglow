@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Capability, ModelRecord } from "@workglow/ai";
+import type { Capability, ModelPricing, ModelRecord } from "@workglow/ai";
 import { _testOnly as anthropic } from "@workglow/anthropic/ai";
 import { _testOnly as cactus } from "@workglow/cactus/ai";
 import { _testOnly as chromeAi } from "@workglow/chrome-ai/ai";
@@ -20,11 +20,16 @@ import { _testOnly as openrouter } from "@workglow/openrouter/ai";
 import { _testOnly as sdCpp } from "@workglow/stable-diffusion-server/ai";
 import { _testOnly as tfmp } from "@workglow/tf-mediapipe/ai";
 import { _testOnly as xai } from "@workglow/xai/ai";
-import { describe, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { assertInferAdvertisesRegistered } from "../../contract/ai-provider/assertions/inferAdvertisesRegistered";
 import type { InferredForModel } from "../../contract/ai-provider/assertions/inferServesInferred";
 import { assertInferServesInferred } from "../../contract/ai-provider/assertions/inferServesInferred";
+import type { PricedModel } from "../../contract/ai-provider/assertions/pricingMatchesModality";
+import {
+  assertPricedGapDoesNotGrow,
+  assertPricingMatchesModality,
+} from "../../contract/ai-provider/assertions/pricingMatchesModality";
 
 function model(
   provider: string,
@@ -58,6 +63,33 @@ function inferEach(
   infer: (id: string) => readonly Capability[]
 ): readonly InferredForModel[] {
   return ids.map((id) => ({ id, capabilities: infer(id) }));
+}
+
+/**
+ * Pairs each fixture id with both what the provider infers for it and what the
+ * provider charges for it, from one construction of the provider.
+ */
+function pricedEach(
+  provider: string,
+  ids: readonly string[],
+  // Each provider narrows these to its own config type, whose `provider` is a
+  // string literal — so `ModelRecord` does not satisfy them structurally. `never`
+  // accepts every one of those by contravariance, and the cast lands here once
+  // rather than at each of the five call sites.
+  make: () => {
+    inferCapabilities: (record: never) => readonly Capability[];
+    modelPricing: (record: never) => ModelPricing | undefined;
+  }
+): readonly PricedModel[] {
+  const instance = make();
+  return ids.map((id) => {
+    const record = model(provider, id) as never;
+    return {
+      id,
+      capabilities: instance.inferCapabilities(record) as readonly string[],
+      pricing: instance.modelPricing(record),
+    };
+  });
 }
 
 const PROVIDER_CASES: readonly {
@@ -256,6 +288,117 @@ const PROVIDER_CASES: readonly {
     ),
   },
 ];
+
+/**
+ * The pricing half of the same fixtures.
+ *
+ * Driven off the ids `PROVIDER_CASES` already lists rather than a second list,
+ * so a model added for a capability check is priced-checked on the same commit.
+ * Only the providers that quote a rate at all appear: the local ones answer
+ * `FREE_LOCAL_PRICING` for everything, which says nothing about modality.
+ */
+const PRICED_CASES: readonly {
+  readonly name: string;
+  readonly models: readonly PricedModel[];
+  /**
+   * Non-token-billed ids the provider's own table names outright. Recorded, so
+   * that adding an image model to a pricing table is a decision someone writes
+   * down rather than something the guard silently tolerates.
+   *
+   * Gemini's flash and pro image models genuinely bill by token — text tokens
+   * in, image tokens out. `imagen-4.0-generate-001` is the doubtful one: $0.03
+   * is Imagen's per-IMAGE list price sitting in a per-1M-token field, which is
+   * the unit confusion this assertion exists to surface. Left recorded rather
+   * than changed here, because correcting it means either a per-image field on
+   * `ModelPricing` or dropping a real rate, and neither is a test's call.
+   */
+  readonly namedByTable: readonly string[];
+}[] = [
+  {
+    name: "anthropic",
+    models: pricedEach(
+      "ANTHROPIC",
+      ["claude-sonnet-5"],
+      () => new anthropic.AnthropicQueuedProvider(anthropic.ANTHROPIC_RUN_FNS)
+    ),
+    namedByTable: [],
+  },
+  {
+    name: "openai",
+    models: pricedEach(
+      "OPENAI",
+      ["gpt-4o", "text-embedding-3-small", "dall-e-3", "gpt-image-1"],
+      () => new openai.OpenAiQueuedProvider(openai.OPENAI_RUN_FNS)
+    ),
+    namedByTable: [],
+  },
+  {
+    name: "google-gemini",
+    models: pricedEach(
+      "GOOGLE_GEMINI",
+      [
+        "gemini-2.5-pro",
+        "gemini-embedding-001",
+        "imagen-4.0-generate-001",
+        "gemini-3.1-flash-image",
+      ],
+      () => new gemini.GoogleGeminiQueuedProvider(gemini.GEMINI_RUN_FNS)
+    ),
+    namedByTable: ["imagen-4.0-generate-001", "gemini-3.1-flash-image"],
+  },
+  {
+    name: "xai",
+    models: pricedEach(
+      "XAI",
+      ["grok-4", "grok-2-image-1212"],
+      () => new xai.XaiQueuedProvider(xai.XAI_RUN_FNS)
+    ),
+    namedByTable: [],
+  },
+  {
+    name: "deepseek",
+    models: pricedEach(
+      "DEEPSEEK",
+      ["deepseek-v4-flash"],
+      () => new deepseek.DeepSeekQueuedProvider(deepseek.DEEPSEEK_RUN_FNS)
+    ),
+    namedByTable: [],
+  },
+];
+
+/**
+ * Token-billed models with no rate card today.
+ *
+ * A ratchet, not a target — see `assertPricedGapDoesNotGrow`. A hard assert
+ * would redden the build on a gap everyone already knows about.
+ */
+const KNOWN_UNPRICED: Readonly<Record<string, readonly string[]>> = {
+  anthropic: [],
+  openai: [],
+  "google-gemini": ["gemini-embedding-001"],
+  xai: [],
+  deepseek: [],
+};
+
+describe("a rate card matches the model's billing unit", () => {
+  it.each(PRICED_CASES)(
+    "$name does not borrow a per-token rate",
+    ({ name, models, namedByTable }) => {
+      assertPricingMatchesModality(name, models, namedByTable);
+    }
+  );
+
+  it.each(PRICED_CASES)("$name prices no fewer models than recorded", ({ name, models }) => {
+    assertPricedGapDoesNotGrow(name, models, KNOWN_UNPRICED[name] ?? []);
+  });
+
+  it("is not vacuous: the fixtures include a non-token-billed model", () => {
+    const imageModels = PRICED_CASES.flatMap(({ models }) =>
+      models.filter((m) => m.capabilities.includes("image.generation")).map((m) => m.id)
+    );
+    expect(imageModels.length).toBeGreaterThan(2);
+  });
+});
 
 describe("inferCapabilities and registered run-fns agree", () => {
   it.each(PROVIDER_CASES)(

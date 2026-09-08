@@ -368,9 +368,38 @@ terminal runs. Three load-bearing properties:
   ship, no plugin loader. Annotation patterns match a command path (`"*"` = one segment,
   trailing `"**"` = the rest); the more literal pattern wins per key. A field widget's
   `search` receives the rest of the form (`WebFieldWidgetContext`), which is what makes a
-  scoped picker possible. `PanelData` covers `table` (with per-row tones), `kv`, `stats`,
+  scoped picker possible. A command annotation also states what an `all`-style command
+  **runs** — its siblings, in order — and `annotateCommandTree` stamps both sides of that
+  from the one declaration: each member's step, and the siblings the `all` leaves out,
+  since `all` is a name that routinely covers less than the group it sits in.
+  `PanelData` covers `table` (with per-row tones), `kv`, `stats`,
   `timeline`, `markdown`, `empty` and `error`; a status widget contributes meters **or** text
   lines, since most of what an operator checks has no denominator to draw a bar against.
+
+`workglow mcp serve` is the second server the CLI hosts: the registered tasks offered to
+MCP clients as tools, one per task type, named for the registered type itself (`task list`
+prints the same types with the `Task` suffix trimmed) and carrying the
+task's own input schema. It **requires a bearer token by default** — generated per process
+and printed with a ready-made client config, pinnable through `WORKGLOW_MCP_TOKEN` or
+`--token` for a config that must survive a restart, and droppable only by saying `--no-auth`
+out loud. Loopback by default for the same reason the console is.
+
+A task that asks a person asks the MCP client, not the terminal: each tool call runs
+against a child registry carrying an `McpElicitationConnector` bound to that call. Bound
+per call rather than per process because the connector answers on one call's stream —
+and because `relatedRequestId` is what puts the elicitation on that stream at all. Without
+it the request rides the session's standalone SSE stream, which the spec leaves optional,
+and a client that never opened one has it dropped silently while the task waits forever.
+`elicitation.test.ts` pins this with a hand-rolled client, since the SDK's opens that
+stream eagerly and so cannot tell the two apart.
+
+**The parts of it worth sharing are not here.** `@workglow/mcp/server` holds them, because
+builder and embarc want the same server without the CLI around it: `createTaskMcpServer`
+(the tool surface, over any transport), `startMcpHttpServer` (`node:http`),
+`McpSessionRouter` (the Streamable HTTP session map, for a host that already has a web
+framework) and `authorizeBearer`. It is built on the SDK's low-level `Server` rather than
+`McpServer` because tasks describe themselves in JSON Schema and `registerTool` takes only
+Zod — going through it would mean converting a schema to Zod and back to publish it.
 
 **A downstream CLI reuses this, it does not copy it.** `runWorkglowCli()`
 (`src/bootstrap.ts`, exported from `lib.ts`) is the entire body of the `workglow` binary
@@ -436,6 +465,15 @@ the same discovery the runner uses. Anything path-shaped in shared project optio
 package root and silently fails to load. `testDiscovery.test.ts` fails if a discovered
 test file falls outside every project root — such a file does not error, it just stops
 running.
+
+**Coverage** — vitest resolves every `@workglow/*` specifier to the package's `src`
+(`scripts/lib/workspaceSource.ts`), so a cross-package suite covers `packages/ai/src/**`
+and not `packages/ai/dist/node.js`. Resolution still goes through `exports`, so `dist`
+still has to exist: build, or `use-source`, first. Only the nightly workflow collects
+coverage (`WORKGLOW_COVERAGE=1`, unit + integration in one job, minus the sections that
+download models or call live APIs); `WORKGLOW_TEST_TARGET=dist` turns the rewrite off to
+exercise the bundles instead, and refuses coverage there. The include/exclude globs are
+repo-root-relative, so coverage and `--project` cannot be combined.
 
 ## Developing without building
 

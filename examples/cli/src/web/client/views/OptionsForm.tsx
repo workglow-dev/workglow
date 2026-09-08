@@ -8,6 +8,7 @@
 import type { JSX } from "preact";
 import { useEffect, useState } from "preact/hooks";
 import type { WebCommandBadge } from "../../annotations";
+import type { WebRunsMembership, WebRunsOrder } from "../../commandTree";
 import { renderCliLine } from "../../argv";
 import type { WebField } from "../../commandFields";
 import { searchWidget } from "../api";
@@ -19,7 +20,7 @@ import {
   type FormValues,
   type WidgetScope,
 } from "../formModel";
-import { CommandBadges } from "./CommandTree";
+import { CommandNote } from "./CommandTree";
 
 type FieldWithWidget = WebField & { widget?: string };
 
@@ -192,6 +193,78 @@ function FieldRows({
   );
 }
 
+/**
+ * What an `all` actually runs, written out where the Run button is.
+ *
+ * The rail's marker is a count; this is the list behind it, because "runs 4 of
+ * 5" is only useful once you can see WHICH four and in what order. The skipped
+ * siblings are named in the same block rather than left implicit — an operator
+ * who runs `all` nightly needs to know what it never covers, and absence is
+ * not something a form can show.
+ */
+function RunPlan({
+  path,
+  order,
+  membership,
+}: {
+  path: readonly string[];
+  order: WebRunsOrder | undefined;
+  membership: WebRunsMembership | undefined;
+}): JSX.Element | null {
+  // The group these commands sit in, named the way the operator would type it.
+  const group = path.slice(0, -1).join(" ");
+  if (order) {
+    const of = order.members.length + order.skipped.length;
+    return (
+      <div className="plan">
+        <h3>
+          Runs {order.members.length} of the {of} commands
+          {group ? (
+            <>
+              {" "}
+              under <code>{group}</code>
+            </>
+          ) : (
+            " beside it"
+          )}
+          , in order
+        </h3>
+        <ol>
+          {order.members.map((member) => (
+            <li key={member.name}>
+              <code>{member.name}</code>
+              {member.when ? <span className="when">{member.when}</span> : null}
+            </li>
+          ))}
+        </ol>
+        {order.skipped.length > 0 ? (
+          <p className="skipped">
+            Not run by this command:{" "}
+            {order.skipped.map((name, index) => (
+              <span key={name}>
+                {index > 0 ? ", " : ""}
+                <code>{name}</code>
+              </span>
+            ))}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+  if (membership) {
+    return (
+      <div className="plan">
+        <h3>
+          Runs as step {membership.step} of {membership.of} of{" "}
+          <code>{[group, membership.command].filter(Boolean).join(" ")}</code>
+        </h3>
+        {membership.when ? <p className="skipped">There, it runs {membership.when}.</p> : null}
+      </div>
+    );
+  }
+  return null;
+}
+
 export function OptionsForm({
   binaryName,
   path,
@@ -201,6 +274,8 @@ export function OptionsForm({
   errors,
   badges,
   note,
+  runsInOrder,
+  runsIn,
   onChange,
   onRun,
   canRun = true,
@@ -218,6 +293,10 @@ export function OptionsForm({
   errors: readonly string[];
   badges?: readonly WebCommandBadge[];
   note?: string;
+  /** Set when this command runs its siblings in order — an `all`. */
+  runsInOrder?: WebRunsOrder;
+  /** Set when a sibling `all` runs this command. */
+  runsIn?: WebRunsMembership;
   onChange: (key: string, value: string | boolean) => void;
   onRun: (dryRun: boolean) => void;
   /** False while the CLI is not answering its heartbeat; running would just fail. */
@@ -236,17 +315,11 @@ export function OptionsForm({
   // the button exists only where `--dry-run` is real.
   const hasDryRun = fields.some((field) => field.key === "dry-run" && field.source === "option");
 
-  const hasBadges = badges !== undefined && badges.length > 0;
-
   return (
     <div className="wrap">
       {description ? <p className="lede">{description}</p> : null}
-      {hasBadges || note ? (
-        <div className={`cnote${badges?.includes("destructive") ? " danger" : ""}`}>
-          <CommandBadges badges={badges} />
-          {note ? <span>{note}</span> : null}
-        </div>
-      ) : null}
+      <CommandNote badges={badges} note={note} />
+      <RunPlan path={path} order={runsInOrder} membership={runsIn} />
       {args.length > 0 ? (
         <>
           <h2 className="sec">Arguments</h2>

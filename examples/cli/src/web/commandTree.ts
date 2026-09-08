@@ -5,7 +5,7 @@
  */
 
 import type { Command, Option } from "commander";
-import type { WebCommandBadge } from "./annotations";
+import type { WebCommandBadge, WebRunsMember } from "./annotations";
 
 export interface WebCommandOption {
   /** Long flag without dashes, which is also how an invocation names it. */
@@ -26,6 +26,39 @@ export interface WebCommandArgument {
   readonly choices: readonly string[] | undefined;
 }
 
+/**
+ * A command's place in a sibling `all`'s order, stamped by
+ * `annotateCommandTree` on each command that `all` runs.
+ */
+export interface WebRunsMembership {
+  /** The sibling that runs it, by name — `all` wherever anyone has one. */
+  readonly command: string;
+  /** 1-based position in that order, so a row can say where in the run it is. */
+  readonly step: number;
+  readonly of: number;
+  /**
+   * How many siblings that command leaves out. Zero means it runs the whole
+   * group, which is where marking each member says nothing the `all`'s own
+   * count does not already say.
+   */
+  readonly skipped: number;
+  /** The condition, when this member does not run on every invocation. */
+  readonly when?: string;
+}
+
+/** What an `all`-style command runs, and what it leaves to be run by hand. */
+export interface WebRunsOrder {
+  /** The members, in the order they run — the declaration, verbatim. */
+  readonly members: readonly WebRunsMember[];
+  /** Siblings this command does not run. The half its name argues against. */
+  readonly skipped: readonly string[];
+  /**
+   * Members naming no sibling — a command renamed or dropped since the order
+   * was declared. Rendered as nothing, kept here so a guard test can name it.
+   */
+  readonly unrunMembers: readonly string[];
+}
+
 export interface WebCommandNode {
   readonly path: readonly string[];
   readonly name: string;
@@ -41,6 +74,10 @@ export interface WebCommandNode {
   readonly badges?: readonly WebCommandBadge[];
   readonly note?: string;
   readonly confirm?: string;
+  /** Set by `annotateCommandTree` on a command that runs its siblings in order. */
+  readonly runsInOrder?: WebRunsOrder;
+  /** Set by `annotateCommandTree` on each command such a sibling runs. */
+  readonly runsIn?: WebRunsMembership;
 }
 
 /** Flags that exist to print text, which is not a thing this surface can run. */
