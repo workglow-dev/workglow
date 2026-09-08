@@ -113,7 +113,7 @@ export class Job<Input, Output> {
     id,
     error = null,
     errorCode = null,
-    fingerprint = undefined,
+    fingerprint,
     output = null,
     maxAttempts = DEFAULT_LIMITS.jobMaxAttempts,
     createdAt = new Date(),

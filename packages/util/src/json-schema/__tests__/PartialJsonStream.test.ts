@@ -42,8 +42,11 @@ describe("createPartialJsonStream", () => {
     });
 
     it("reassembles every document fed one character at a time", () => {
+      // `split("")`, not a spread: a spread yields code points, so a document
+      // carrying an astral character would arrive whole rather than split. A
+      // chunked transport splits UTF-16 units, which is the harder input.
       for (const doc of DOCS) {
-        expect(pushAll([...doc]), doc).toEqual(JSON.parse(doc));
+        expect(pushAll(doc.split("")), doc).toEqual(JSON.parse(doc));
       }
     });
 

@@ -193,7 +193,7 @@ async function run(
   runFn: AiProviderRunFn,
   input: Record<string, unknown>,
   sessionContext: AiSessionContext | undefined,
-  emitOverride: Parameters<AiProviderRunFn>[3] | undefined = undefined,
+  emitOverride?: Parameters<AiProviderRunFn>[3],
   signal: AbortSignal = new AbortController().signal
 ): Promise<void> {
   const { emit } = accumulatingEmit<TaskOutput>();
@@ -211,7 +211,7 @@ async function callTool(sessionContext: AiSessionContext | undefined): Promise<v
 async function callToolWithPrompt(
   prompt: string,
   sessionContext: AiSessionContext | undefined,
-  emitOverride: Parameters<AiProviderRunFn>[3] | undefined = undefined,
+  emitOverride?: Parameters<AiProviderRunFn>[3],
   signal: AbortSignal = new AbortController().signal
 ): Promise<void> {
   const input: ToolCallingTaskInput = {

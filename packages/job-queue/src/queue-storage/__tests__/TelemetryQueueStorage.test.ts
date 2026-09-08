@@ -121,10 +121,16 @@ describe("TelemetryQueueStorage", () => {
     // Mirror the optional-method semantics: if the inner storage has no native
     // implementation, the wrapper must stay undefined so wrapQueueStorage's
     // `typeof === 'function'` probe falls through to the bounded scan fallback.
-    const innerWithout = {
-      ...inner,
-      findActiveByFingerprint: undefined,
-    } as unknown as InMemoryQueueStorage<{ data: string }, { result: string }>;
+    // A real instance with this one member shadowed away, which is the shape of
+    // a backend implementing every other optional member. Spreading the
+    // instance instead copies own properties only, so every prototype method
+    // goes with it and the wrapper probes an inner that implements nothing --
+    // the assertion below would then hold for a reason unrelated to
+    // findActiveByFingerprint.
+    const innerWithout = new InMemoryQueueStorage<{ data: string }, { result: string }>(
+      "no-native"
+    );
+    (innerWithout as { findActiveByFingerprint?: unknown }).findActiveByFingerprint = undefined;
     const wrappedWithout = new TelemetryQueueStorage("no-native", innerWithout);
     expect(wrappedWithout.findActiveByFingerprint).toBeUndefined();
   });

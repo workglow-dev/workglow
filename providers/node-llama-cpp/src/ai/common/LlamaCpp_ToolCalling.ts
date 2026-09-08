@@ -48,7 +48,7 @@ import { extractToolCallsFromText } from "./LlamaCpp_ToolParser";
 
 function buildSystemPrompt(
   input: ToolCallingTaskInput,
-  prefixSystemPrompt: string | undefined = undefined
+  prefixSystemPrompt: string | undefined
 ): string | undefined {
   // `||`, not `??`: an explicit empty-string systemPrompt falls through to the
   // checkpoint prefix's system prompt, matching the other providers.
