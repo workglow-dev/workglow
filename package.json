@@ -120,7 +120,6 @@
     "concurrently": "^10.0.5",
     "husky": "^9.1.7",
     "lint-staged": "^17.5.0",
-    "nyc": "^18.0.0",
     "oxfmt": "^0.67.0",
     "oxlint": "^1.82.0",
     "oxlint-tsgolint": "^7.0.2001",

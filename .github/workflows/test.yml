@@ -1,10 +1,14 @@
 # Bun is pinned exactly, matching `packageManager`: @workglow/sqlite/storage needs
 # `node:sqlite`, which Bun ships from 1.4.0. Floating tags would let an unrelated
 # Bun regression redden every PR on a day nobody touched the code.
+#
+# Coverage is NOT collected here. Every vitest job below runs one slice of the
+# suite, so a per-job number only means something once the fragments are merged
+# — an artifact per job, a merge job and a cleanup job, paid for on every push.
+# The nightly workflow runs the suite in one job and reports it instead.
 name: Build & Test
 permissions:
   contents: read
-  pull-requests: write
 
 on:
   push:
@@ -129,19 +133,6 @@ jobs:
           path: .
       - name: Run unit tests via vitest
         run: bun run test:vitest:unit -- ${{ env.TEST_CHANGED }}
-      - name: Copy Vitest coverage fragment
-        run: |
-          if [ -f coverage/coverage-final.json ]; then
-            cp coverage/coverage-final.json vitest-unit-coverage.json
-          else
-            echo '{}' > vitest-unit-coverage.json
-          fi
-      - name: Upload Vitest coverage fragment
-        uses: actions/upload-artifact@v7
-        with:
-          name: coverage-vitest-unit
-          path: vitest-unit-coverage.json
-          retention-days: 1
 
   test-vitest-integration:
     runs-on: ubuntu-latest
@@ -166,19 +157,6 @@ jobs:
         env:
           WORKGLOW_SECRETS_PASSPHRASE: ${{ secrets.WORKGLOW_SECRETS_PASSPHRASE }}
         run: bun run test:vitest:integration -- ${{ env.TEST_CHANGED }}
-      - name: Copy Vitest coverage fragment
-        run: |
-          if [ -f coverage/coverage-final.json ]; then
-            cp coverage/coverage-final.json vitest-integration-coverage.json
-          else
-            echo '{}' > vitest-integration-coverage.json
-          fi
-      - name: Upload Vitest coverage fragment
-        uses: actions/upload-artifact@v7
-        with:
-          name: coverage-vitest-integration
-          path: vitest-integration-coverage.json
-          retention-days: 1
 
   test-vitest-rag:
     runs-on: ubuntu-latest
@@ -211,19 +189,6 @@ jobs:
         env:
           WORKGLOW_SECRETS_PASSPHRASE: ${{ secrets.WORKGLOW_SECRETS_PASSPHRASE }}
         run: bun run test:vitest:rag -- ${{ env.TEST_CHANGED }}
-      - name: Copy Vitest coverage fragment
-        run: |
-          if [ -f coverage/coverage-final.json ]; then
-            cp coverage/coverage-final.json vitest-rag-coverage.json
-          else
-            echo '{}' > vitest-rag-coverage.json
-          fi
-      - name: Upload Vitest coverage fragment
-        uses: actions/upload-artifact@v7
-        with:
-          name: coverage-vitest-rag
-          path: vitest-rag-coverage.json
-          retention-days: 1
 
   test-vitest-ai-provider-hft:
     runs-on: ubuntu-latest
@@ -255,19 +220,6 @@ jobs:
         env:
           WORKGLOW_SECRETS_PASSPHRASE: ${{ secrets.WORKGLOW_SECRETS_PASSPHRASE }}
         run: bun run test:vitest:ai-provider-hft -- ${{ env.TEST_CHANGED }}
-      - name: Copy Vitest coverage fragment
-        run: |
-          if [ -f coverage/coverage-final.json ]; then
-            cp coverage/coverage-final.json vitest-ai-provider-hft-coverage.json
-          else
-            echo '{}' > vitest-ai-provider-hft-coverage.json
-          fi
-      - name: Upload Vitest coverage fragment
-        uses: actions/upload-artifact@v7
-        with:
-          name: coverage-vitest-ai-provider-hft
-          path: vitest-ai-provider-hft-coverage.json
-          retention-days: 1
 
   test-vitest-ai-provider-nodellama:
     runs-on: ubuntu-latest
@@ -299,19 +251,6 @@ jobs:
         env:
           WORKGLOW_SECRETS_PASSPHRASE: ${{ secrets.WORKGLOW_SECRETS_PASSPHRASE }}
         run: bun run test:vitest:ai-provider-nodellama -- ${{ env.TEST_CHANGED }}
-      - name: Copy Vitest coverage fragment
-        run: |
-          if [ -f coverage/coverage-final.json ]; then
-            cp coverage/coverage-final.json vitest-ai-provider-nodellama-coverage.json
-          else
-            echo '{}' > vitest-ai-provider-nodellama-coverage.json
-          fi
-      - name: Upload Vitest coverage fragment
-        uses: actions/upload-artifact@v7
-        with:
-          name: coverage-vitest-ai-provider-nodellama
-          path: vitest-ai-provider-nodellama-coverage.json
-          retention-days: 1
 
   test-vitest-ai-provider-api:
     runs-on: ubuntu-latest
@@ -336,86 +275,6 @@ jobs:
         env:
           WORKGLOW_SECRETS_PASSPHRASE: ${{ secrets.WORKGLOW_SECRETS_PASSPHRASE }}
         run: bun run test:vitest:ai-provider-api -- ${{ env.TEST_CHANGED }}
-      - name: Copy Vitest coverage fragment
-        run: |
-          if [ -f coverage/coverage-final.json ]; then
-            cp coverage/coverage-final.json vitest-ai-provider-api-coverage.json
-          else
-            echo '{}' > vitest-ai-provider-api-coverage.json
-          fi
-      - name: Upload Vitest coverage fragment
-        uses: actions/upload-artifact@v7
-        with:
-          name: coverage-vitest-ai-provider-api
-          path: vitest-ai-provider-api-coverage.json
-          retention-days: 1
-
-  merge-vitest-coverage:
-    runs-on: ubuntu-latest
-    needs:
-      - test-vitest-unit
-      - test-vitest-integration
-      - test-vitest-rag
-      - test-vitest-ai-provider-hft
-      - test-vitest-ai-provider-nodellama
-      - test-vitest-ai-provider-api
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.0
-      - run: bun i
-      - name: Download Vitest coverage fragments
-        run: mkdir -p coverage-parts
-      - uses: actions/download-artifact@v8
-        with:
-          name: coverage-vitest-unit
-          path: coverage-parts
-      - uses: actions/download-artifact@v8
-        with:
-          name: coverage-vitest-integration
-          path: coverage-parts
-      - uses: actions/download-artifact@v8
-        with:
-          name: coverage-vitest-rag
-          path: coverage-parts
-      - uses: actions/download-artifact@v8
-        with:
-          name: coverage-vitest-ai-provider-hft
-          path: coverage-parts
-      - uses: actions/download-artifact@v8
-        with:
-          name: coverage-vitest-ai-provider-nodellama
-          path: coverage-parts
-      - uses: actions/download-artifact@v8
-        with:
-          name: coverage-vitest-ai-provider-api
-          path: coverage-parts
-      - name: Merge coverage (nyc) and emit HTML/LCOV
-        run: |
-          shopt -s nullglob
-          parts=(coverage-parts/*.json)
-          if [ ${#parts[@]} -eq 0 ]; then
-            echo "No coverage fragments (no tests ran for this change)"
-            mkdir -p coverage
-            exit 0
-          fi
-          bunx nyc merge coverage-parts merged.json
-          mkdir -p .nyc_output
-          cp merged.json .nyc_output/out.json
-          bunx nyc report --reporter=json --reporter=json-summary --reporter=html --reporter=lcov --reporter=text-summary --report-dir=coverage --temp-dir=.nyc_output
-      - name: Upload merged Vitest coverage
-        uses: actions/upload-artifact@v7
-        with:
-          name: vitest-coverage-merged
-          path: coverage
-          retention-days: 1
-      - name: Report Coverage
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && hashFiles('coverage/coverage-summary.json') != ''
-        uses: davelosert/vitest-coverage-report-action@v2
 
   cleanup:
     runs-on: ubuntu-latest
@@ -427,18 +286,9 @@ jobs:
         test-vitest-ai-provider-hft,
         test-vitest-ai-provider-nodellama,
         test-vitest-ai-provider-api,
-        merge-vitest-coverage,
       ]
     steps:
       - name: Delete build artifacts
         uses: geekyeggo/delete-artifact@v6
         with:
           name: build-output
-      - name: Delete Vitest coverage fragments
-        uses: geekyeggo/delete-artifact@v6
-        with:
-          name: coverage-vitest-*
-      - name: Delete merged Vitest coverage
-        uses: geekyeggo/delete-artifact@v6
-        with:
-          name: vitest-coverage-merged

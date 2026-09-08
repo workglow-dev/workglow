@@ -359,6 +359,13 @@ package root and silently fails to load. `testDiscovery.test.ts` fails if a disc
 test file falls outside every project root — such a file does not error, it just stops
 running.
 
+**Coverage** — vitest resolves every `@workglow/*` specifier to the package's `src`
+(`scripts/lib/workspaceSource.ts`), so a cross-package suite covers `packages/ai/src/**`
+and not `packages/ai/dist/node.js`. Resolution still goes through `exports`, so `dist`
+still has to exist: build, or `use-source`, first. Only the nightly workflow collects
+coverage (`WORKGLOW_COVERAGE=1`, whole suite in one job); `WORKGLOW_TEST_TARGET=dist` turns
+the rewrite off to exercise the bundles instead.
+
 ## Developing without building
 
 `bun run use-source` makes every package resolve to its source. It does **not** touch

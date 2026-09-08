@@ -1,9 +1,15 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { configDefaults, defineConfig } from "vitest/config";
+import { configDefaults, coverageConfigDefaults, defineConfig } from "vitest/config";
 // Extension is required: Vite's native config loader cannot resolve an
 // extensionless relative import here.
 import { discoverTestFiles, listTestProjects } from "./scripts/lib/testDiscovery.ts";
+import {
+  coverageIncludeGlobs,
+  listWorkspacePackages,
+  resolveTestTarget,
+  workspaceSourcePlugin,
+} from "./scripts/lib/workspaceSource.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const abs = (p: string): string => path.join(__dirname, p);
@@ -77,6 +83,41 @@ const shared = {
 const discovered = discoverTestFiles();
 
 /**
+ * Which build of the workspace packages a run exercises.
+ *
+ * `source` (the default) resolves every `@workglow/*` specifier to the
+ * package's `src`, so a cross-package suite runs the same files a co-located
+ * `__tests__` does. That is what makes coverage mean anything: with the bundles
+ * in play, `packages/test` exercises `packages/ai/dist/node.js` and v8
+ * attributes every executed line there, leaving `packages/ai/src/**` reading as
+ * untested. It also collapses the two module identities a mixed
+ * package/relative import graph otherwise produces.
+ *
+ * `dist` turns the rewrite off, so `exports` resolution stands and the built
+ * bundles are what gets loaded. The nightly Bun run already exercises them —
+ * `bun test` resolves `exports` natively — so nothing in CI sets this; it is
+ * the local escape hatch for reproducing a bundle-only failure under vitest.
+ */
+const target = resolveTestTarget(process.env.WORKGLOW_TEST_TARGET);
+
+/**
+ * The workspace scan and the plugin are BOTH hoisted out of the project map
+ * below, and shared by every project.
+ *
+ * The plugin is stateless — every decision lives in `resolveWorkspaceSourceId`,
+ * over a package list that cannot differ between projects — so one instance
+ * serves all of them. Constructing it inside the map re-read every workspace
+ * manifest once per project: 12 projects x 41 manifests today, so ~500 file
+ * reads before a single test ran, for an answer identical every time.
+ *
+ * The package list is also what the coverage `exclude` below subtracts
+ * non-publishing workspaces from, so it is read exactly once for both uses.
+ */
+const workspacePackages = listWorkspacePackages(__dirname);
+const projectPlugins =
+  target === "dist" ? [] : [workspaceSourcePlugin(__dirname, workspacePackages)];
+
+/**
  * One project per workspace that actually holds tests, derived from the same
  * discovery the runner and the reachability guard use. Deriving rather than
  * enumerating is the point: a hand-written list drifts, and a test file under
@@ -102,6 +143,9 @@ const projects = listTestProjects(discovered).map((p) => {
     // root block holds only `projects` itself and the coverage settings that
     // are read from the root anyway.
     extends: false,
+    // Projects are standalone Vite configs, so a root-level `plugins` entry
+    // would never reach them — the resolver has to be attached per project.
+    plugins: [...projectPlugins],
     test: {
       ...shared,
       name: p.name,
@@ -122,7 +166,50 @@ export default defineConfig({
     coverage: {
       provider: "v8", // or 'istanbul'
       reporter: ["text", "json", "json-summary", "html"],
-      exclude: [...configDefaults.exclude, "packages/test/**"],
+      // The denominator is every package's own `src`, stated explicitly rather
+      // than left to vitest's default of "files loaded during the run" — that
+      // default omits the modules no test imports at all, which are exactly the
+      // ones a coverage report exists to surface.
+      include: coverageIncludeGlobs(),
+      exclude: [
+        // `coverageConfigDefaults`, not `configDefaults`: the latter is
+        // vitest's TEST-FILE exclude list, which answers a different question.
+        // Empty in vitest 5, which is why the entries below are spelled out
+        // rather than assumed.
+        ...coverageConfigDefaults.exclude,
+        "**/node_modules/**",
+        // Built output is never the unit of measure. Nothing should resolve
+        // here now that specifiers land on `src`, but a `use-source` stub or a
+        // stale bundle in a working tree would otherwise be reported as a
+        // source file of its own.
+        "**/dist/**",
+        // The cross-package suite is the harness, not the subject.
+        "packages/test/**",
+        // The examples keep their suites in `src/test`, which also holds the
+        // odd non-`.test.` helper the filename rules below cannot catch.
+        "examples/*/src/test/**",
+        // Workspaces that publish nothing (`publishConfig.access: "none"`):
+        // today only `examples/web`, a Vite app behind no published entry
+        // point, whose UI wiring would move the headline number without saying
+        // anything about the libraries. The gate is `access: "none"` and not
+        // `private`, which `packages/test`, `providers/aws` and
+        // `providers/cloudflare` all are while carrying source that counts.
+        ...workspacePackages
+          .filter((pkg) => !pkg.publishes)
+          .map((pkg) => `${path.relative(__dirname, pkg.dir)}/src/**`),
+        // Tests, fixtures and typing-only files: counting them inflates every
+        // package by the coverage of code that exists to be run.
+        //
+        // `**/testing/**` is deliberately NOT here. Those directories are
+        // published API — `@workglow/task-graph/test` and `@workglow/util/test`
+        // ship the repository contracts and the shared fake tasks other
+        // packages' suites import by specifier.
+        "**/__tests__/**",
+        "**/*.test.*",
+        "**/*.test-d.ts",
+        "**/*.d.ts",
+        "**/bench/**",
+      ],
     },
   },
 });

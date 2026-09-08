@@ -88,4 +88,42 @@ describe("scripts/test.ts", () => {
     expect(stderr).toBe("");
     expect(stdout).toContain("--no-file-parallelism");
   });
+
+  /**
+   * Coverage is opt-in by name, not "any CI run". Every job in the blocking
+   * workflow runs one slice of the suite, so a per-job number is only
+   * meaningful once the fragments are stitched back together — and the
+   * stitching (an artifact per job, a merge job, a cleanup job) was paid for on
+   * every push. The nightly workflow sets `WORKGLOW_COVERAGE` and runs the
+   * suite in one job instead.
+   */
+  describe("coverage flag", () => {
+    async function vitestDryRun(env: Record<string, string>): Promise<string> {
+      const proc = Bun.spawn(["bun", "scripts/test.ts", "unit", "vitest", "--dry-run"], {
+        cwd: import.meta.dir + "/..",
+        stdout: "pipe",
+        stderr: "pipe",
+        env: { ...process.env, WORKGLOW_COVERAGE: "", WORKGLOW_TEST_TARGET: "", ...env },
+      });
+      const [stdout, exitCode] = await Promise.all([new Response(proc.stdout).text(), proc.exited]);
+      expect(exitCode).toBe(0);
+      return stdout;
+    }
+
+    test("is off unless asked for, CI or not", async () => {
+      expect(await vitestDryRun({ CI: "true" })).not.toContain('"--coverage"');
+    });
+
+    test("is on when the nightly job asks for it", async () => {
+      expect(await vitestDryRun({ WORKGLOW_COVERAGE: "1" })).toContain('"--coverage"');
+      expect(await vitestDryRun({ WORKGLOW_COVERAGE: "0" })).not.toContain('"--coverage"');
+    });
+
+    test("is refused against the dist target", async () => {
+      // A dist run measures the bundles, not the sources the denominator names,
+      // so every source file would be reported at 0%.
+      const stdout = await vitestDryRun({ WORKGLOW_COVERAGE: "1", WORKGLOW_TEST_TARGET: "dist" });
+      expect(stdout).not.toContain('"--coverage"');
+    });
+  });
 });
