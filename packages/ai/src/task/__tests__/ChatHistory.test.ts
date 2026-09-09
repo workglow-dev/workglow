@@ -19,7 +19,14 @@ const assistant = (text: string): ChatMessage => ({
 });
 const toolResult = (id: string): ChatMessage => ({
   role: "tool",
-  content: [{ type: "tool_result", tool_use_id: id, content: [{ type: "text", text: "ok" }] }],
+  content: [
+    {
+      type: "tool_result",
+      tool_use_id: id,
+      content: [{ type: "text", text: "ok" }],
+      is_error: undefined,
+    },
+  ],
 });
 
 describe("normalizeHistoryForModel", () => {

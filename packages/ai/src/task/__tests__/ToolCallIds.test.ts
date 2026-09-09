@@ -20,6 +20,7 @@ const toolResults = (...ids: string[]): ChatMessage => ({
     type: "tool_result",
     tool_use_id: id,
     content: [{ type: "text", text: "ok" }],
+    is_error: undefined,
   })),
 });
 
