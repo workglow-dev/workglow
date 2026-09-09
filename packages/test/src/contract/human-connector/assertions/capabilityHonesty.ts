@@ -24,7 +24,9 @@ function buildReq(
       ? { message: "elicit", contentSchema: fixture.elicitContentSchema, contentData: undefined }
       : kind === "notify"
         ? fixture.notifyRequest
-        : fixture.displayRequest;
+        : kind === "confirm"
+          ? fixture.confirmRequest
+          : fixture.displayRequest;
   return {
     requestId,
     targetHumanId: "default",
@@ -32,7 +34,7 @@ function buildReq(
     message: base.message,
     contentSchema: base.contentSchema,
     contentData: base.contentData,
-    expectsResponse: kind === "elicit",
+    expectsResponse: kind === "elicit" || kind === "confirm",
     mode: "single",
     metadata: undefined,
   };
@@ -57,7 +59,7 @@ export function capabilityHonestyBlock(
       opts.timeout
     );
 
-    for (const kind of ["notify", "display", "elicit"] as const) {
+    for (const kind of ["notify", "display", "elicit", "confirm"] as const) {
       itFn(
         `${kind}:false implies the connector either throws or surfaces a non-accept action (no silent accept)`,
         async () => {

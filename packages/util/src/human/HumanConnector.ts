@@ -15,8 +15,19 @@ import type { DataPortSchema } from "../json-schema/DataPortSchema";
  *              Response optional (acknowledgment).
  * - "elicit":  Request structured input via a form schema (MCP elicitation).
  *              Response expected with user-submitted data.
+ * - "confirm": Ask a human to approve or refuse one described action. Response
+ *              expected, and it is a decision rather than data: "accept" means
+ *              go ahead, "decline" means do not.
+ *
+ * "confirm" is not an "elicit" with two options. An elicit asks what a value
+ * should be and its schema describes fields to fill in; a confirm asks whether
+ * something should happen at all, and what its schema describes is the action
+ * about to be taken, for the person to read. Collapsing the two loses the
+ * distinction a renderer needs to draw an approval rather than a form, and
+ * loses the caller's ability to tell "the user chose nothing" from "the user
+ * said no".
  */
-export type HumanInteractionKind = "notify" | "display" | "elicit";
+export type HumanInteractionKind = "notify" | "display" | "elicit" | "confirm";
 
 /** User action in response to an interaction (MCP-aligned for "elicit" kind) */
 export type HumanResponseAction = "accept" | "decline" | "cancel";
@@ -43,6 +54,8 @@ export interface IHumanRequest {
    * For "display": Describes the data/visualization to present. Properties contain
    *                the actual data to render. Use x-ui-viewer annotations for hints.
    * For "elicit":  Describes the form fields for user input (MCP requestedSchema).
+   * For "confirm": Describes the action awaiting approval — what it is and what
+   *                it will reach — with `contentData` carrying those values.
    */
   readonly contentSchema: DataPortSchema;
   /**
@@ -50,7 +63,7 @@ export interface IHumanRequest {
    * For "elicit", this is typically empty — the human provides the data.
    */
   readonly contentData: Record<string, unknown> | undefined;
-  /** Whether a response is expected. Default: true for "elicit", false for "notify"/"display". */
+  /** Whether a response is expected. Default: true for "elicit" and "confirm", false for "notify"/"display". */
   readonly expectsResponse: boolean;
   /** Interaction mode: single request-response or multi-turn conversation */
   readonly mode: "single" | "multi-turn";

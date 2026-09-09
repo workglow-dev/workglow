@@ -37,6 +37,46 @@ function toMcpRequestedSchema(
   };
 }
 
+/** The label a person should read for one confirm field: its title, else its key. */
+function confirmLabel(contentSchema: unknown, key: string): string {
+  const properties = (contentSchema as { properties?: Record<string, unknown> } | undefined)
+    ?.properties;
+  const property = properties?.[key] as { title?: unknown } | undefined;
+  return typeof property?.title === "string" && property.title ? property.title : key;
+}
+
+/** `Action: Run workflow` — one line per value a person needs before deciding. */
+function withConfirmDetails(
+  message: string,
+  contentData: Record<string, unknown> | undefined,
+  contentSchema: unknown
+): string {
+  const entries = Object.entries(contentData ?? {});
+  if (entries.length === 0) return message;
+  const lines = entries.map(([key, value]) => {
+    // `JSON.stringify` returns the VALUE undefined for undefined and functions,
+    // which templates as the string "undefined" — say so deliberately instead.
+    const rendered = typeof value === "string" ? value : (JSON.stringify(value) ?? String(value));
+    return `${confirmLabel(contentSchema, key)}: ${rendered}`;
+  });
+  return message ? `${message}\n\n${lines.join("\n")}` : lines.join("\n");
+}
+
+/**
+ * What a confirm asks the client to collect: nothing.
+ *
+ * A confirm's `contentSchema` describes the action awaiting approval, not
+ * fields to fill in. Forwarding it as `requestedSchema` renders those
+ * descriptions as empty inputs — the person is asked to type "Action" and
+ * "Reaches" rather than read them, a `required` entry makes accept
+ * unreachable, and whatever they type comes back as the confirm's `content`.
+ * The details go in the message; the form itself is empty.
+ */
+const CONFIRM_REQUESTED_SCHEMA = {
+  type: "object" as const,
+  properties: {},
+};
+
 export interface McpElicitationConnectorOptions {
   /**
    * The client request whose handling this elicitation belongs to — a tool
@@ -58,10 +98,12 @@ export interface McpElicitationConnectorOptions {
 /**
  * IHumanConnector implementation that delegates to MCP Server.elicitInput().
  *
- * Handles all three interaction kinds:
+ * Handles every interaction kind:
  * - "notify": Sends a notification via MCP logging, resolves immediately.
  * - "display": Sends content for display, resolves immediately.
  * - "elicit": Delegates to Server.elicitInput() for structured form input.
+ * - "confirm": The same elicitation, with the action's details folded into the
+ *   message — MCP has no approval primitive.
  *
  * The two one-way kinds go out as logging notifications, which the server must
  * have declared the `logging` capability to send at all — without it the
@@ -124,6 +166,14 @@ export class McpElicitationConnector implements IHumanConnector {
       case "elicit":
         return this.handleElicit(request, signal);
 
+      // MCP has no approval primitive, and elicitation is the closest honest
+      // mapping: it is the one round-trip that asks a person to decide and
+      // carries accept/decline back. The schema describes the action rather
+      // than fields to fill in, which a client renders as a form — coarser
+      // than a native approval, but never silently auto-approved.
+      case "confirm":
+        return this.handleConfirm(request, signal);
+
       default:
         return this.handleElicit(request, signal);
     }
@@ -180,6 +230,40 @@ export class McpElicitationConnector implements IHumanConnector {
     return {
       requestId: request.requestId,
       action: "accept",
+      content: undefined,
+      done: true,
+    };
+  }
+
+  /**
+   * Handle "confirm" kind — ask a person to approve one described action.
+   *
+   * A confirm carries what it is approving in `contentData`, and
+   * `elicitInput` has nowhere to put it: form params are a message and a
+   * requested schema, with no field for values the client should show. So the
+   * values go into the message, which is the only part of an elicitation a
+   * client is obliged to display, and the requested schema is left empty —
+   * see {@link CONFIRM_REQUESTED_SCHEMA} for why forwarding it is worse than
+   * coarse.
+   */
+  private async handleConfirm(
+    request: IHumanRequest,
+    signal: AbortSignal
+  ): Promise<IHumanResponse> {
+    const mcpResult: ElicitResult = await this.server.elicitInput(
+      {
+        mode: "form",
+        message: withConfirmDetails(request.message, request.contentData, request.contentSchema),
+        requestedSchema: CONFIRM_REQUESTED_SCHEMA,
+      },
+      { signal, relatedRequestId: this.options.relatedRequestId }
+    );
+
+    // A confirm's answer is the decision. Anything a client sent alongside it
+    // answers a form this never asked for, so it is not the caller's `content`.
+    return {
+      requestId: request.requestId,
+      action: mcpResult.action,
       content: undefined,
       done: true,
     };

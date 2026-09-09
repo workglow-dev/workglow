@@ -41,6 +41,20 @@ export const DEFAULT_HUMAN_CONFORMANCE_FIXTURE: ConformanceFixture = {
     contentSchema: emptySchema,
     contentData: { result: 42 },
   },
+  // A confirm's schema describes the action awaiting approval rather than
+  // fields to fill in, so the data is what a person reads before deciding.
+  confirmRequest: {
+    message: 'Run workflow "nightly-export"?',
+    contentSchema: {
+      type: "object",
+      properties: {
+        action: { type: "string", title: "Action" },
+        reaches: { type: "string", title: "Reaches" },
+      },
+      additionalProperties: true,
+    },
+    contentData: { action: "Run workflow", reaches: "network:http → https://example.test" },
+  },
   abortGraceMs: 1000,
 };
 

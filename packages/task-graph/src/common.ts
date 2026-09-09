@@ -23,6 +23,7 @@ export * from "./task-graph/RunScheduler";
 export * from "./task-graph/StreamPump";
 export * from "./task-graph/SubGraphEventBridge";
 export * from "./task-graph/TaskGraph";
+export * from "./task-graph/TaskGraphJsonShape";
 export * from "./task-graph/TaskGraphEvents";
 export * from "./task-graph/TaskGraphRunner";
 

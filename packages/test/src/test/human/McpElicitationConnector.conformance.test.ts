@@ -22,6 +22,7 @@ runHumanConnectorConformance({
   },
   capabilities: {
     elicit: true,
+    confirm: true,
     notify: true,
     display: true,
     multiTurn: false,

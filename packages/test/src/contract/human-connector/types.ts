@@ -15,6 +15,9 @@ export type HumanConnectorAssertionId =
   | "roundtrip.accept"
   | "roundtrip.decline"
   | "roundtrip.cancel"
+  | "roundtrip.confirm.accept"
+  | "roundtrip.confirm.decline"
+  | "roundtrip.confirm.details"
   | "abort.beforeSend"
   | "abort.midElicit"
   | "concurrent.isolation"
@@ -26,6 +29,13 @@ export type HumanConnectorAssertionId =
 export interface HumanConnectorCapabilities {
   /** Connector handles `kind: "elicit"` requests with a real human-driven response. */
   readonly elicit: boolean;
+  /**
+   * Connector handles `kind: "confirm"` requests with a real human decision.
+   * A connector without a native approval primitive may map it onto its
+   * elicitation path and still declare true — what it must not do is answer
+   * "accept" without asking anyone.
+   */
+  readonly confirm: boolean;
   /** Connector handles `kind: "notify"` requests (fast-resolve, no script consumption). */
   readonly notify: boolean;
   /** Connector handles `kind: "display"` requests (fast-resolve, no script consumption). */
@@ -81,6 +91,8 @@ export interface ConformanceFixture {
   readonly notifyRequest: Pick<IHumanRequest, "message" | "contentSchema" | "contentData">;
   /** Default display request payload. */
   readonly displayRequest: Pick<IHumanRequest, "message" | "contentSchema" | "contentData">;
+  /** Default confirm request payload — the action awaiting approval. */
+  readonly confirmRequest: Pick<IHumanRequest, "message" | "contentSchema" | "contentData">;
   /** Bound for abort propagation (ms). */
   readonly abortGraceMs: number;
 }

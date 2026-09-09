@@ -28,6 +28,20 @@ function elicitReq(fixture: ConformanceFixture, requestId: string): IHumanReques
   };
 }
 
+function confirmReq(fixture: ConformanceFixture, requestId: string): IHumanRequest {
+  return {
+    requestId,
+    targetHumanId: "default",
+    kind: "confirm",
+    message: fixture.confirmRequest.message,
+    contentSchema: fixture.confirmRequest.contentSchema,
+    contentData: fixture.confirmRequest.contentData,
+    expectsResponse: true,
+    mode: "single",
+    metadata: undefined,
+  };
+}
+
 export function roundtripBlock(
   opts: HumanConnectorConformanceOpts,
   fixture: ConformanceFixture,
@@ -37,6 +51,9 @@ export function roundtripBlock(
   const itAccept = expectFails.has("roundtrip.accept") ? itExpectFail : it;
   const itDecline = expectFails.has("roundtrip.decline") ? itExpectFail : it;
   const itCancel = expectFails.has("roundtrip.cancel") ? itExpectFail : it;
+  const itConfirmAccept = expectFails.has("roundtrip.confirm.accept") ? itExpectFail : it;
+  const itConfirmDecline = expectFails.has("roundtrip.confirm.decline") ? itExpectFail : it;
+  const itConfirmDetails = expectFails.has("roundtrip.confirm.details") ? itExpectFail : it;
 
   describe.skipIf(!opts.capabilities.elicit)("Roundtrip elicit", () => {
     itAccept(
@@ -85,6 +102,59 @@ export function roundtripBlock(
         expect(res.action).toBe("cancel");
         expect(res.done).toBe(true);
         expect(res.content).toBeUndefined();
+      },
+      opts.timeout
+    );
+  });
+
+  // Declaring `confirm: true` is a claim that a person decided. Without a
+  // positive case the honesty block above proves nothing — it returns early
+  // whenever the capability is true — so a connector that answered "accept"
+  // without asking anyone would pass the whole suite.
+  describe.skipIf(!opts.capabilities.confirm)("Roundtrip confirm", () => {
+    itConfirmAccept(
+      "a decision reaches the caller as the person's own answer",
+      async () => {
+        const { connector, script } = getHandle();
+        script.push({ requestId: "x", action: "accept", content: undefined, done: true });
+        const ac = new AbortController();
+        const res = await connector.send(confirmReq(fixture, "rt-confirm-accept"), ac.signal);
+        expect(res.requestId).toBe("rt-confirm-accept");
+        expect(res.action).toBe("accept");
+        expect(res.done).toBe(true);
+      },
+      opts.timeout
+    );
+
+    itConfirmDecline(
+      "a refusal is a refusal, not an unanswered accept",
+      async () => {
+        const { connector, script } = getHandle();
+        script.push({ requestId: "x", action: "decline", content: undefined, done: true });
+        const ac = new AbortController();
+        const res = await connector.send(confirmReq(fixture, "rt-confirm-decline"), ac.signal);
+        expect(res.requestId).toBe("rt-confirm-decline");
+        expect(res.action).toBe("decline");
+        expect(res.done).toBe(true);
+      },
+      opts.timeout
+    );
+
+    itConfirmDetails(
+      "the action's details reach the person deciding",
+      async () => {
+        const { connector, script } = getHandle();
+        script.push({ requestId: "x", action: "decline", content: undefined, done: true });
+        const ac = new AbortController();
+        await connector.send(confirmReq(fixture, "rt-confirm-details"), ac.signal);
+        const received = script.received.at(-1);
+        const shown = JSON.stringify({
+          message: received?.message,
+          contentData: received?.contentData,
+        });
+        for (const value of Object.values(fixture.confirmRequest.contentData ?? {})) {
+          if (typeof value === "string") expect(shown).toContain(value);
+        }
       },
       opts.timeout
     );

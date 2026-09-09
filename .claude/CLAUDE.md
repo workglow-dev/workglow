@@ -169,6 +169,9 @@ See `packages/task-graph/README.md` and `src/EXECUTION_MODEL.md`.
 - `runPreview()` → `executePreview()` — UI previews only, stays PENDING, must be fast
 - Lifecycle: `PENDING → PROCESSING → COMPLETED | FAILED | ABORTED`
 
+`taskGraphJsonShapeError` / `validateTaskGraphJsonShape` (`TaskGraphJsonShape.ts`) check a
+`TaskGraphJson` structurally before `createGraphFromGraphJSON` touches it.
+
 Schemas are JSON Schema. `format` annotations drive runtime type resolution
 (`"model"`, `"model:EmbeddingTask"`, `"storage:tabular"`, `"knowledge-base"`);
 `x-ui-manual: true` marks user-added ports. Register classes with `TaskRegistry.registerTask`.
@@ -202,6 +205,13 @@ RAG tasks: `ChunkVectorUpsertTask` (`knowledgeBase` + `chunks` + `vector`, optio
 `doc_title`), `ChunkRetrievalTask` (`knowledgeBase` + `query` + `model`, with
 `method: "similarity" | "hybrid"`), `HierarchyJoinTask`, `RerankerTask`,
 `QueryExpanderTask`, `TextChunkerTask`, `HierarchicalChunkerTask`.
+
+Conversation helpers for a host keeping its own message list, none of which run inside a
+task: `normalizeHistoryForModel` / `trimHistoryForModel` (`ChatHistory.ts`), and
+`collectToolUseIds` / `uniquifyToolCallIds` / `repairDuplicateToolCallIds` (`ToolCallIds.ts`).
+
+`validateModelAuthoredSchema` (`ModelAuthoredSchema.ts`) bounds a JSON Schema a model wrote
+before a host renders a form from it, beside `sanitizeToolArgs`, which bounds the arguments.
 
 **Cache checkpoints** — `CacheCheckpointTask` (requires `["cache.checkpoint"]`) warms a
 prompt prefix and emits a `checkpoint` handle (`format: "cache-checkpoint"`) that
