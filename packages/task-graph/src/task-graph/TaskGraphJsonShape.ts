@@ -76,11 +76,16 @@ function shapeError(graph: unknown, depth: number): string | undefined {
     for (const key of ["sourceTaskId", "sourceTaskPortId", "targetTaskId", "targetTaskPortId"]) {
       if (typeof dataflow[key] !== "string") return `dataflow is missing ${key}`;
     }
-    if (!ids.has(dataflow.sourceTaskId as string)) {
-      return `dataflow source "${dataflow.sourceTaskId}" is not a task id`;
+    // Narrowed by the loop above, which returns for any of the four that is
+    // not a string. The locals carry that into the messages below, which would
+    // otherwise interpolate an `unknown`.
+    const sourceTaskId = dataflow.sourceTaskId as string;
+    const targetTaskId = dataflow.targetTaskId as string;
+    if (!ids.has(sourceTaskId)) {
+      return `dataflow source "${sourceTaskId}" is not a task id`;
     }
-    if (!ids.has(dataflow.targetTaskId as string)) {
-      return `dataflow target "${dataflow.targetTaskId}" is not a task id`;
+    if (!ids.has(targetTaskId)) {
+      return `dataflow target "${targetTaskId}" is not a task id`;
     }
   }
   return undefined;
