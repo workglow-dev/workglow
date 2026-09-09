@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import { ConfirmInput, TextInput } from "@inkjs/ui";
 import { Box, Text, useInput } from "ink";
 import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -444,7 +445,7 @@ function FieldWidget({
 
   if (field.format === "password") {
     const initial =
-      previousValue ?? (field.defaultValue !== undefined ? String(field.defaultValue) : "");
+      previousValue ?? (field.defaultValue !== undefined ? asText(field.defaultValue) : "");
     return (
       <CliPasswordInput
         defaultValue={initial}
@@ -459,7 +460,7 @@ function FieldWidget({
     <TextInput
       placeholder={placeholder}
       defaultValue={
-        previousValue ?? (field.defaultValue !== undefined ? String(field.defaultValue) : undefined)
+        previousValue ?? (field.defaultValue !== undefined ? asText(field.defaultValue) : undefined)
       }
       onChange={onTextChange}
       onSubmit={onSubmit}

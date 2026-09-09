@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import { normalizeLabel } from "./classification";
 
 /** One extracted entity/record: field name → value. */
@@ -41,7 +42,7 @@ function normalizeValue(value: unknown): string {
   // String(object) is "[object Object]" for every object, which would score
   // two different structured values as agreeing; compare their JSON instead.
   if (typeof value === "object" && value !== null) return normalizeLabel(JSON.stringify(value));
-  return normalizeLabel(String(value ?? ""));
+  return normalizeLabel(asText(value));
 }
 
 /** Deduplicate rows on the normalized key field (last occurrence wins). */

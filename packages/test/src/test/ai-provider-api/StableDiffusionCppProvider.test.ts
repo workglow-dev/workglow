@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import type { ModelRecord } from "@workglow/ai";
 import type { IBackendsTransport, IRunningHandle } from "@workglow/ai/provider-utils";
 import { _testOnly } from "@workglow/stable-diffusion-server/ai";
@@ -127,7 +128,7 @@ describe("StableDiffusionCpp transport-mode run-fn (parity across inline + worke
       modelPath: "/abs/m.gguf",
       opts: {},
     });
-    const fetchedUrl = String(fetchSpy.mock.calls[0]![0]);
+    const fetchedUrl = asText(fetchSpy.mock.calls[0]![0]);
     expect(fetchedUrl).toBe("http://127.0.0.1:9999/txt2img");
     expect(release).toHaveBeenCalledTimes(1);
   });

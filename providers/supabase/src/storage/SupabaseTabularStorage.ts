@@ -33,7 +33,7 @@ import {
   safeEmit,
   StorageValidationError,
 } from "@workglow/storage";
-import { createServiceToken, getLogger, uuid4 } from "@workglow/util";
+import { asText, createServiceToken, getLogger, uuid4 } from "@workglow/util";
 import type {
   DataPortSchemaObject,
   FromSchema,
@@ -766,7 +766,7 @@ export class SupabaseTabularStorage<
   private static postgrestListElement(value: unknown): string {
     if (value === null || value === undefined) return "null";
     if (typeof value === "number" || typeof value === "boolean") return String(value);
-    return `"${String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+    return `"${asText(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
   }
 
   /**

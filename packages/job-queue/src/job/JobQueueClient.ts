@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DEFAULT_LIMITS, EventEmitter, getLogger } from "@workglow/util";
+import { DEFAULT_LIMITS, EventEmitter, asText, getLogger } from "@workglow/util";
 import type { IJobStore } from "../queue-storage/IJobStore";
 import type { IMessageQueue } from "../queue-storage/IMessageQueue";
 import type { JobStorageFormat, QueueChangePayload } from "../queue-storage/IQueueStorage";
@@ -451,7 +451,7 @@ export class JobQueueClient<Input, Output> {
     const job = await this.getJob(jobId);
     if (!job) {
       this.removePromise(jobId, resolve, reject);
-      throw new JobNotFoundError(`Job ${String(jobId)} not found`);
+      throw new JobNotFoundError(`Job ${asText(jobId)} not found`);
     }
     if (job.status === JobStatus.COMPLETED) {
       this.removePromise(jobId, resolve, reject);
@@ -459,7 +459,7 @@ export class JobQueueClient<Input, Output> {
     }
     if (job.status === JobStatus.DISABLED) {
       this.removePromise(jobId, resolve, reject);
-      throw new JobDisabledError(`Job ${String(jobId)} was disabled`);
+      throw new JobDisabledError(`Job ${asText(jobId)} was disabled`);
     }
     if (job.status === JobStatus.FAILED) {
       this.removePromise(jobId, resolve, reject);

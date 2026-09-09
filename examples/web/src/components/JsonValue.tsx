@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import React from "react";
 
 type JsonValueProps = {
@@ -41,7 +42,7 @@ export const JsonValue: React.FC<JsonValueProps> = ({ value }) => {
     }
 
     // Fallback for any other types
-    return <span>{String(value)}</span>;
+    return <span>{asText(value)}</span>;
   };
 
   return <span className="json-value">{getFormattedValue()}</span>;

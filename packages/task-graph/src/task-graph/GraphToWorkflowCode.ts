@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import type { ITask } from "../task/ITask";
 import type { Task } from "../task/Task";
 import type { TaskIdType } from "../task/TaskTypes";
@@ -559,7 +560,7 @@ export function formatValue(
     if (columnOffset + oneLine.length < 80) return oneLine;
     return `{\n${entries.map((e) => `${entryIndent}${e}`).join(",\n")}\n${baseIndent}}`;
   }
-  return String(value);
+  return asText(value);
 }
 
 /**

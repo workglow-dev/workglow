@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import { createStableDiffusionCppImageEditRunFn } from "@workglow/stable-diffusion-server/ai-runtime";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -37,8 +38,8 @@ describe("createStableDiffusionCppImageEditRunFn", () => {
       emit
     );
     const [url, init] = fetchSpy.mock.calls[0]!;
-    expect(String(url)).toBe("http://localhost:8080/img2img");
-    const body = JSON.parse(String((init as RequestInit).body));
+    expect(asText(url)).toBe("http://localhost:8080/img2img");
+    const body = JSON.parse(asText((init as RequestInit).body));
     expect(body.prompt).toBe("make it blue");
     expect(typeof body.init_image).toBe("string");
     expect(body.init_image.length).toBeGreaterThan(0); // base64 of [1,2,3,4]

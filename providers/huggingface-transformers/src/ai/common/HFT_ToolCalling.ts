@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import type { TextGenerationPipeline } from "@huggingface/transformers";
 import type {
   AiProviderRunFn,
@@ -222,7 +223,7 @@ export function buildHFTMessages(
 
 function extractPromptText(prompt: unknown): string {
   if (typeof prompt === "string") return prompt;
-  if (!Array.isArray(prompt)) return String(prompt ?? "");
+  if (!Array.isArray(prompt)) return asText(prompt);
   return prompt
     .map((item) => {
       if (typeof item === "string") return item;

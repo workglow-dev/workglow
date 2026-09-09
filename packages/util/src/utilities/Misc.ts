@@ -106,6 +106,10 @@ export function deepEqual(a: unknown, b: unknown): boolean {
       return a.source === b.source && a.flags === b.flags;
     }
     if (a.valueOf !== Object.prototype.valueOf) return a.valueOf() === b.valueOf();
+    // The guard on this very line is the rule's own escape clause: `toString`
+    // is only called once it is known NOT to be Object.prototype's, so it is a
+    // real implementation and "[object Object]" is unreachable here.
+    // oxlint-disable-next-line typescript/no-base-to-string
     if (a.toString !== Object.prototype.toString) return a.toString() === b.toString();
 
     keys = Object.keys(a);

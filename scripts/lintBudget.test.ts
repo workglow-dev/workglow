@@ -90,6 +90,13 @@ describe("countFindingsByRule", () => {
  * for a rule that is on measures nothing. Either drift makes the ratchet a
  * decoration.
  */
+/** Rule names `.oxlintrc.json` stages off with the `// budgeted` marker. */
+function markedRules(config: string): string[] {
+  return [...config.matchAll(/"([a-z-]+\/[a-z0-9-]+)":\s*"off",?\s*\/\/\s*budgeted/g)].map(
+    (m) => m[1] as string
+  );
+}
+
 describe("the budget and the config agree", () => {
   const budget = JSON.parse(
     readFileSync(join(ROOT, "scripts", "lint-budget.json"), "utf8")
@@ -100,14 +107,22 @@ describe("the budget and the config agree", () => {
     expect(config).toContain(`"${rule}": "off"`);
   });
 
+  it("still recognises the marker when the config has none", () => {
+    // The agreement below compares two lists, so it passes vacuously if the
+    // pattern stops matching. It used to be anchored on the live config having
+    // at least one marker — which was true until the budget reached zero, and
+    // is the wrong thing to assert now that empty is the goal state. A fixture
+    // keeps the pattern honest without requiring the tree to carry debt.
+    expect(markedRules('  "typescript/some-rule": "off", // budgeted')).toEqual([
+      "typescript/some-rule",
+    ]);
+    expect(markedRules('  "typescript/other-rule": "off",')).toEqual([]);
+  });
+
   it("carries every rule .oxlintrc.json marks `// budgeted`, and no others", () => {
     // The marker is what separates staged-off-with-debt from off-by-policy
-    // (`no-explicit-any`, `no-duplicate-type-constituents`), which have no
-    // count and are not meant to reach zero.
-    const marked = [
-      ...config.matchAll(/"([a-z-]+\/[a-z0-9-]+)":\s*"off",?\s*\/\/\s*budgeted/g),
-    ].map((m) => m[1]);
-    expect(marked.length).toBeGreaterThan(0);
-    expect(Object.keys(budget.rules).sort()).toEqual(marked.sort());
+    // (`no-explicit-any`, `no-duplicate-type-constituents`, `unbound-method`),
+    // which have no count and are not meant to reach zero.
+    expect(Object.keys(budget.rules).sort()).toEqual(markedRules(config).sort());
   });
 });

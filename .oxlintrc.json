@@ -103,7 +103,7 @@
     // now, and three of the nine had already drifted (77->79, 59->62, 7->9)
     // with nothing to notice.
     // ---------------------------------------------------------------------
-    "typescript/no-base-to-string": "off", // budgeted
+    "typescript/no-base-to-string": "error",
     // 62 findings, none of them a defect: 31 are `expect(spy.method)` style
     // assertions that never call the method, 9 read an optional member out so
     // they can `.call(receiver)` it after a typeof probe, 10 are `own`/`disown`

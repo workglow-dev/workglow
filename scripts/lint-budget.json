@@ -1,5 +1,3 @@
 {
-  "rules": {
-    "typescript/no-base-to-string": 74
-  }
+  "rules": {}
 }

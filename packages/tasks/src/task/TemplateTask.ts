@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import type { IExecuteContext, IExecutePreviewContext, TaskConfig } from "@workglow/task-graph";
 import { CreateWorkflow, Task, Workflow } from "@workglow/task-graph";
 import type { DataPortSchema, FromSchema } from "@workglow/util/schema";
@@ -21,7 +22,7 @@ function renderTemplate(template: string, values: Record<string, unknown>): stri
       current = (current as Record<string, unknown>)[segment];
     }
     if (current !== undefined && current !== null) {
-      return String(current);
+      return asText(current);
     }
     return defaultValue !== undefined ? defaultValue : "";
   });

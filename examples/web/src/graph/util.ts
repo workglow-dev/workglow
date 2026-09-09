@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import type { ITask } from "@workglow/task-graph";
 import { TaskStatus } from "@workglow/task-graph";
 
@@ -39,11 +40,11 @@ export const formatOutputData = (data: unknown): string => {
     try {
       return JSON.stringify(data, null, 2);
     } catch (e) {
-      return String(data);
+      return asText(data);
     }
   }
 
-  return String(data);
+  return asText(data);
 };
 
 export const getTruncatedTaskId = (taskId: string): string => {

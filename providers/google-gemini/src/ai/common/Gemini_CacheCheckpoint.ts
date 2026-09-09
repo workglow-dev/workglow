@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import type {
   AiProviderRunFn,
   CacheCheckpointTaskInput,
@@ -262,8 +263,8 @@ function classifyGeminiCacheError(
   signal: AbortSignal | undefined
 ): "abort" | "degrade" | "throw" {
   const anyErr = err as { name?: unknown; message?: unknown; status?: unknown; code?: unknown };
-  const message = String(anyErr?.message ?? err ?? "");
-  const name = String(anyErr?.name ?? "");
+  const message = asText(anyErr?.message ?? err);
+  const name = asText(anyErr?.name);
   if (
     signal?.aborted ||
     (typeof DOMException !== "undefined" &&

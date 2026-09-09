@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import type { Pool } from "@workglow/postgres/storage";
 import type {
   ITextIndex,
@@ -312,7 +313,7 @@ export class PostgresFtsTextIndex implements ITextIndex {
     const snapshotTable = (state as { table?: unknown }).table;
     if (snapshotTable !== undefined && snapshotTable !== this.table) {
       throw new Error(
-        `PostgresFtsTextIndex.fromJSON: snapshot table "${String(snapshotTable)}" does not match this index's table "${this.table}".`
+        `PostgresFtsTextIndex.fromJSON: snapshot table "${asText(snapshotTable)}" does not match this index's table "${this.table}".`
       );
     }
     // No-op beyond validation: state is server-side. We accept the

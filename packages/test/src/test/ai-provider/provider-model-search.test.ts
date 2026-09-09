@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import type { AiProviderRunFn } from "@workglow/ai";
 import { collectStream, createEmitQueue, MODEL_EFFORTS, ModelSearchTask } from "@workglow/ai";
 import { Anthropic_ModelSearch_Stream as Anthropic_ModelSearch } from "@workglow/anthropic/ai";
@@ -150,7 +151,7 @@ describe("provider model search samples", () => {
   test("Gemini live search uses the supplied credential", async () => {
     let requestedUrl = "";
     globalThis.fetch = (async (input: Parameters<typeof fetch>[0]) => {
-      requestedUrl = input.toString();
+      requestedUrl = asText(input);
       return Response.json({
         models: [
           {

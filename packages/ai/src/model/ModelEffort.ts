@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
+
 /**
  * Coarse shared thinking / reasoning dial on {@link ModelConfig.effort}.
  * Native `provider_config` thinking knobs always win when set.
@@ -92,7 +94,7 @@ export const EFFORT_POLICY_NONE = {
 export function readModelName(model: object | undefined): string {
   const config = (model as { provider_config?: { model_name?: unknown } } | undefined)
     ?.provider_config;
-  return String(config?.model_name ?? "").trim();
+  return asText(config?.model_name).trim();
 }
 
 /** Matches a provider model id. A function covers what a regex cannot express. */

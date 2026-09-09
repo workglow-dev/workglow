@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import type { ModelRecord, ModelSearchResultItem } from "@workglow/ai";
 import { ModelRecordSchema, modelSearch } from "@workglow/ai";
 import { AnthropicModelRecordSchema } from "@workglow/anthropic/ai";
@@ -399,7 +400,7 @@ export function registerModelCommand(program: Command): void {
         process.exit(1);
       }
 
-      if (String(parsed.model_id ?? "") !== targetId) {
+      if (asText(parsed.model_id) !== targetId) {
         console.error(`model_id must remain "${targetId}" when editing this entry.`);
         process.exit(1);
       }

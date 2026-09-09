@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import type { McpServerConfig } from "@workglow/mcp/util";
 import {
   getMcpServerConfig,
@@ -309,7 +310,7 @@ export class McpPromptGetTask extends Task<
     );
     try {
       const result = await client.getPrompt({
-        name: String(this.config.prompt_name ?? ""),
+        name: asText(this.config.prompt_name),
         arguments: input as Record<string, string>,
       });
       return {

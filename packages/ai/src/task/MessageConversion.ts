@@ -13,6 +13,7 @@
  * maintain their own conversion logic.
  */
 
+import { asText } from "@workglow/util";
 import type { ChatMessage, ContentBlock } from "./ChatMessage";
 import type { ToolCallingTaskInput } from "./ToolCallingTask";
 
@@ -34,7 +35,7 @@ export function promptToTailMessages(prompt: unknown): ChatMessage[] {
     });
     return [{ role: "user", content: blocks }];
   }
-  return [{ role: "user", content: [{ type: "text", text: String(prompt) }] }];
+  return [{ role: "user", content: [{ type: "text", text: asText(prompt) }] }];
 }
 
 function getInputMessages(input: ToolCallingTaskInput): ReadonlyArray<ChatMessage> | undefined {

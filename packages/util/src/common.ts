@@ -12,6 +12,7 @@ export * from "./events/EventEmitter";
 export * from "./human/HumanConnector";
 export * from "./logging";
 export * from "./utilities/BaseError";
+export * from "./utilities/asText";
 export * from "./utilities/Misc";
 export * from "./utilities/objectOfArraysAsArrayOfObjects";
 export * from "./utilities/TypeUtilities";

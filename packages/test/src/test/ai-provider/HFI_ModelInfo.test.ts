@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import type { AiProviderRunFn, ModelInfoTaskOutput } from "@workglow/ai";
 import { HF_INFERENCE, _testOnly } from "@workglow/huggingface-inference/ai";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -90,7 +91,7 @@ describe("HFI_ModelInfo", () => {
     await runModelInfo("org/model");
 
     expect(fetch).toHaveBeenCalledTimes(1);
-    const requested = String(vi.mocked(fetch).mock.calls[0]![0]);
+    const requested = asText(vi.mocked(fetch).mock.calls[0]![0]);
     expect(requested).toBe("https://huggingface.co/api/models/org/model");
     expect(requested).not.toContain("%2F");
   });

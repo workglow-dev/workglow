@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "../utilities/asText";
+
 /**
  * Replace each `root` prefix in `stack` with the literal placeholder
  * `<root>` so absolute filesystem paths (build-server home dirs, container
@@ -58,7 +60,7 @@ export function rehydrateWorkerError(data: unknown): Error {
   const payload = data as { message?: string; name?: string; stack?: string };
   const scrubbedStack =
     typeof payload.stack === "string" ? scrubStack(payload.stack, stackScrubRoots()) : undefined;
-  return Object.assign(new Error(payload.message ?? String(data)), {
+  return Object.assign(new Error(payload.message ?? asText(data)), {
     name: payload.name ?? "Error",
     ...(scrubbedStack !== undefined ? { stack: scrubbedStack } : {}),
   });

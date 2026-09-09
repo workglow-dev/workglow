@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import type { AiProviderRunFn } from "@workglow/ai";
 import { _testOnly } from "@workglow/google-gemini/ai";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -102,7 +103,7 @@ describe("Gemini request body normalizes both nullable spellings", () => {
     );
 
     const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
-    const body = JSON.parse(String(init.body)) as {
+    const body = JSON.parse(asText(init.body)) as {
       generationConfig?: { responseSchema?: unknown };
     };
     return body.generationConfig?.responseSchema;

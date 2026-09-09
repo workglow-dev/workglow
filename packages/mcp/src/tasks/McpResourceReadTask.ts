@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import {
   getMcpServerConfig,
   getMcpServerTransport,
@@ -157,7 +158,7 @@ export class McpResourceReadTask extends Task<
     );
     try {
       const result = await client.readResource({
-        uri: String(this.config.resource_uri ?? ""),
+        uri: asText(this.config.resource_uri),
       });
       return { contents: result.contents };
     } finally {

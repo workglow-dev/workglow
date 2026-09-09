@@ -22,7 +22,7 @@
  */
 
 import { localOnlyFetch } from "@workglow/ai/provider-utils";
-import { DEFAULT_LIMITS } from "@workglow/util";
+import { DEFAULT_LIMITS, asText } from "@workglow/util";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const originalFetch = globalThis.fetch;
@@ -44,7 +44,7 @@ function stubFetch(responses: Response[]): void {
   calls = [];
   globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
     calls.push({
-      url: String(input),
+      url: asText(input),
       redirect: init?.redirect,
     });
     const res = responses[i++];

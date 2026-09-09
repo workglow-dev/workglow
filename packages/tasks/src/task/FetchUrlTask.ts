@@ -29,7 +29,7 @@ import {
   TaskInvalidInputError,
   Workflow,
 } from "@workglow/task-graph";
-import { getLogger } from "@workglow/util";
+import { asText, getLogger } from "@workglow/util";
 import type { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { safeFetch } from "../util/SafeFetch";
 import { classifyUrl, urlMatchesScope, urlResourcePattern } from "../util/UrlClassifier";
@@ -832,7 +832,7 @@ function toStreamEventError(event: StreamEventLike): Error {
     const message = (raw as { message?: unknown }).message;
     return new Error(typeof message === "string" ? message : JSON.stringify(raw));
   }
-  return new Error(raw === undefined ? "Queued fetch reported a stream error" : String(raw));
+  return new Error(raw === undefined ? "Queued fetch reported a stream error" : asText(raw));
 }
 
 /**

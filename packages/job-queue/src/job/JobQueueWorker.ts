@@ -7,10 +7,11 @@
 import {
   DEFAULT_LIMITS,
   EventEmitter,
+  SpanStatusCode,
+  asText,
   getLogger,
   getTelemetryProvider,
   sleep,
-  SpanStatusCode,
   uuid4,
 } from "@workglow/util";
 import type { ILimiter } from "../limiter/ILimiter";
@@ -785,7 +786,7 @@ export class JobQueueWorker<
     const span = telemetry.isEnabled
       ? telemetry.startSpan("workglow.job.process", {
           attributes: {
-            "workglow.job.id": String(job.id),
+            "workglow.job.id": asText(job.id),
             "workglow.job.queue": this.queueName,
             "workglow.job.lease_owner": this.workerId,
             "workglow.job.attempt": job.attempts,
@@ -862,7 +863,7 @@ export class JobQueueWorker<
       if (error instanceof RetryableJobError) {
         const currentJob = await this.getJob(job.id);
         if (!currentJob) {
-          throw new JobNotFoundError(`Job ${String(job.id)} not found`);
+          throw new JobNotFoundError(`Job ${asText(job.id)} not found`);
         }
 
         if (currentJob.attempts + 1 >= currentJob.maxAttempts) {
@@ -1263,7 +1264,7 @@ export class JobQueueWorker<
 
     if (!this.inFlight.has(jobId)) {
       throw new Error(
-        `createAbortController invariant violated: jobId ${String(jobId)} is not in inFlight. ` +
+        `createAbortController invariant violated: jobId ${asText(jobId)} is not in inFlight. ` +
           `Abort controllers must only be created from within processSingleJob.`
       );
     }
