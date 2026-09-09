@@ -94,13 +94,6 @@ jobs:
       # walks around that. Cheap, and the tree is clean today.
       - name: Format check
         run: bun run format-check
-      # The rules `.oxlintrc.json` stages off are exempt from `lint` by
-      # definition, so nothing measured them: their counts lived in `//`
-      # comments and three of the nine had drifted upward unnoticed. This runs
-      # them as warnings and fails on growth. `build:types` is already warm from
-      # the `lint` step above (turbo-cached), so it costs one oxlint pass.
-      - name: Lint budget
-        run: bun run lint-budget
 
   build:
     runs-on: ubuntu-latest

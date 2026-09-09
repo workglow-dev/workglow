@@ -92,16 +92,13 @@
     // cross-package import as `any` and these rules silently find nothing.
     // `bun run lint` and the CI lint job both build types first.
     //
-    // Everything type-aware in `correctness` is ON except the ten below,
-    // which the tree does not pass yet. They are real findings rather than
-    // false positives, and each is its own cleanup rather than part of the
-    // linter swap. Turn one on with its fixes.
-    //
-    // `// budgeted` means the finding count is enforced by
-    // `scripts/lint-budget.json` -- it may shrink, never grow. The count is
-    // deliberately NOT repeated here: it lived only in these comments until
-    // now, and three of the nine had already drifted (77->79, 59->62, 7->9)
-    // with nothing to notice.
+    // Everything type-aware in `correctness` is ON. Eight of these were once
+    // staged off against a counted budget, and the tree passes all eight now.
+    // The two still off are off by POLICY, not debt: their findings are
+    // idiomatic here and would only ever buy disable comments on correct code,
+    // so each carries its reason below instead of a number. Staging a further
+    // rule off means writing the same kind of reason -- there is no longer a
+    // count to hide behind.
     // ---------------------------------------------------------------------
     "typescript/no-base-to-string": "error",
     // 62 findings, none of them a defect: 31 are `expect(spy.method)` style
@@ -109,9 +106,9 @@
     // they can `.call(receiver)` it after a typeof probe, 10 are `own`/`disown`
     // which TaskRunner's constructor rebinds, 7 save a prototype method to
     // restore after a test monkey-patches it, and 5 are statics that touch no
-    // `this`. Enabling it would buy 62 disable comments on correct code, so it
-    // stays off rather than carrying a budget that is never going to reach
-    // zero.
+    // `this`. Enabling it would buy 62 disable comments on correct code, each
+    // one a liability under --report-unused-disable-directives, so it stays
+    // off.
     "typescript/unbound-method": "off",
     "typescript/no-floating-promises": "error",
     "typescript/restrict-template-expressions": "error",

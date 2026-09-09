@@ -33,7 +33,6 @@
     "lint": "bun run build:types && oxlint --type-aware --report-unused-disable-directives --deny-warnings",
     "format": "oxlint --fix && oxfmt \"{packages,providers,examples}/*/src/**/*.{js,ts,tsx,json}\"",
     "format-check": "oxfmt --check \"{packages,providers,examples}/*/src/**/*.{js,ts,tsx,json}\"",
-    "lint-budget": "bun run build:types && bun ./scripts/lint-budget.ts",
     "build:release": "turbo run build-js build-types --concurrency=15",
     "test": "bun scripts/test.ts",
     "test:bun:unit": "bun scripts/test.ts bun unit",
