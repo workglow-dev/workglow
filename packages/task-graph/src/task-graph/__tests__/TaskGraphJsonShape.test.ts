@@ -81,6 +81,50 @@ describe("taskGraphJsonShapeError", () => {
     expect(reason).toContain('dataflow target "b" is not a task id');
   });
 
+  it("checks a nested subgraph, naming the task that holds it", () => {
+    const reason = taskGraphJsonShapeError({
+      tasks: [
+        {
+          id: "outer",
+          type: "GraphAsTask",
+          subgraph: {
+            tasks: [
+              { id: "a", type: "InputTask" },
+              { id: "a", type: "OutputTask" },
+            ],
+            dataflows: [],
+          },
+        },
+      ],
+      dataflows: [],
+    });
+    expect(reason).toContain('task "outer" subgraph');
+    expect(reason).toContain('duplicate task id "a"');
+  });
+
+  it("accepts a well-formed subgraph", () => {
+    expect(
+      taskGraphJsonShapeError({
+        tasks: [
+          {
+            id: "outer",
+            type: "GraphAsTask",
+            subgraph: { tasks: [{ id: "a", type: "InputTask" }], dataflows: [] },
+          },
+        ],
+        dataflows: [],
+      })
+    ).toBeUndefined();
+  });
+
+  it("reports a reason rather than overflowing on nested subgraphs", () => {
+    let graph: unknown = { tasks: [], dataflows: [] };
+    for (let i = 0; i < 5_000; i++) {
+      graph = { tasks: [{ id: "g", type: "GraphAsTask", subgraph: graph }], dataflows: [] };
+    }
+    expect(taskGraphJsonShapeError(graph)).toContain("nest deeper than");
+  });
+
   it("catches a dataflow missing an endpoint field", () => {
     const reason = taskGraphJsonShapeError({
       tasks: [{ id: "a", type: "InputTask" }],

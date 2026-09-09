@@ -65,29 +65,78 @@ function renameForOccurrence(seen: Map<string, number>, id: string): string {
 }
 
 /**
+ * Tracks which renamed `tool_use` id each `tool_result` should answer.
+ *
+ * Counting the two sides independently only pairs them while every call has
+ * exactly one result. A history holding a `tool_use` whose result never
+ * arrived — an interrupted round, a turn stored before the dangling call was
+ * dropped — puts the counters one apart, and from there every later result for
+ * that id is renamed onto the wrong call.
+ *
+ * Results are matched against the calls of the most recent assistant message
+ * that made any, because that is what a round is: an assistant turn asking for
+ * tools, then the results answering it. A second assistant turn asking again
+ * supersedes anything the first left unanswered.
+ */
+class ToolCallRenames {
+  private readonly occurrences = new Map<string, number>();
+  /** The newest rename minted for an id, whichever round made it. */
+  private readonly latest = new Map<string, string>();
+  private round = new Map<string, string[]>();
+
+  /** A new assistant turn asked for tools; its calls are what results answer now. */
+  beginRound(): void {
+    this.round = new Map();
+  }
+
+  forToolUse(id: string): string {
+    const renamed = renameForOccurrence(this.occurrences, id);
+    this.latest.set(id, renamed);
+    const queue = this.round.get(id);
+    if (queue) queue.push(renamed);
+    else this.round.set(id, [renamed]);
+    return renamed;
+  }
+
+  /**
+   * The rename of the oldest call in this round still unanswered.
+   *
+   * With none left — a second result for one call, in a history nothing else
+   * would have produced — the newest rename for that id is the fallback. The
+   * raw id looks like the safe answer and is the one wrong one: occurrence 1
+   * keeps the id unchanged, so returning it silently re-answers the FIRST call
+   * ever made with that id, several rounds back. An id never renamed at all is
+   * its own latest, so the ordinary case is unaffected.
+   */
+  forToolResult(id: string): string {
+    return this.round.get(id)?.shift() ?? this.latest.get(id) ?? id;
+  }
+}
+
+/**
  * Repairs a stored conversation whose tool-call ids are not unique — one
  * written before the caller started uniquifying them, say.
  *
  * The k-th occurrence of an id becomes `<id>_<k>` consistently across
- * `tool_use` and `tool_result` blocks. The two are paired by occurrence order
- * rather than by matching ids, which is what keeps a pair together: within one
- * conversation the n-th `tool_result` for an id answers the n-th `tool_use` of
- * it, because a round's results are appended after its calls.
+ * `tool_use` and `tool_result` blocks. A result takes the rename of the oldest
+ * call with that id it has not answered yet, which is what keeps a pair
+ * together even where a call has no result at all — within one conversation a
+ * round's results are appended after its calls.
  *
  * An already-unique history passes through with only shallow copies.
  */
 export function repairDuplicateToolCallIds(history: readonly ChatMessage[]): ChatMessage[] {
-  const useSeen = new Map<string, number>();
-  const resultSeen = new Map<string, number>();
+  const renames = new ToolCallRenames();
   return history.map((message) => {
     if (message.role === "assistant") {
+      if (message.content.some((block) => block.type === "tool_use")) renames.beginRound();
       return {
         ...message,
         content: message.content.map((block) =>
           block.type === "tool_use"
             ? ({
                 ...block,
-                id: renameForOccurrence(useSeen, block.id),
+                id: renames.forToolUse(block.id),
               } satisfies ContentBlockToolUse)
             : block
         ),
@@ -100,7 +149,7 @@ export function repairDuplicateToolCallIds(history: readonly ChatMessage[]): Cha
           block.type === "tool_result"
             ? ({
                 ...block,
-                tool_use_id: renameForOccurrence(resultSeen, block.tool_use_id),
+                tool_use_id: renames.forToolResult(block.tool_use_id),
               } satisfies ContentBlockToolResult)
             : block
         ),

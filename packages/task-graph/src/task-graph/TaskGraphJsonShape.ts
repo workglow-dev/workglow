@@ -21,7 +21,22 @@ import type { TaskGraphJson } from "../task/TaskJSON";
  * whether a `type` is a task this host will *run* is a question about the
  * host's registry, not about the JSON, and it is asked separately.
  */
+/**
+ * Ceiling on nested-subgraph recursion.
+ *
+ * This function exists so bad graph JSON comes back as a sentence rather than
+ * a throw from deep inside a constructor, and a chain of nested subgraphs is
+ * bad graph JSON — deep enough, it overflows the stack and this returns the
+ * one thing it promised never to. Far above anything a real graph nests.
+ */
+const MAX_SUBGRAPH_DEPTH = 32;
+
 export function taskGraphJsonShapeError(graph: unknown): string | undefined {
+  return shapeError(graph, 0);
+}
+
+function shapeError(graph: unknown, depth: number): string | undefined {
+  if (depth > MAX_SUBGRAPH_DEPTH) return `subgraphs nest deeper than ${MAX_SUBGRAPH_DEPTH}`;
   if (!graph || typeof graph !== "object" || Array.isArray(graph)) {
     return "graph must be an object with tasks and dataflows";
   }
@@ -44,6 +59,13 @@ export function taskGraphJsonShapeError(graph: unknown): string | undefined {
       (typeof defaults !== "object" || defaults === null || Array.isArray(defaults))
     ) {
       return `task "${task.id}" defaults must be an object`;
+    }
+    // A nested graph is deserialized by the same constructor, so a duplicate id
+    // or a dangling dataflow inside one throws from exactly as deep as the
+    // top-level version this function exists to catch.
+    if (task.subgraph !== undefined) {
+      const nested = shapeError(task.subgraph, depth + 1);
+      if (nested) return `task "${task.id}" subgraph: ${nested}`;
     }
   }
 

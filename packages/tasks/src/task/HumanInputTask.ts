@@ -140,7 +140,7 @@ export type HumanInputTaskOutput = {
 /**
  * A task that sends an interaction to a human via an IHumanConnector.
  *
- * Supports three interaction kinds:
+ * Supports four interaction kinds:
  * - "notify": Send a notification (fire-and-forget, task completes immediately)
  * - "display": Present content to the human (charts, data, markdown)
  * - "elicit": Request structured input via a form (MCP elicitation model)
@@ -159,7 +159,7 @@ export class HumanInputTask extends Task<
   static override readonly category = "Human";
   public static override title = "Human Input";
   public static override description =
-    "Sends an interaction (notification, display, or input request) to a human";
+    "Sends an interaction (notification, display, input request or approval) to a human";
   public static override cachePolicy: CachePolicy = { kind: "none" };
   public static override hasDynamicSchemas = true;
 

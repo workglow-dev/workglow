@@ -90,6 +90,49 @@ describe("repairDuplicateToolCallIds", () => {
     expect(results).toEqual(["call_0", "call_0_2"]);
   });
 
+  it("keeps a result on its own call when an earlier call was never answered", () => {
+    // An interrupted round leaves a `tool_use` with no `tool_result`. Counting
+    // the two sides independently would rename the surviving result onto the
+    // abandoned call, silently re-answering the wrong one.
+    const history = [
+      assistantCalls("call_0"),
+      assistantCalls("call_0"),
+      toolResults("call_0"),
+      assistantCalls("call_0"),
+      toolResults("call_0"),
+    ];
+    const out = repairDuplicateToolCallIds(history);
+    const results = out.flatMap((m) =>
+      m.role === "tool"
+        ? m.content.filter((b) => b.type === "tool_result").map((b: any) => b.tool_use_id)
+        : []
+    );
+    // The first call is the unanswered one, so the two results belong to the
+    // second and third.
+    expect(results).toEqual(["call_0_2", "call_0_3"]);
+  });
+
+  it("keeps a stray extra result off the first round's call", () => {
+    // A second result for one call is a history nothing normal produces, but
+    // falling back to the raw id would attach it to the FIRST `call_0` — the
+    // one occurrence 1 left unrenamed — silently re-answering a round that was
+    // already answered rounds ago.
+    const history = [
+      assistantCalls("call_0"),
+      toolResults("call_0"),
+      assistantCalls("call_0"),
+      toolResults("call_0"),
+      toolResults("call_0"),
+    ];
+    const out = repairDuplicateToolCallIds(history);
+    const results = out.flatMap((m) =>
+      m.role === "tool"
+        ? m.content.filter((b) => b.type === "tool_result").map((b: any) => b.tool_use_id)
+        : []
+    );
+    expect(results).toEqual(["call_0", "call_0_2", "call_0_2"]);
+  });
+
   it("leaves an already-unique history unchanged", () => {
     const history = [assistantCalls("a", "b"), toolResults("a", "b")];
     expect(repairDuplicateToolCallIds(history)).toEqual(history);

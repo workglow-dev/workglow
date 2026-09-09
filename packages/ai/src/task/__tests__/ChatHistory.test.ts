@@ -68,18 +68,35 @@ describe("trimHistoryForModel", () => {
   });
 
   it("cuts only at a user message, so no tool_result outlives its tool_use", () => {
-    const history = [
-      user("turn one"),
-      assistant("thinking"),
-      toolResult("t1"),
-      assistant("answer one"),
-      user("turn two"),
-      assistant("answer two"),
-    ];
-    const trimmed = trimHistoryForModel(history, 120);
+    // The invariant is not "the first message is a user message" — it is that
+    // every surviving `tool_result` still has the `tool_use` it answers, which
+    // both Anthropic and OpenAI reject outright when it is missing.
+    const filler = "z".repeat(400);
+    const history: ChatMessage[] = [];
+    for (let i = 0; i < 6; i++) {
+      history.push(user(`ask ${i}`));
+      history.push({
+        role: "assistant",
+        content: [{ type: "tool_use", id: `t${i}`, name: "echo", input: { v: filler } }],
+      });
+      history.push(toolResult(`t${i}`));
+      history.push(assistant(`done ${i}`));
+    }
+    const trimmed = trimHistoryForModel(history, 3000);
+    expect(trimmed.length).toBeLessThan(history.length);
     expect(trimmed[0]!.role).toBe("user");
-    // Whatever survived, a tool message never leads the result.
-    expect(trimmed.some((m, i) => m.role === "tool" && i === 0)).toBe(false);
+    const uses = new Set(
+      trimmed.flatMap((m) =>
+        m.content.filter((b) => b.type === "tool_use").map((b) => (b as { id: string }).id)
+      )
+    );
+    const results = trimmed.flatMap((m) =>
+      m.content
+        .filter((b) => b.type === "tool_result")
+        .map((b) => (b as { tool_use_id: string }).tool_use_id)
+    );
+    expect(results.length).toBeGreaterThan(0);
+    for (const id of results) expect(uses.has(id)).toBe(true);
   });
 
   it("keeps the newest turn even when it alone exceeds the budget", () => {
