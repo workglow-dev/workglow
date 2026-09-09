@@ -87,7 +87,7 @@ function sortNodes(nodes: Node<TaskNodeData>[]): Node<TaskNodeData>[] {
   });
 
   // Recursive function to get a node and all its descendants
-  const appendChildren = (nodeId: string | "###root###"): Node<TaskNodeData>[] => {
+  const appendChildren = (nodeId: string): Node<TaskNodeData>[] => {
     const children = parentMap.get(nodeId) || [];
     const result: Node<TaskNodeData>[] = [];
 

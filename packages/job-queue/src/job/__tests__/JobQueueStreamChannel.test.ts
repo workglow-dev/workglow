@@ -26,17 +26,17 @@ interface SOutput {
 
 class StreamEmittingJob extends Job<SInput, SOutput> {
   public override async execute(_input: SInput, context: IJobExecuteContext): Promise<SOutput> {
-    context.emitStreamEvent?.({
+    void context.emitStreamEvent?.({
       type: "binary-delta",
       port: "bytes",
       binaryDelta: new Uint8Array([1, 2]),
     });
-    context.emitStreamEvent?.({
+    void context.emitStreamEvent?.({
       type: "binary-delta",
       port: "bytes",
       binaryDelta: new Uint8Array([3]),
     });
-    context.emitStreamEvent?.({ type: "finish", data: {} });
+    void context.emitStreamEvent?.({ type: "finish", data: {} });
     return { ok: true };
   }
 }
@@ -61,11 +61,11 @@ class GatedStreamJob extends Job<SInput, SOutput> {
   public override async execute(input: SInput, context: IJobExecuteContext): Promise<SOutput> {
     const gate = gates.get(input.gateId as string);
     if (!gate) throw new Error(`missing gate ${String(input.gateId)}`);
-    context.emitStreamEvent?.({ type: "text-delta", port: "p", textDelta: "before" });
+    void context.emitStreamEvent?.({ type: "text-delta", port: "p", textDelta: "before" });
     gate.markEmitted();
     await gate.open;
-    context.emitStreamEvent?.({ type: "text-delta", port: "p", textDelta: "after" });
-    context.emitStreamEvent?.({ type: "finish", data: {} });
+    void context.emitStreamEvent?.({ type: "text-delta", port: "p", textDelta: "after" });
+    void context.emitStreamEvent?.({ type: "finish", data: {} });
     return { ok: true };
   }
 }

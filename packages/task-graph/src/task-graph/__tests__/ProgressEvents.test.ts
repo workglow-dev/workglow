@@ -113,7 +113,7 @@ describe("Progress events: terminal-100 tick", () => {
     });
     const runPromise = task.run();
     await sleep(10);
-    await task.runner.abort();
+    task.runner.abort();
     await expect(runPromise).rejects.toThrow();
     expect(events).toContain(100);
   });

@@ -596,11 +596,18 @@ export class JobQueueServer<
   protected startCleanupLoop(): void {
     if (!this.running) return;
 
-    this.cleanupJobs().finally(() => {
-      if (this.running) {
-        this.cleanupTimer = setTimeout(() => this.startCleanupLoop(), this.cleanupIntervalMs);
-      }
-    });
+    // The loop reschedules whether or not the sweep succeeded, but a failure
+    // used to reach nobody: `.finally()` re-raises the rejection into a chain
+    // with no handler, so cleanup could fail every cycle in silence.
+    this.cleanupJobs()
+      .catch((error: unknown) => {
+        getLogger().error("Job cleanup failed; the loop continues", { error });
+      })
+      .finally(() => {
+        if (this.running) {
+          this.cleanupTimer = setTimeout(() => this.startCleanupLoop(), this.cleanupIntervalMs);
+        }
+      });
   }
 
   /**

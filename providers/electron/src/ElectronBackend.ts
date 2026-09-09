@@ -23,11 +23,11 @@ import { sleep } from "@workglow/util";
 // Electron types are accessed via lazy import (optional dependency).
 /** @type {import("electron").BrowserWindow} */
 
-type AnyBrowserWindow = any;
+type AnyBrowserWindow = Record<string, any>;
 
 /** @type {import("electron").WebContents} */
 
-type AnyWebContents = any;
+type AnyWebContents = Record<string, any>;
 
 let electronModule: Record<string, any> | null = null;
 

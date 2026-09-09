@@ -36,8 +36,9 @@ import {
 import {
   Container,
   InMemoryCredentialStore,
-  registerCredentialDefaults,
   ServiceRegistry,
+  asText,
+  registerCredentialDefaults,
   setGlobalCredentialStore,
   setLogger,
 } from "@workglow/util";
@@ -743,7 +744,7 @@ describe("defaultSafeFetch cross-origin redirect header strip", () => {
       });
 
       expect(fetchMock).toHaveBeenCalledTimes(2);
-      expect(String(bodyOnCall(1) ?? "")).not.toContain("client_secret");
+      expect(asText(bodyOnCall(1) ?? "")).not.toContain("client_secret");
       expect(JSON.stringify(fetchMock.mock.calls[1])).not.toContain("client_secret");
     });
   }

@@ -14,7 +14,7 @@ const PAGE_SIZE = 100;
 
 interface RowsResponseFeature {
   readonly name: string;
-  readonly type: { readonly _type?: string; readonly names?: readonly string[] } | unknown;
+  readonly type: unknown;
 }
 
 interface RowsResponse {

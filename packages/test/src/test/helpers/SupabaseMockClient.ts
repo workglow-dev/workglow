@@ -7,7 +7,7 @@
 import { PGlite } from "@electric-sql/pglite";
 import { vector } from "@electric-sql/pglite-pgvector";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { setLogger } from "@workglow/util";
+import { asText, setLogger } from "@workglow/util";
 
 import { getTestingLogger } from "@workglow/util/test";
 
@@ -583,7 +583,7 @@ export function createSupabaseMockClient(): IClosableSupabaseClient {
                 if (typeof v === "object")
                   return `"${k}" = '${JSON.stringify(v).replace(/'/g, "''")}'`;
                 if (typeof v === "string") return `"${k}" = '${v.replace(/'/g, "''")}'`;
-                return `"${k}" = ${String(v)}`;
+                return `"${k}" = ${asText(v)}`;
               })
               .join(", ");
 

@@ -92,20 +92,31 @@
     // cross-package import as `any` and these rules silently find nothing.
     // `bun run lint` and the CI lint job both build types first.
     //
-    // Everything type-aware in `correctness` is ON except the ten below,
-    // which the tree does not pass yet. The counts are what they report today;
-    // they are real findings rather than false positives, and each is its own
-    // cleanup rather than part of the linter swap. Turn one on with its fixes.
+    // Everything type-aware in `correctness` is ON. Eight of these were once
+    // staged off against a counted budget, and the tree passes all eight now.
+    // The two still off are off by POLICY, not debt: their findings are
+    // idiomatic here and would only ever buy disable comments on correct code,
+    // so each carries its reason below instead of a number. Staging a further
+    // rule off means writing the same kind of reason -- there is no longer a
+    // count to hide behind.
     // ---------------------------------------------------------------------
-    "typescript/no-base-to-string": "off", // 77
-    "typescript/unbound-method": "off", // 59
-    "typescript/no-floating-promises": "off", // 56
-    "typescript/restrict-template-expressions": "off", // 56
-    "typescript/no-redundant-type-constituents": "off", // 35
-    "typescript/await-thenable": "off", // 7
-    "typescript/require-array-sort-compare": "off", // 7
-    "typescript/no-useless-default-assignment": "off", // 4
-    "typescript/no-misused-spread": "off", // 3
+    "typescript/no-base-to-string": "error",
+    // 62 findings, none of them a defect: 31 are `expect(spy.method)` style
+    // assertions that never call the method, 9 read an optional member out so
+    // they can `.call(receiver)` it after a typeof probe, 10 are `own`/`disown`
+    // which TaskRunner's constructor rebinds, 7 save a prototype method to
+    // restore after a test monkey-patches it, and 5 are statics that touch no
+    // `this`. Enabling it would buy 62 disable comments on correct code, each
+    // one a liability under --report-unused-disable-directives, so it stays
+    // off.
+    "typescript/unbound-method": "off",
+    "typescript/no-floating-promises": "error",
+    "typescript/restrict-template-expressions": "error",
+    "typescript/no-redundant-type-constituents": "error",
+    "typescript/await-thenable": "error",
+    "typescript/require-array-sort-compare": "error",
+    "typescript/no-useless-default-assignment": "error",
+    "typescript/no-misused-spread": "error",
     // 9 findings, all "explicit undefined is unnecessary on an optional
     // parameter" -- which is the house style (`T | undefined` over `T?`), not a
     // defect. This one stays off rather than waiting for a cleanup.

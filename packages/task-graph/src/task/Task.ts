@@ -938,7 +938,7 @@ export class Task<
         return `${e.message}${path ? ` (${path})` : ""}`;
       });
       const err = new TaskInvalidInputError(
-        `Task "${this.type}" (${this.id}): Input ${JSON.stringify(Object.keys(input))} does not match schema: ${errorMessages.join(", ")}`
+        `Task "${this.type}" (${String(this.id)}): Input ${JSON.stringify(Object.keys(input))} does not match schema: ${errorMessages.join(", ")}`
       );
       err.taskType = this.type;
       err.taskId = this.id;

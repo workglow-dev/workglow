@@ -5,6 +5,7 @@
  */
 
 import { createServiceToken, sleep, uuid4 } from "@workglow/util";
+import type { LimiterToken } from "../limiter/ILimiter";
 import type {
   IRateLimiterStorage,
   RateLimiterStorageOptions,
@@ -101,7 +102,7 @@ export class InMemoryRateLimiterStorage implements IRateLimiterStorage {
     queueName: string,
     maxExecutions: number,
     windowMs: number
-  ): Promise<unknown | null> {
+  ): Promise<LimiterToken | null> {
     const key = this.makeKey(queueName);
     return this.withKeyLock(key, () => {
       const now = Date.now();

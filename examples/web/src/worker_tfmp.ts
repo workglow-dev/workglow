@@ -6,4 +6,6 @@
 
 import { registerTensorFlowMediaPipeWorker } from "@workglow/tf-mediapipe/ai-runtime";
 
-registerTensorFlowMediaPipeWorker();
+registerTensorFlowMediaPipeWorker().catch((error: unknown) => {
+  console.error("Failed to register the MediaPipe worker:", error);
+});

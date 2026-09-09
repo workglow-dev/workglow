@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import type { DataPortSchema } from "@workglow/util/schema";
 import type { ITransformDef } from "../TransformTypes";
 
@@ -14,7 +15,7 @@ export const uppercaseTransform: ITransformDef = {
   category: "String",
   paramsSchema: undefined,
   inferOutputSchema: () => stringSchema,
-  apply: (v) => String(v ?? "").toUpperCase(),
+  apply: (v) => asText(v).toUpperCase(),
 };
 
 export const lowercaseTransform: ITransformDef = {
@@ -23,7 +24,7 @@ export const lowercaseTransform: ITransformDef = {
   category: "String",
   paramsSchema: undefined,
   inferOutputSchema: () => stringSchema,
-  apply: (v) => String(v ?? "").toLowerCase(),
+  apply: (v) => asText(v).toLowerCase(),
 };
 
 interface TruncateParams {
@@ -40,7 +41,7 @@ export const truncateTransform: ITransformDef<TruncateParams> = {
     required: ["max"],
   } as DataPortSchema,
   inferOutputSchema: () => stringSchema,
-  apply: (v, { max }) => String(v ?? "").slice(0, max),
+  apply: (v, { max }) => asText(v).slice(0, max),
 };
 
 interface SubstringParams {
@@ -61,5 +62,5 @@ export const substringTransform: ITransformDef<SubstringParams> = {
     required: ["start"],
   } as DataPortSchema,
   inferOutputSchema: () => stringSchema,
-  apply: (v, { start, end }) => String(v ?? "").slice(start, end),
+  apply: (v, { start, end }) => asText(v).slice(start, end),
 };

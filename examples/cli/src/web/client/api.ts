@@ -39,11 +39,16 @@ function readToken(): string {
 
 const token = readToken();
 
-async function api<T>(path: string, init?: RequestInit): Promise<T> {
+/**
+ * Every call this module makes, with the session token and the JSON content
+ * type attached. Headers are not a caller's to set: `RequestInit["headers"]`
+ * admits a `Headers` or an array of pairs, neither of which survives being
+ * spread into the object literal below, so the type refuses them instead.
+ */
+async function api<T>(path: string, init?: Omit<RequestInit, "headers">): Promise<T> {
   const response = await fetch(path, {
     ...init,
     headers: {
-      ...(init?.headers ?? {}),
       "x-workglow-token": token,
       "content-type": "application/json",
     },

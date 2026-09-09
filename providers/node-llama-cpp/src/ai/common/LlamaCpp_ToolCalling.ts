@@ -48,7 +48,7 @@ import { extractToolCallsFromText } from "./LlamaCpp_ToolParser";
 
 function buildSystemPrompt(
   input: ToolCallingTaskInput,
-  prefixSystemPrompt: string | undefined = undefined
+  prefixSystemPrompt: string | undefined
 ): string | undefined {
   // `||`, not `??`: an explicit empty-string systemPrompt falls through to the
   // checkpoint prefix's system prompt, matching the other providers.
@@ -133,7 +133,7 @@ function messagesToPureChatHistory(
 
     if (msg.role === "tool") {
       // Find the most recent "model" response to merge results into
-      let lastModel: any | undefined;
+      let lastModel: any;
       for (let i = history.length - 1; i >= 0; i--) {
         if (history[i].type === "model") {
           lastModel = history[i];
@@ -358,7 +358,7 @@ async function generateToolResponse(
   const { LlamaChat } = getLlamaCppSdk();
   let llamaChat: any;
   let gen:
-    | AsyncGenerator<StreamEvent<ToolCallingTaskOutput>, { text: string; result: any | undefined }>
+    | AsyncGenerator<StreamEvent<ToolCallingTaskOutput>, { text: string; result: any }>
     | undefined;
   try {
     llamaChat = new LlamaChat({

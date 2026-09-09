@@ -42,8 +42,8 @@ export interface ITransformDef<P = unknown> {
   /** Compute the schema that `apply`'s output will match given an input schema. */
   inferOutputSchema(inputSchema: DataPortSchema, params: P): DataPortSchema;
 
-  /** Transform a complete value. May be async. */
-  apply(value: unknown, params: P): unknown | Promise<unknown>;
+  /** Transform a complete value. May return a promise, which callers await. */
+  apply(value: unknown, params: P): unknown;
 
   /**
    * Used by the builder's suggestion engine. Return `{ score, params }` if

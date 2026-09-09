@@ -217,7 +217,9 @@ export class FileLoaderTask<Config extends TaskConfig = TaskConfig> extends Task
       if (error instanceof Error && error.message.includes("optional 'papaparse'")) {
         throw error;
       }
-      throw new Error(`Failed to parse CSV: ${error}`);
+      throw new Error(
+        `Failed to parse CSV: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
@@ -364,7 +366,7 @@ export class FileLoaderTask<Config extends TaskConfig = TaskConfig> extends Task
     detectedFormat: "text" | "markdown" | "json" | "csv" | "pdf" | "image" | "html"
   ): Promise<{
     readonly text: string | undefined;
-    readonly json: unknown | undefined;
+    readonly json: unknown;
     readonly csv: Array<Record<string, string>> | undefined;
     readonly image: string | undefined;
     readonly pdf: string | undefined;

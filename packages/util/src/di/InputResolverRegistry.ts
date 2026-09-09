@@ -16,11 +16,7 @@ import { createServiceToken, globalServiceRegistry } from "./ServiceRegistry";
  * @param format The full format string (e.g., "model:TextEmbedding", "storage:tabular")
  * @param registry The service registry to use for lookups
  */
-export type InputResolverFn = (
-  id: string,
-  format: string,
-  registry: ServiceRegistry
-) => unknown | Promise<unknown>;
+export type InputResolverFn = (id: string, format: string, registry: ServiceRegistry) => unknown;
 
 /**
  * Service token for the input resolver registry.

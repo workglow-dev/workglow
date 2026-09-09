@@ -77,7 +77,9 @@ describe("subscribeToChanges contract — meta", () => {
     const writes = changes.filter((c) => c.type === "INSERT" || c.type === "UPDATE");
     expect(writes.length).toBe(3);
     // Set equality after sort — invariant the polling block enforces.
-    expect(writes.map((w) => w.new?.option).sort()).toEqual(["v1", "v2", "v3"]);
+    expect(
+      writes.map((w) => w.new?.option).sort((a, b) => String(a).localeCompare(String(b)))
+    ).toEqual(["v1", "v2", "v3"]);
 
     unsubscribe();
     storage.destroy?.();

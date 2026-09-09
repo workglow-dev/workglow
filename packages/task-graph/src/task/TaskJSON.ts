@@ -215,7 +215,7 @@ export const createGraphFromDependencyJSON = (
       for (const dep of dependencies) {
         const sourceTask = subGraph.getTask(dep.id);
         if (!sourceTask) {
-          throw new TaskConfigurationError(`Dependency id ${dep.id} not found`);
+          throw new TaskConfigurationError(`Dependency id ${String(dep.id)} not found`);
         }
         subGraph.addDataflow(new Dataflow(sourceTask.id, dep.output, item.id, input));
       }

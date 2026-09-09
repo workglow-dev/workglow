@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import type {
   AiChatProviderInput,
   AiChatProviderOutput,
@@ -87,7 +88,7 @@ async function generateTurn(
       input.messages && input.messages.length > 0
         ? [...input.messages]
         : input.prompt !== undefined && input.prompt !== ""
-          ? [{ role: "user", content: [{ type: "text", text: String(input.prompt) }] }]
+          ? [{ role: "user", content: [{ type: "text", text: asText(input.prompt) }] }]
           : [];
     messages = buildHFTMessages(
       [...(prefix!.messages ?? []), ...chatTail],

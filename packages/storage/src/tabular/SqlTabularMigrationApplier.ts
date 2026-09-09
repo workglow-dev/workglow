@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import type { JsonSchema } from "@workglow/util/schema";
 import {
   type ITabularMigrationApplier,
@@ -168,7 +169,7 @@ export abstract class SqlTabularMigrationApplier implements ITabularMigrationApp
       return this.dialectName() === "sqlite" ? (value ? "1" : "0") : value ? "TRUE" : "FALSE";
     }
     throw new Error(
-      `Unsupported default value for tabular migration: ${typeof value} (${String(value)})`
+      `Unsupported default value for tabular migration: ${typeof value} (${asText(value)})`
     );
   }
 

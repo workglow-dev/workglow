@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DEFAULT_LIMITS } from "@workglow/util";
+import { DEFAULT_LIMITS, asText } from "@workglow/util";
 
 /** Appended to job error messages; {@link JobQueueClient.buildErrorFromCode} maps this back onto `.stack`. */
 export const JOB_ERROR_DIAGNOSTICS_MARKER = "\n\n--- Error diagnostics ---\n";
@@ -32,7 +32,7 @@ export function formatErrorChainForDiagnostics(
       lines.push("");
       current = next;
     } else {
-      lines.push(typeof current === "string" ? current : String(current));
+      lines.push(asText(current));
       break;
     }
   }

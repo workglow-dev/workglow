@@ -826,7 +826,9 @@ export class TaskGraphRunner {
     this.currentCtx = ctx;
 
     ctx.abortController.signal.addEventListener("abort", () => {
-      this.handleAbort();
+      this.handleAbort().catch((error: unknown) => {
+        getLogger().error("Abort handling failed", { error });
+      });
     });
 
     // Set up graph-level timeout if configured

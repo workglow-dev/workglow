@@ -13,7 +13,7 @@ export async function getGpuDevice(): Promise<GPUDevice | null> {
     const adapter = await navigator.gpu.requestAdapter();
     if (!adapter) return null;
     const device = await adapter.requestDevice();
-    device.lost.then(() => {
+    void device.lost.then(() => {
       cached = null;
     });
     return device;

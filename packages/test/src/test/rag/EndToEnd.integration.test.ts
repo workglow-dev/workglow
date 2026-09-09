@@ -141,8 +141,8 @@ describe("End-to-End RAG Pipeline", () => {
     expect(result.chunk_ids).toBeDefined();
     expect(result.chunk_ids.length).toBe(result.count);
 
-    logger.info(`  -> Document ID: ${result.doc_id}`);
-    logger.info(`  -> Stored ${result.count} vectors`);
+    logger.info(`  -> Document ID: ${String(result.doc_id)}`);
+    logger.info(`  -> Stored ${String(result.count)} vectors`);
     logger.info(`  -> Chunk IDs: ${result.chunk_ids.slice(0, 3).join(", ")}...`);
     report("e2e-rag: ingest", s);
   }, 160000);

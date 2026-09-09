@@ -19,7 +19,7 @@ const testModel = {
 
 process.env.GEMINI_API_KEY = "worker-test-key";
 
-mock.module("@google/genai", () => ({
+void mock.module("@google/genai", () => ({
   FunctionCallingConfigMode: {
     ANY: "ANY",
     AUTO: "AUTO",

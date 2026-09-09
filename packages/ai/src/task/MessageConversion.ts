@@ -13,6 +13,7 @@
  * maintain their own conversion logic.
  */
 
+import { asText } from "@workglow/util";
 import type { ChatMessage, ContentBlock } from "./ChatMessage";
 import type { ToolCallingTaskInput } from "./ToolCallingTask";
 
@@ -34,7 +35,7 @@ export function promptToTailMessages(prompt: unknown): ChatMessage[] {
     });
     return [{ role: "user", content: blocks }];
   }
-  return [{ role: "user", content: [{ type: "text", text: String(prompt) }] }];
+  return [{ role: "user", content: [{ type: "text", text: asText(prompt) }] }];
 }
 
 function getInputMessages(input: ToolCallingTaskInput): ReadonlyArray<ChatMessage> | undefined {
@@ -85,7 +86,7 @@ export function toOpenAIMessages(input: ToolCallingTaskInput): OpenAICompatMessa
           } else if (b.type === "image") {
             parts.push({
               type: "image_url",
-              image_url: { url: `data:${b.mimeType};base64,${b.data}` },
+              image_url: { url: `data:${String(b.mimeType)};base64,${String(b.data)}` },
             });
           } else if (b.type === "audio") {
             const format = (b.mimeType as string).replace(/^audio\//, "");

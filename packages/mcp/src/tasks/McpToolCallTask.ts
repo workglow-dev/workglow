@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import type { McpServerConfig } from "@workglow/mcp/util";
 import {
   getMcpServerConfig,
@@ -295,7 +296,7 @@ export class McpToolCallTask extends Task<
     );
     try {
       const result = await client.callTool({
-        name: String(this.config.tool_name ?? ""),
+        name: asText(this.config.tool_name),
         arguments: input as Record<string, unknown>,
       });
       if (!("content" in result) || !Array.isArray(result.content)) {

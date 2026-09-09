@@ -7,6 +7,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   IRateLimiterStorage,
+  LimiterToken,
   PrefixColumn,
   RateLimiterStorageOptions,
   RateLimiterStorageScope,
@@ -255,7 +256,7 @@ export class SupabaseRateLimiterStorage implements IRateLimiterStorage {
     queueName: string,
     maxExecutions: number,
     windowMs: number
-  ): Promise<unknown | null> {
+  ): Promise<LimiterToken | null> {
     const args: Record<string, unknown> = {
       _queue_name: queueName,
       _window_start: new Date(Date.now() - windowMs).toISOString(),

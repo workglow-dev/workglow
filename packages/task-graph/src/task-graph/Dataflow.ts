@@ -44,7 +44,7 @@ export class Dataflow {
     targetTaskId: TaskIdType,
     targetTaskPortId: string
   ): DataflowIdType {
-    return `${sourceTaskId}[${sourceTaskPortId}] ==> ${targetTaskId}[${targetTaskPortId}]`;
+    return `${String(sourceTaskId)}[${sourceTaskPortId}] ==> ${String(targetTaskId)}[${targetTaskPortId}]`;
   }
   get id(): DataflowIdType {
     return Dataflow.createId(

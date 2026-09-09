@@ -6,6 +6,7 @@
 
 import type {
   IRateLimiterStorage,
+  LimiterToken,
   PrefixColumn,
   RateLimiterStorageOptions,
   RateLimiterStorageScope,
@@ -160,7 +161,7 @@ export class IndexedDbRateLimiterStorage implements IRateLimiterStorage {
     queueName: string,
     maxExecutions: number,
     windowMs: number
-  ): Promise<unknown | null> {
+  ): Promise<LimiterToken | null> {
     // Soft pre-check against external backoff. Done before opening the tx
     // because next-available lives in a separate IDBDatabase.
     const nextIso = await this.getNextAvailableTime(queueName);
@@ -175,7 +176,7 @@ export class IndexedDbRateLimiterStorage implements IRateLimiterStorage {
     const execStore = execTx.objectStore(this.executionTableName);
     const insertedId = crypto.randomUUID();
 
-    return new Promise<unknown | null>((resolve, reject) => {
+    return new Promise<LimiterToken | null>((resolve, reject) => {
       let liveCount = 0;
       let didInsert = false;
       const liveRange = IDBKeyRange.bound(

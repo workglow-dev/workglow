@@ -29,6 +29,7 @@ import {
   TaskInvalidInputError,
   Workflow,
 } from "@workglow/task-graph";
+import { asText, getLogger } from "@workglow/util";
 import type { DataPortSchema, FromSchema } from "@workglow/util/schema";
 import { safeFetch } from "../util/SafeFetch";
 import { classifyUrl, urlMatchesScope, urlResourcePattern } from "../util/UrlClassifier";
@@ -558,7 +559,7 @@ function materializeDerivedPort(
   }
   throw createFetchUrlJobError(
     FetchUrlErrorCode.INVALID_RESPONSE_TYPE,
-    `Invalid response type: ${responseType}`,
+    `Invalid response type: ${String(responseType)}`,
     { url }
   );
 }
@@ -831,7 +832,7 @@ function toStreamEventError(event: StreamEventLike): Error {
     const message = (raw as { message?: unknown }).message;
     return new Error(typeof message === "string" ? message : JSON.stringify(raw));
   }
-  return new Error(raw === undefined ? "Queued fetch reported a stream error" : String(raw));
+  return new Error(raw === undefined ? "Queued fetch reported a stream error" : asText(raw));
 }
 
 /**
@@ -1284,7 +1285,9 @@ export class FetchUrlTask<
 
       cleanup = handle.onProgress(
         (progress: number, message: string | undefined, details: Record<string, any> | null) => {
-          executeContext.updateProgress(progress, message, details);
+          executeContext.updateProgress(progress, message, details).catch((error: unknown) => {
+            getLogger().warn("Failed to report fetch progress", { error });
+          });
         }
       );
 

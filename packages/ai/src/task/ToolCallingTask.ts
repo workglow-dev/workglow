@@ -14,7 +14,7 @@ import type {
   TaskConfig,
 } from "@workglow/task-graph";
 import type { ServiceRegistry } from "@workglow/util";
-import { makeFingerprint } from "@workglow/util";
+import { asText, makeFingerprint } from "@workglow/util";
 import type { DataPortSchema } from "@workglow/util/schema";
 import type { Capability } from "../capability/Capabilities";
 import type { AiJobInput } from "../job/AiJob";
@@ -397,7 +397,7 @@ export class ToolCallingTask extends StreamingAiTask<
       const modelKey =
         model && typeof model === "object"
           ? `${model.provider}:${checkpointModelKey(model)}`
-          : String(input.model);
+          : asText(input.model);
       const sessionId = await makeFingerprint({
         tools: input.tools,
         systemPrompt: input.systemPrompt,

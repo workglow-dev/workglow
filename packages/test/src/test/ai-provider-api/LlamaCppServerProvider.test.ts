@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import type { ModelRecord } from "@workglow/ai";
 import type { IBackendsTransport, IRunningHandle } from "@workglow/ai/provider-utils";
 import { _testOnly } from "@workglow/llamacpp-server/ai";
@@ -165,7 +166,7 @@ describe("LlamaCppServer transport-mode run-fn (parity across inline + worker)",
       modelPath: "/abs/m.gguf",
       opts: { ctx: 4096 },
     });
-    const fetchedUrl = String(fetchSpy.mock.calls[0]![0]);
+    const fetchedUrl = asText(fetchSpy.mock.calls[0]![0]);
     expect(fetchedUrl).toBe("http://127.0.0.1:9999/v1/chat/completions");
     expect(release).toHaveBeenCalledTimes(1);
     fetchSpy.mockRestore();

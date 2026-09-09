@@ -54,7 +54,7 @@ function rasterToImageData(image: RawPixelBuffer): ImageData {
     }
     return id;
   }
-  throw new Error(`Unsupported channel count: ${channels}`);
+  throw new Error(`Unsupported channel count: ${String(channels)}`);
 }
 
 function get2dContext(

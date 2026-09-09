@@ -23,7 +23,7 @@ import { sleep } from "@workglow/util";
 // Bun.WebView is accessed via globalThis at runtime
 /** @type {InstanceType<typeof Bun.WebView>} */
 
-type AnyWebView = any;
+type AnyWebView = Record<string, any>;
 
 /**
  * IBrowserContext implementation using Bun's built-in WebView API + CDP.
@@ -132,7 +132,11 @@ export class BunWebViewBackend extends CDPBrowserBackend implements IBrowserCont
         clearTimeout(timeout);
         this._wv!.onNavigated = null;
         this._wv!.onNavigationFailed = null;
-        reject(new Error(`BunWebViewBackend: initial navigation failed — ${error}`));
+        reject(
+          new Error(
+            `BunWebViewBackend: initial navigation failed — ${error instanceof Error ? error.message : String(error)}`
+          )
+        );
       };
     });
 
@@ -221,7 +225,11 @@ export class BunWebViewBackend extends CDPBrowserBackend implements IBrowserCont
       };
       wv.onNavigationFailed = (error: unknown) => {
         cleanup();
-        reject(new Error(`BunWebViewBackend: navigation failed — ${error}`));
+        reject(
+          new Error(
+            `BunWebViewBackend: navigation failed — ${error instanceof Error ? error.message : String(error)}`
+          )
+        );
       };
     });
   }

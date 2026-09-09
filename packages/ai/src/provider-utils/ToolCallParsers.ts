@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import { getLogger } from "@workglow/util/worker";
 import type { ToolCallingTaskInput } from "../task/ToolCallingTask";
 import type { ToolCalls } from "../task/ToolCallingUtils";
@@ -71,13 +72,13 @@ export function extractMessageText(content: unknown): string {
     return content;
   }
   if (!Array.isArray(content)) {
-    return String(content ?? "");
+    return asText(content);
   }
   return content
     .filter(
       (block) => block && typeof block === "object" && (block as { type?: unknown }).type === "text"
     )
-    .map((block) => String((block as { text?: unknown }).text ?? ""))
+    .map((block) => asText((block as { text?: unknown }).text))
     .join("");
 }
 
@@ -93,7 +94,7 @@ export function makeToolCall(
   return { name, arguments: args, id };
 }
 
-export function tryParseJson(text: string): unknown | undefined {
+export function tryParseJson(text: string): unknown {
   try {
     return JSON.parse(text);
   } catch (e) {

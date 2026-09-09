@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import type { McpSearchResultItem } from "@workglow/mcp/tasks";
 import { searchMcpRegistryPage } from "@workglow/mcp/tasks";
 import type { Command } from "commander";
@@ -180,7 +181,7 @@ export function registerMcpCommand(program: Command): void {
       await storage.setupDirectory();
 
       await storage.put(input as Record<string, unknown>);
-      console.log(`MCP server "${input.name}" added.`);
+      console.log(`MCP server "${String(input.name)}" added.`);
     });
 
   mcp
@@ -245,7 +246,7 @@ export function registerMcpCommand(program: Command): void {
         process.exit(1);
       }
 
-      if (String(input.name ?? "") !== targetId) {
+      if (asText(input.name) !== targetId) {
         console.error(`name must remain "${targetId}" when editing this entry.`);
         process.exit(1);
       }
@@ -336,7 +337,7 @@ export function registerMcpCommand(program: Command): void {
       await storage.setupDirectory();
 
       await storage.put(input as Record<string, unknown>);
-      console.log(`MCP server "${input.name}" added.`);
+      console.log(`MCP server "${String(input.name)}" added.`);
     });
 
   registerMcpServeCommand(mcp);

@@ -5,6 +5,7 @@
  */
 
 import { createServiceToken } from "@workglow/util";
+import type { LimiterToken } from "../limiter/ILimiter";
 import type { PrefixColumn } from "../queue-storage/IQueueStorage";
 
 export const RATE_LIMITER_STORAGE = createServiceToken<IRateLimiterStorage>("ratelimiter.storage");
@@ -96,7 +97,7 @@ export interface IRateLimiterStorage {
     queueName: string,
     maxExecutions: number,
     windowMs: number
-  ): Promise<unknown | null>;
+  ): Promise<LimiterToken | null>;
 
   /**
    * Release the execution row identified by `token` (the value previously

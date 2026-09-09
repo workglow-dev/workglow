@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import { writeFile } from "fs/promises";
 
 const PROTOTYPE_POLLUTION_KEYS = new Set(["__proto__", "constructor", "prototype"]);
@@ -83,7 +84,7 @@ export function formatError(err: unknown): string {
   // Include error code if present (e.g. ERR_INVALID_URL, HTTP status codes)
   const code = "code" in err ? err.code : undefined;
   if (code !== undefined && code !== -1) {
-    message = `${message} (${code})`;
+    message = `${message} (${asText(code)})`;
   }
 
   return message;

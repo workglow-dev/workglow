@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import { TaskConfigurationError } from "@workglow/task-graph";
 import type { ModelConfig } from "../../model/ModelSchema";
 import type { AiSessionContext } from "../../provider/AiProviderRegistry";
@@ -188,7 +189,7 @@ export function promptToUserMessage(prompt: unknown): ChatMessage {
     });
     return { role: "user", content: blocks };
   }
-  return { role: "user", content: [{ type: "text", text: String(prompt ?? "") }] };
+  return { role: "user", content: [{ type: "text", text: asText(prompt) }] };
 }
 
 /**

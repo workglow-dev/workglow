@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import {
   _testOnly,
   assertToolChoiceHonored,
@@ -132,7 +133,7 @@ describe("DeepSeek usage from the terminal include_usage frame", () => {
       },
     ]);
 
-    const body = JSON.parse(String((fetchSpy.mock.calls[0]![1] as RequestInit).body));
+    const body = JSON.parse(asText((fetchSpy.mock.calls[0]![1] as RequestInit).body));
     expect(body.stream_options).toEqual({ include_usage: true });
 
     expect(finish.type).toBe("finish");

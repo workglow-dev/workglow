@@ -123,7 +123,7 @@ class TCEProgress extends Task<{ value: number }, { value: number }> {
     input: { value: number },
     ctx: IExecuteContext
   ): Promise<{ value: number }> {
-    ctx.updateProgress(50, "halfway");
+    void ctx.updateProgress(50, "halfway");
     return { value: (input.value ?? 0) + 1 };
   }
 }

@@ -114,7 +114,9 @@ export class SharedInMemoryTabularStorage<
     try {
       this.channel = new BroadcastChannel(this.channelName);
       this.channel.onmessage = (event: MessageEvent<BroadcastMessage>) => {
-        this.handleBroadcastMessage(event.data);
+        this.handleBroadcastMessage(event.data).catch((error: unknown) => {
+          getLogger().error("Failed to handle broadcast message:", { error });
+        });
       };
 
       this.syncFromOtherTabs();

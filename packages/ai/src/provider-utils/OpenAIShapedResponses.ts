@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import type { StreamEvent, Usage } from "@workglow/task-graph";
 import type { ToolCalls, ToolDefinition } from "../task/ToolCallingUtils";
 import { buildToolDescription, sanitizeToolArgs } from "../task/ToolCallingUtils";
@@ -76,7 +77,7 @@ function contentToString(content: unknown): string {
       .map((b) => (b?.type === "text" ? b.text : typeof b === "string" ? b : ""))
       .join("");
   }
-  return content == null ? "" : String(content);
+  return asText(content);
 }
 
 /** Responses-shape function tool. Flatter than the chat `{function:{…}}` nesting. */

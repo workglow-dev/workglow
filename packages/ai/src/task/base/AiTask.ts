@@ -23,7 +23,7 @@ import {
   hasStructuredOutput,
 } from "@workglow/task-graph";
 import type { ServiceRegistry } from "@workglow/util";
-import { getLogger } from "@workglow/util";
+import { asText, getLogger } from "@workglow/util";
 import type { DataPortSchema, JsonSchema } from "@workglow/util/schema";
 
 import { accumulatingEmit } from "../../capability/accumulatingEmit";
@@ -229,7 +229,7 @@ export class AiTask<
         providerError instanceof Error
           ? providerError.message
           : providerError !== undefined
-            ? String(providerError)
+            ? asText(providerError)
             : undefined;
       const wrapped = new TaskError(
         providerError !== undefined
@@ -281,7 +281,7 @@ export class AiTask<
           (model as ModelConfig & { model?: string }).model ??
           (model.provider_config as Record<string, unknown> | undefined)?.["model_path"] ??
           model.model_id;
-        const resourceKey = `ai:${model.provider}:${modelPath}`;
+        const resourceKey = `ai:${model.provider}:${asText(modelPath)}`;
         executeContext.resourceScope.register(resourceKey, async () => {
           await disposeFn({ model } as TaskInput, model, AbortSignal.timeout(30_000), noopEmit);
         });

@@ -9,6 +9,17 @@ import { createServiceToken } from "@workglow/util";
 export const JOB_LIMITER = createServiceToken<ILimiter>("jobqueue.limiter");
 
 /**
+ * An opaque slot reservation. What it holds is implementation-defined — a
+ * symbol, a storage row id, a lease string — so a caller passes it back
+ * unexamined.
+ *
+ * Non-nullable on purpose, which is what lets `LimiterToken | null` narrow at
+ * all: `unknown | null` collapses to plain `unknown`, so a signature spelled
+ * that way promises a caller a null case the compiler then never gives it.
+ */
+export type LimiterToken = NonNullable<unknown>;
+
+/**
  * Whether a limiter's state is shared across processes.
  *
  * - `"process"` — state lives in this process only. Multiple workers in the
@@ -50,7 +61,7 @@ export interface ILimiter {
    * `tryAcquire()` calls with one slot remaining must result in exactly one
    * non-null token and one `null`.
    */
-  tryAcquire(): Promise<unknown | null>;
+  tryAcquire(): Promise<LimiterToken | null>;
 
   /**
    * Release a slot previously reserved by {@link tryAcquire}. The token must

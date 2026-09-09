@@ -53,7 +53,7 @@ export const LlamaCpp_TextRewriter_Stream: AiProviderRunFn<
           }
         } finally {
           try {
-            await session.dispose({ disposeSequence: false });
+            session.dispose({ disposeSequence: false });
           } catch {}
         }
       },

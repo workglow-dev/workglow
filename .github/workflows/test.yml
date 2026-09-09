@@ -89,6 +89,11 @@ jobs:
       # silently finds nothing rather than failing.
       - name: Lint
         run: bun run lint
+      # `format-check` had no CI invoker at all -- `prepare` skips husky when
+      # $CI is set, so the pre-commit hook was its only one, and `--no-verify`
+      # walks around that. Cheap, and the tree is clean today.
+      - name: Format check
+        run: bun run format-check
 
   build:
     runs-on: ubuntu-latest

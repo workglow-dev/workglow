@@ -198,6 +198,12 @@ export class WorkerManager {
     this.activeCallCounts.delete(name);
     if (worker && "terminate" in worker && typeof worker.terminate === "function") {
       try {
+        // The DOM `Worker` is what this file's `Worker` type resolves to, and
+        // its `terminate()` returns `void` — but under Node the instance is a
+        // `worker_threads.Worker`, whose `terminate()` returns a promise that
+        // settles when the thread is gone. Dropping the await would let this
+        // resolve while the thread is still running.
+        // oxlint-disable-next-line typescript/await-thenable
         await worker.terminate();
       } catch {
         // Best-effort cleanup after failed startup.
@@ -223,6 +229,8 @@ export class WorkerManager {
       this.activeCallCounts.delete(name);
       try {
         if (worker && "terminate" in worker && typeof worker.terminate === "function") {
+          // As above: `void` by the DOM type, a promise under Node.
+          // oxlint-disable-next-line typescript/await-thenable
           await worker.terminate();
         }
       } catch {

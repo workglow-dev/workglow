@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import { getLogger } from "@workglow/util/worker";
 import { deleteGeminiCachedContent } from "./Gemini_CacheStore";
 
@@ -53,7 +54,7 @@ export function isGeminiCachedContentNotFoundError(err: unknown): boolean {
     nested?.code === 404 ||
     nested?.code === "NOT_FOUND";
 
-  const message = String(anyErr.message ?? err ?? "");
+  const message = asText(anyErr.message ?? err);
   // `cached[_ ]?content` also matches `cachedContent` inside a resource path
   // like `cachedContents/abc-123`, so the resource-form is covered by this
   // single pattern.

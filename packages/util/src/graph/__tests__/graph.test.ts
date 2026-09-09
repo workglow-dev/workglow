@@ -59,6 +59,14 @@ export const edgeIdentity = (edge: any, node1Identity: any, node2Identity: any) 
   return `${String(node1Identity)}-${String(node2Identity)}-${h1}`;
 };
 
+/**
+ * Orders ids so two collections of them can be compared as sets. `EdgeId` is a
+ * type parameter the graph never constrains, so an id arrives here as
+ * `unknown` even though `edgeIdentity` builds every one as a string. Both
+ * sides of a comparison must use this, not a bare `sort()`.
+ */
+const byIdText = (a: unknown, b: unknown): number => String(a).localeCompare(String(b));
+
 /***
  * Graph test
  */
@@ -343,12 +351,12 @@ describe("Graph", () => {
 
     expect(graph.getEdges().length).toBe(3);
     const edgeIds = () => graph.getEdges().map(([n1, n2, e]) => edgeIdentity(e, n1, n2));
-    expect(edgeIds().sort()).toEqual([id1, id2, id3].sort());
+    expect(edgeIds().sort(byIdText)).toEqual([id1, id2, id3].sort(byIdText));
 
     // Remove the middle edge by identity
     graph.removeEdge("1.00", "2.00", id2);
     expect(graph.getEdges().length).toBe(2);
-    expect(edgeIds().sort()).toEqual([id1, id3].sort());
+    expect(edgeIds().sort(byIdText)).toEqual([id1, id3].sort(byIdText));
     expect((graph as any).adjacency[0][1]).toBeTruthy();
 
     // Remove another edge by identity
@@ -408,7 +416,7 @@ describe("Graph", () => {
     // Remove-all (no edgeIdentity): one event per removed edge, with real ids
     // (never `undefined` cast to EdgeId).
     graph.removeEdge("1.00", "2.00");
-    expect(removed.sort()).toEqual([id1, id2].sort());
+    expect(removed.sort(byIdText)).toEqual([id1, id2].sort(byIdText));
     expect(removed).not.toContain(undefined);
     expect(graph.getEdges().length).toBe(0);
   });

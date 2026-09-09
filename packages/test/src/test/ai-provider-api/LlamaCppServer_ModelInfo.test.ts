@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import { createLlamaCppServerModelInfoStream } from "@workglow/llamacpp-server/ai-runtime";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -27,7 +28,7 @@ describe("createLlamaCppServerModelInfoStream", () => {
 
   it("falls back to /props for embedding dimensions", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
-      if (String(url).endsWith("/props")) {
+      if (asText(url).endsWith("/props")) {
         return new Response(JSON.stringify({ default_generation_settings: { n_embd: 1024 } }), {
           status: 200,
         });

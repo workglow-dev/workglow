@@ -140,7 +140,7 @@ export function SearchSelectApp<T extends SearchSelectItem>({
 
       debounceTimerRef.current = setTimeout(() => {
         nextCursorRef.current = undefined;
-        doSearch(value, undefined);
+        void doSearch(value, undefined);
       }, debounceMs);
     },
     [debounceMs, doSearch]
@@ -150,7 +150,7 @@ export function SearchSelectApp<T extends SearchSelectItem>({
     if (items.length > 0 && highlightIndex < items.length) {
       onSelect(items[highlightIndex]);
     } else if (queryRef.current) {
-      doSearch(queryRef.current, undefined);
+      void doSearch(queryRef.current, undefined);
     }
   }, [items, highlightIndex, onSelect, doSearch]);
 
@@ -165,7 +165,7 @@ export function SearchSelectApp<T extends SearchSelectItem>({
         const next = Math.min(prev + 1, items.length - 1);
 
         if (next === items.length - 1 && nextCursorRef.current && !isLoadingMoreRef.current) {
-          doSearch(queryRef.current, nextCursorRef.current);
+          void doSearch(queryRef.current, nextCursorRef.current);
         }
 
         return next;

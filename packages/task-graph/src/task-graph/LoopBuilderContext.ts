@@ -82,7 +82,7 @@ export class LoopBuilderContext {
   public finalizeTemplate(childGraph: TaskGraph): void {
     if (childGraph.getTasks().length === 0) {
       getLogger().warn(
-        `Loop body for iterator task ${this.iteratorTask.config.id} is empty; ` +
+        `Loop body for iterator task ${String(this.iteratorTask.config.id)} is empty; ` +
           "the loop has no tasks to iterate. Add at least one task inside the loop builder."
       );
       return;

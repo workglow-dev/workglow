@@ -22,7 +22,7 @@ import {
   PollingSubscriptionManager,
   PostgresDialect,
 } from "@workglow/storage";
-import { createServiceToken, deepEqual, makeFingerprint, uuid4 } from "@workglow/util";
+import { createServiceToken, deepEqual, getLogger, makeFingerprint, uuid4 } from "@workglow/util";
 import { isExecSqlUnavailable, isMissingRelationError } from "../supabasePostgrest";
 
 export const SUPABASE_QUEUE_STORAGE = createServiceToken<IQueueStorage<any, any>>(
@@ -443,7 +443,7 @@ export class SupabaseQueueStorage<Input, Output> implements IQueueStorage<Input,
     const escapedWorkerId = this.escapeSqlString(validatedWorkerId);
     const numericId = Number(id);
     if (!Number.isFinite(numericId)) {
-      throw new Error(`Invalid job id: ${id}`);
+      throw new Error(`Invalid job id: ${String(id)}`);
     }
 
     const prefixConditions = this.buildPrefixWhereSql();
@@ -952,7 +952,7 @@ export class SupabaseQueueStorage<Input, Output> implements IQueueStorage<Input,
     // raw SQL via exec_sql to preserve existing values when opts fields are absent.
     const numericId = Number(id);
     if (!Number.isFinite(numericId)) {
-      throw new Error(`Invalid job id: ${id}`);
+      throw new Error(`Invalid job id: ${String(id)}`);
     }
     const prefixConditions = this.buildPrefixWhereSql();
     const validatedQueueName = this.validateSqlValue(this.queueName, "queueName");
@@ -1002,7 +1002,7 @@ export class SupabaseQueueStorage<Input, Output> implements IQueueStorage<Input,
   public async markDisabled(id: unknown): Promise<void> {
     const numericId = Number(id);
     if (!Number.isFinite(numericId)) {
-      throw new Error(`Invalid job id: ${id}`);
+      throw new Error(`Invalid job id: ${String(id)}`);
     }
     const prefixConditions = this.buildPrefixWhereSql();
     const validatedQueueName = this.validateSqlValue(this.queueName, "queueName");
@@ -1199,7 +1199,12 @@ export class SupabaseQueueStorage<Input, Output> implements IQueueStorage<Input,
 
     return () => {
       if (this.realtimeChannel) {
-        this.client.removeChannel(this.realtimeChannel);
+        // Normalized rather than chained directly: the client type says this
+        // returns a promise, but not every client implementation does, and a
+        // teardown must not throw on the way out.
+        Promise.resolve(this.client.removeChannel(this.realtimeChannel)).catch((error: unknown) => {
+          getLogger().warn("Failed to remove Supabase realtime channel", { error });
+        });
         this.realtimeChannel = null;
       }
     };
@@ -1278,7 +1283,7 @@ export class SupabaseQueueStorage<Input, Output> implements IQueueStorage<Input,
     };
 
     const intervalId = setInterval(poll, intervalMs);
-    poll(); // Initial poll
+    void poll(); // Initial poll
 
     return () => {
       cancelled = true;

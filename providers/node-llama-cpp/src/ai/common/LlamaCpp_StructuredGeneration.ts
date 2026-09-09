@@ -115,7 +115,7 @@ export const LlamaCpp_StructuredGeneration_Stream: AiProviderRunFn<
           } finally {
             await promptPromise.catch(() => {});
             try {
-              await session.dispose({ disposeSequence: false });
+              session.dispose({ disposeSequence: false });
             } catch {}
           }
 

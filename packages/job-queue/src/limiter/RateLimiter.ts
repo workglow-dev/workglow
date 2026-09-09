@@ -5,7 +5,12 @@
  */
 
 import type { IRateLimiterStorage } from "../rate-limiter-storage/IRateLimiterStorage";
-import type { ILimiter, LimiterScope, RateLimiterWithBackoffOptions } from "./ILimiter";
+import type {
+  ILimiter,
+  LimiterScope,
+  LimiterToken,
+  RateLimiterWithBackoffOptions,
+} from "./ILimiter";
 
 /**
  * Base rate limiter implementation that uses a storage backend.
@@ -81,7 +86,7 @@ export class RateLimiter implements ILimiter {
    * roll back — releasing without a token would race to delete the wrong
    * worker's slot under contention.
    */
-  async tryAcquire(): Promise<unknown | null> {
+  async tryAcquire(): Promise<LimiterToken | null> {
     const token = await this.storage.tryReserveExecution(
       this.queueName,
       this.maxExecutions,

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import { createLlamaCppServerToolCallingStream } from "@workglow/llamacpp-server/ai-runtime";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -75,7 +76,7 @@ describe("createLlamaCppServerToolCallingStream", () => {
       undefined as any,
       emit
     );
-    const body = JSON.parse(String((fetchSpy.mock.calls[0]![1] as RequestInit).body));
+    const body = JSON.parse(asText((fetchSpy.mock.calls[0]![1] as RequestInit).body));
     expect(body.tools).toBeUndefined();
   });
 });

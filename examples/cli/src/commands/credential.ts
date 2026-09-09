@@ -7,6 +7,7 @@
 import {
   CREDENTIAL_PROVIDER_NONE,
   CredentialPutInputSchema,
+  asText,
   getGlobalCredentialStore,
 } from "@workglow/util";
 import type { DataPortSchemaObject } from "@workglow/util/schema";
@@ -63,7 +64,7 @@ export function registerCredentialCommand(program: Command): void {
         if (trimmedPositional !== "") {
           const existing = input.key;
           const hasExplicitKey =
-            existing !== undefined && existing !== null && String(existing).trim() !== "";
+            existing !== undefined && existing !== null && asText(existing).trim() !== "";
           if (!hasExplicitKey) {
             input = { ...input, key: trimmedPositional };
             usedPositionalKey = true;
@@ -85,8 +86,8 @@ export function registerCredentialCommand(program: Command): void {
           process.exit(1);
         }
 
-        const key = String(input.key ?? "").trim();
-        const value = String(input.value ?? "");
+        const key = asText(input.key).trim();
+        const value = asText(input.value);
         const labelRaw = input.label;
         const providerRaw = input.provider;
         const label =

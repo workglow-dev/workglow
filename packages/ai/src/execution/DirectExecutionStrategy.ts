@@ -5,6 +5,7 @@
  */
 
 import type { IExecuteContext, TaskInput, TaskOutput } from "@workglow/task-graph";
+import { getLogger } from "@workglow/util";
 import type { AiEmit } from "../capability/AiEmit";
 import type { AiJobInput } from "../job/AiJob";
 import { AiJob } from "../job/AiJob";
@@ -30,7 +31,9 @@ export class DirectExecutionStrategy implements IAiExecutionStrategy {
 
     const cleanup = job.onJobProgress(
       (progress: number, message: string, details: Record<string, any> | null) => {
-        context.updateProgress(progress, message, details);
+        context.updateProgress(progress, message, details).catch((error: unknown) => {
+          getLogger().warn("Failed to report AI job progress", { error });
+        });
       }
     );
 

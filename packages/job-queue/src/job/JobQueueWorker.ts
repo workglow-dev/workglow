@@ -7,10 +7,11 @@
 import {
   DEFAULT_LIMITS,
   EventEmitter,
+  SpanStatusCode,
+  asText,
   getLogger,
   getTelemetryProvider,
   sleep,
-  SpanStatusCode,
   uuid4,
 } from "@workglow/util";
 import type { ILimiter } from "../limiter/ILimiter";
@@ -785,7 +786,7 @@ export class JobQueueWorker<
     const span = telemetry.isEnabled
       ? telemetry.startSpan("workglow.job.process", {
           attributes: {
-            "workglow.job.id": String(job.id),
+            "workglow.job.id": asText(job.id),
             "workglow.job.queue": this.queueName,
             "workglow.job.lease_owner": this.workerId,
             "workglow.job.attempt": job.attempts,
@@ -862,7 +863,7 @@ export class JobQueueWorker<
       if (error instanceof RetryableJobError) {
         const currentJob = await this.getJob(job.id);
         if (!currentJob) {
-          throw new JobNotFoundError(`Job ${job.id} not found`);
+          throw new JobNotFoundError(`Job ${asText(job.id)} not found`);
         }
 
         if (currentJob.attempts + 1 >= currentJob.maxAttempts) {
@@ -1263,7 +1264,7 @@ export class JobQueueWorker<
 
     if (!this.inFlight.has(jobId)) {
       throw new Error(
-        `createAbortController invariant violated: jobId ${String(jobId)} is not in inFlight. ` +
+        `createAbortController invariant violated: jobId ${asText(jobId)} is not in inFlight. ` +
           `Abort controllers must only be created from within processSingleJob.`
       );
     }
@@ -1328,19 +1329,19 @@ export class JobQueueWorker<
    */
   protected async validateJobState(job: Job<Input, Output>): Promise<void> {
     if (job.status === JobStatus.COMPLETED) {
-      throw new PermanentJobError(`Job ${job.id} is already completed`);
+      throw new PermanentJobError(`Job ${String(job.id)} is already completed`);
     }
     if (job.status === JobStatus.FAILED) {
-      throw new PermanentJobError(`Job ${job.id} has failed`);
+      throw new PermanentJobError(`Job ${String(job.id)} has failed`);
     }
     if (this.activeJobAbortControllers.get(job.id)?.signal.aborted) {
-      throw new AbortSignalJobError(`Job ${job.id} is being aborted`);
+      throw new AbortSignalJobError(`Job ${String(job.id)} is being aborted`);
     }
     if (job.deadlineAt && job.deadlineAt < new Date()) {
-      throw new PermanentJobError(`Job ${job.id} has exceeded its deadline`);
+      throw new PermanentJobError(`Job ${String(job.id)} has exceeded its deadline`);
     }
     if (job.status === JobStatus.DISABLED) {
-      throw new JobDisabledError(`Job ${job.id} has been disabled`);
+      throw new JobDisabledError(`Job ${String(job.id)} has been disabled`);
     }
   }
 

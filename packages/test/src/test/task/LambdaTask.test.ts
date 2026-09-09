@@ -118,7 +118,7 @@ describe("LambdaTask", () => {
     const graph = new TaskGraph();
     const task = new LambdaTask({
       execute: async (_, { updateProgress }) => {
-        updateProgress(0.5, "Halfway there");
+        void updateProgress(0.5, "Halfway there");
         return { output: "Hello, world!" };
       },
     });

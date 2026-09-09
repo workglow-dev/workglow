@@ -699,7 +699,7 @@ export class TaskRunner<
             err instanceof TaskError
               ? err
               : new TaskFailedError(
-                  `Task "${this.task.type}" (${this.task.id}): ${err?.message || "Task failed"}`
+                  `Task "${this.task.type}" (${String(this.task.id)}): ${err?.message || "Task failed"}`
                 );
           if (this.task.error instanceof TaskError) {
             this.task.error.taskType ??= this.task.type;
@@ -1663,7 +1663,7 @@ export class TaskRunner<
       this.task.error = err;
     } else {
       this.task.error = new TaskFailedError(
-        `Task "${this.task.type}" (${this.task.id}): ${err?.message || "Task failed"}`
+        `Task "${this.task.type}" (${String(this.task.id)}): ${err?.message || "Task failed"}`
       );
     }
     // Attach task context to all TaskError instances for programmatic access

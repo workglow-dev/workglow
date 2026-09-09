@@ -447,7 +447,7 @@ describe("Streaming backpressure and stress", () => {
       const parked = r.push(new Uint8Array([0xff]));
 
       let parkedResolved = false;
-      parked.then(() => {
+      void parked.then(() => {
         parkedResolved = true;
       });
 

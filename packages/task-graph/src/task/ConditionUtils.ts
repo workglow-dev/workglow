@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { getLogger } from "@workglow/util";
+import { asText, getLogger } from "@workglow/util";
 
 /**
  * Comparison operators supported by the UI condition builder.
@@ -74,7 +74,7 @@ export function evaluateCondition(
     }
   }
 
-  const strValue = String(fieldValue);
+  const strValue = asText(fieldValue);
   const numValue = Number(fieldValue);
 
   switch (operator) {

@@ -9,6 +9,7 @@ import type { Usage } from "@workglow/task-graph";
 import { USAGE_OUTPUT_KEY, Workflow } from "@workglow/task-graph";
 import type { TypedArray } from "@workglow/util/schema";
 import { cosineSimilarity } from "@workglow/util/schema";
+import { cellText } from "./cellText";
 import { runWithStreamChunks } from "./streamSubscribe";
 import type { ColumnOptions, DatasetContext, RowExecutor } from "./types";
 
@@ -33,8 +34,8 @@ export function makeSimilarityExecutor(
   }
 
   return async (row, onStreamChunk, owner) => {
-    const a = String(row[options.textColumn] ?? "");
-    const b = String(row[options.pairColumn] ?? "");
+    const a = cellText(row[options.textColumn]);
+    const b = cellText(row[options.pairColumn]);
     const workflow = new Workflow();
     workflow.textEmbedding({ model, text: [a, b] });
     const output = await runWithStreamChunks<{

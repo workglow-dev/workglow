@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import {
   buildGeminiFunctionDeclarations,
   coerceGeminiToolArgs,
@@ -75,7 +76,7 @@ describe("sanitizeSchemaForGemini", () => {
     const keys = collectKeys(sanitized);
     expect(keys).not.toContain("if");
     expect(keys).not.toContain("then");
-    expect(String(sanitized["description"] ?? "")).toContain("conditionally required");
+    expect(asText(sanitized["description"] ?? "")).toContain("conditionally required");
   });
 
   it("strips additionalProperties including nested", () => {

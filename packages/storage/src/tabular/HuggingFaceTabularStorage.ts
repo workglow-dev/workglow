@@ -481,7 +481,7 @@ export class HuggingFaceTabularStorage<
         const escaped = val.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
         whereConditions.push(`${k}='${escaped}'`);
       } else {
-        whereConditions.push(`${k}=${val}`);
+        whereConditions.push(`${k}=${String(val)}`);
       }
     }
 

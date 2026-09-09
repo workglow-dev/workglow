@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import { createLlamaCppServerTextGenerationStream } from "@workglow/llamacpp-server/ai-runtime";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -41,7 +42,7 @@ describe("createLlamaCppServerTextGenerationStream", () => {
 
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     const [url] = fetchSpy.mock.calls[0]!;
-    expect(String(url)).toBe("http://localhost:8080/v1/chat/completions");
+    expect(asText(url)).toBe("http://localhost:8080/v1/chat/completions");
     expect(events.filter((e) => e.type === "text-delta").map((e) => e.textDelta)).toEqual([
       "Hel",
       "lo",
@@ -65,7 +66,7 @@ describe("createLlamaCppServerTextGenerationStream", () => {
       undefined as any,
       emit
     );
-    const body = JSON.parse(String((fetchSpy.mock.calls[0]![1] as RequestInit).body));
+    const body = JSON.parse(asText((fetchSpy.mock.calls[0]![1] as RequestInit).body));
     expect(body.messages).toEqual([
       { role: "system", content: "be helpful" },
       { role: "user", content: "hi" },
@@ -118,7 +119,7 @@ describe("createLlamaCppServerTextGenerationStream", () => {
       const events: any[] = [];
       await fn({ prompt: "hi" } as any, model, undefined as any, (e: any) => events.push(e));
 
-      const body = JSON.parse(String((fetchSpy.mock.calls[0]![1] as RequestInit).body));
+      const body = JSON.parse(asText((fetchSpy.mock.calls[0]![1] as RequestInit).body));
       expect(body.stream_options).toEqual({ include_usage: true });
 
       const finish = events.at(-1);

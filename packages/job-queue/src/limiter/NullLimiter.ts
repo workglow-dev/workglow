@@ -5,7 +5,7 @@
  */
 
 import { createServiceToken } from "@workglow/util";
-import type { ILimiter, LimiterScope } from "./ILimiter";
+import type { ILimiter, LimiterScope, LimiterToken } from "./ILimiter";
 
 export const NULL_JOB_LIMITER = createServiceToken<ILimiter>("jobqueue.limiter.null");
 
@@ -18,7 +18,7 @@ export class NullLimiter implements ILimiter {
   /** Sentinel token — non-null so callers' truthy checks see it as a success. */
   private static readonly SENTINEL = Symbol("NullLimiter.acquired");
 
-  async tryAcquire(): Promise<unknown | null> {
+  async tryAcquire(): Promise<LimiterToken | null> {
     return NullLimiter.SENTINEL;
   }
 

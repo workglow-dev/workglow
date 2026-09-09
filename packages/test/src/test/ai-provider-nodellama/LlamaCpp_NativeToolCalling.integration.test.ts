@@ -71,7 +71,7 @@ describe("node-llama-cpp native function calling", () => {
         }
 
         chat.dispose({ disposeSequence: false });
-        sequence.dispose();
+        await sequence.dispose();
         await context.dispose();
         await model.dispose();
         // expect(hasFnCalls).toBe(true);

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import type { AnyTabularStorage } from "@workglow/storage";
 import {
   CoveringIndexMissingError,
@@ -48,7 +49,7 @@ function makeFakeServer(
     const match = /^\/api\/storage\/[^/]+\/([^/]+)$/.exec(path);
     if (!match) return new Response(JSON.stringify({ error: "not found" }), { status: 404 });
     const op = match[1];
-    const body = init?.body ? JSON.parse(String(init.body)) : {};
+    const body = init?.body ? JSON.parse(asText(init.body)) : {};
     try {
       switch (op) {
         case "put": {

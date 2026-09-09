@@ -168,7 +168,7 @@ describe("Workflow", () => {
 
       const runPromise = workflow.run({}, { registry });
       await sleep(1);
-      workflow.abort();
+      await workflow.abort();
 
       await expect(runPromise).rejects.toThrow();
     });
@@ -194,7 +194,7 @@ describe("Workflow", () => {
 
       const runPromise = workflow.run({}, { registry, signal: controller.signal });
       await sleep(1);
-      workflow.abort();
+      await workflow.abort();
 
       await expect(runPromise).rejects.toThrow();
       expect(controller.signal.aborted).toBe(false);

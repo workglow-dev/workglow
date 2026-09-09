@@ -234,10 +234,7 @@ export class PostgresQueueStorage<Input, Output> implements IQueueStorage<Input,
   ): Promise<Array<JobStorageFormat<Input, Output>>> {
     num = Number(num) || 100;
     const { conditions: prefixConditions, params: prefixParams } = this.buildPrefixWhereClause(4);
-    const result = await this.db.query<
-      JobStorageFormat<Input, Output>,
-      Array<string | number | JobStatus>
-    >(
+    const result = await this.db.query<JobStorageFormat<Input, Output>, Array<string | number>>(
       `
       SELECT *
         FROM ${this.tableName}
@@ -270,7 +267,7 @@ export class PostgresQueueStorage<Input, Output> implements IQueueStorage<Input,
     const { conditions: prefixConditions, params: prefixParams } = this.buildPrefixWhereClause(7);
     const result = await this.db.query<
       JobStorageFormat<Input, Output>,
-      Array<string | number | JobStatus | null>
+      Array<string | number | null>
     >(
       `
       UPDATE ${this.tableName}
@@ -346,7 +343,7 @@ export class PostgresQueueStorage<Input, Output> implements IQueueStorage<Input,
    */
   public async size(status = JobStatus.PENDING): Promise<number> {
     const { conditions: prefixConditions, params: prefixParams } = this.buildPrefixWhereClause(3);
-    const result = await this.db.query<{ count: string }, Array<string | number | JobStatus>>(
+    const result = await this.db.query<{ count: string }, Array<string | number>>(
       `
       SELECT COUNT(*) as count
         FROM ${this.tableName}

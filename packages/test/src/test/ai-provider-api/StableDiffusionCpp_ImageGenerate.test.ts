@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { asText } from "@workglow/util";
 import { createStableDiffusionCppImageGenerateRunFn } from "@workglow/stable-diffusion-server/ai-runtime";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -34,7 +35,7 @@ describe("createStableDiffusionCppImageGenerateRunFn", () => {
     const emit = (e: any) => events.push(e);
     await fn({ prompt: "draw a cat" } as any, model, undefined as any, emit);
     const [url] = fetchSpy.mock.calls[0]!;
-    expect(String(url)).toBe("http://localhost:8080/txt2img");
+    expect(asText(url)).toBe("http://localhost:8080/txt2img");
     expect(events.some((e) => e.type === "snapshot")).toBe(true);
     expect(events.at(-1)!.type).toBe("finish");
   });
@@ -56,7 +57,7 @@ describe("createStableDiffusionCppImageGenerateRunFn", () => {
       undefined as any,
       () => undefined
     );
-    expect(String(fetchSpy.mock.calls[0]![0])).toBe("http://localhost:8080/v1/images/generations");
+    expect(asText(fetchSpy.mock.calls[0]![0])).toBe("http://localhost:8080/v1/images/generations");
   });
 
   it("throws on non-2xx with informative message", async () => {

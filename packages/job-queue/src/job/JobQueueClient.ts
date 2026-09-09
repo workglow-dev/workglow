@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DEFAULT_LIMITS, EventEmitter, getLogger } from "@workglow/util";
+import { DEFAULT_LIMITS, EventEmitter, asText, getLogger } from "@workglow/util";
 import type { IJobStore } from "../queue-storage/IJobStore";
 import type { IMessageQueue } from "../queue-storage/IMessageQueue";
 import type { JobStorageFormat, QueueChangePayload } from "../queue-storage/IQueueStorage";
@@ -451,7 +451,7 @@ export class JobQueueClient<Input, Output> {
     const job = await this.getJob(jobId);
     if (!job) {
       this.removePromise(jobId, resolve, reject);
-      throw new JobNotFoundError(`Job ${jobId} not found`);
+      throw new JobNotFoundError(`Job ${asText(jobId)} not found`);
     }
     if (job.status === JobStatus.COMPLETED) {
       this.removePromise(jobId, resolve, reject);
@@ -459,7 +459,7 @@ export class JobQueueClient<Input, Output> {
     }
     if (job.status === JobStatus.DISABLED) {
       this.removePromise(jobId, resolve, reject);
-      throw new JobDisabledError(`Job ${jobId} was disabled`);
+      throw new JobDisabledError(`Job ${asText(jobId)} was disabled`);
     }
     if (job.status === JobStatus.FAILED) {
       this.removePromise(jobId, resolve, reject);
@@ -518,12 +518,14 @@ export class JobQueueClient<Input, Output> {
   public async abortJobRun(jobRunId: string): Promise<void> {
     if (!jobRunId) throw new JobNotFoundError("Cannot abort job run with undefined jobRunId");
     const jobs = await this.getJobsByRunId(jobRunId);
+    // Filtered before the map rather than returning `undefined` from inside
+    // it: the aggregator then receives promises and only promises, which is
+    // what it is for, and "which jobs are abortable" is stated once instead of
+    // being implied by the shape of the array.
     await Promise.allSettled(
-      jobs.map((job) => {
-        if (job.status === JobStatus.PROCESSING || job.status === JobStatus.PENDING) {
-          return this.abort(job.id);
-        }
-      })
+      jobs
+        .filter((job) => job.status === JobStatus.PROCESSING || job.status === JobStatus.PENDING)
+        .map((job) => this.abort(job.id))
     );
   }
 

@@ -323,7 +323,7 @@ export class TaskGraph implements ITaskGraph {
     // The id encodes the target task, so scan only that node's in-edges instead
     // of rebuilding the entire adjacency matrix via getEdges(). Falls back to a
     // full scan if the id cannot be parsed or the target task is not present.
-    let targetTaskId: TaskIdType | undefined;
+    let targetTaskId: TaskIdType;
     try {
       targetTaskId = new DataflowArrow(id).targetTaskId;
     } catch {

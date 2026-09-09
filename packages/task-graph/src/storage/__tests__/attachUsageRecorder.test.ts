@@ -97,7 +97,7 @@ describe("attachUsageRecorder", () => {
 
     const rows = (await storage.getAll()) ?? [];
     expect(rows).toHaveLength(2);
-    expect(rows.map((r) => r.sequence).sort()).toEqual([0, 1]);
+    expect(rows.map((r) => r.sequence).sort((a, b) => (a ?? 0) - (b ?? 0))).toEqual([0, 1]);
   });
 
   it("writes no row for an estimated execution", async () => {
