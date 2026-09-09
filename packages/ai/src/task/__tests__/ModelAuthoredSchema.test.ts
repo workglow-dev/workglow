@@ -4,10 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  DEFAULT_MODEL_AUTHORED_SCHEMA_LIMITS,
-  validateModelAuthoredSchema,
-} from "@workglow/util/schema";
+import { DEFAULT_MODEL_AUTHORED_SCHEMA_LIMITS, validateModelAuthoredSchema } from "@workglow/ai";
 import { describe, expect, it } from "vitest";
 
 const objectSchema = (properties: Record<string, unknown>) => ({ type: "object", properties });

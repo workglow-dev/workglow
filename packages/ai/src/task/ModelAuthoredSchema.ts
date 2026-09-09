@@ -4,14 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DataPortSchemaObject } from "./DataPortSchema";
+import type { DataPortSchemaObject } from "@workglow/util/schema";
 
 /**
  * Bounds on a JSON Schema that a language model wrote.
  *
  * A schema a model authored is model-controlled input, and the sibling guard
- * for the other half of that surface already exists: tool-call *arguments* are
- * run through `sanitizeToolArgs` before validation. Arguments are bounded by
+ * for the other half of that surface sits beside it: tool-call *arguments* go
+ * through {@link sanitizeToolArgs} before validation. Arguments are bounded by
  * the schema; the schema itself is bounded by nothing, and it drives a
  * renderer.
  */

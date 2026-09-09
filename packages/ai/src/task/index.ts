@@ -46,6 +46,7 @@ export * from "./KbReindexTask";
 export * from "./KbSearchTask";
 export * from "./KbToDocumentsTask";
 export * from "./MessageConversion";
+export * from "./ModelAuthoredSchema";
 export * from "./ModelDownloadRemoveTask";
 export * from "./ModelDownloadTask";
 export * from "./ModelInfoTask";

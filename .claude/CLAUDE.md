@@ -210,6 +210,9 @@ Conversation helpers for a host keeping its own message list, none of which run 
 task: `normalizeHistoryForModel` / `trimHistoryForModel` (`ChatHistory.ts`), and
 `collectToolUseIds` / `uniquifyToolCallIds` / `repairDuplicateToolCallIds` (`ToolCallIds.ts`).
 
+`validateModelAuthoredSchema` (`ModelAuthoredSchema.ts`) bounds a JSON Schema a model wrote
+before a host renders a form from it, beside `sanitizeToolArgs`, which bounds the arguments.
+
 **Cache checkpoints** — `CacheCheckpointTask` (requires `["cache.checkpoint"]`) warms a
 prompt prefix and emits a `checkpoint` handle (`format: "cache-checkpoint"`) that
 `ToolCallingTask` / `TextGenerationTask` / `AiChatTask` accept to send only the tail;
@@ -437,8 +440,8 @@ that cannot reach the CDN.
 ### `@workglow/util`
 
 `EventEmitter`, `ServiceRegistry` (DI), `DirectedAcyclicGraph`, `DataPortSchema`/`JsonSchema`,
-`SchemaUtils`/`SchemaValidation`, `validateModelAuthoredSchema` (`/schema`), `uuid4`,
-`sleep`, `WorkerManager`/`WorkerServer`, vector math, tensor types.
+`SchemaUtils`/`SchemaValidation`, `uuid4`, `sleep`, `WorkerManager`/`WorkerServer`, vector
+math, tensor types.
 
 `WorkerManager` is written against the web `Worker` interface, and `Worker.node.ts` presents
 `node:worker_threads` through it. Two mismatches there are silent rather than loud, so leave
